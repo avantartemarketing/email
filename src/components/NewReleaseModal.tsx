@@ -6,9 +6,10 @@ import type { ProductKind, TemplateRef } from '../types';
 import { TEMPLATE_LABELS } from '../ui/format';
 import { useApp } from '../ui/AppContext';
 
-/** Milestones the operator can include/exclude at setup, per product kind. */
+/** Milestones the operator can include/exclude at setup, per product kind.
+ *  On-track is listed for prints too — long plans use it as a gap filler. */
 const OPTIONAL_MILESTONES: Record<ProductKind, TemplateRef[]> = {
-  print: ['pp-printing', 'pp-signing', 'pp-framing'],
+  print: ['pp-printing', 'pp-signing', 'pp-framing', 'pp-ontrack'],
   sculpture: ['pp-ontrack'],
 };
 

@@ -67,7 +67,7 @@ describe('renderTemplate', () => {
     expect(subject).toBe('An update on your Falling Light delivery date');
     expect(headline).toBe('An update on your order');
     expect(body).toContain('The framing run failed quality checks.');
-    expect(body).toContain('previously expected to ship by 12 September 2026');
+    expect(body).toContain('previously expected to ship from 12 September 2026');
     expect(body).toContain('between 30 October 2026 and 6 November 2026');
     expect(body).toContain('{{first_name}}'); // survives until per-recipient render
   });

@@ -42,9 +42,12 @@ export function ReleaseEmailsCard({
   const [editingRef, setEditingRef] = useState<TemplateRef | null>(null);
   const [togglingRef, setTogglingRef] = useState<TemplateRef | null>(null);
 
-  const sequence =
-    release.productKind === 'sculpture' ? SCULPTURE_SEQUENCE : PRINT_SEQUENCE;
-  const refs: TemplateRef[] = [...sequence, 'pp-delay'];
+  // Prints get the on-track email too: long plans insert it as a gap
+  // filler, so it must be manageable here like everything else that sends.
+  const refs: TemplateRef[] =
+    release.productKind === 'sculpture'
+      ? [...SCULPTURE_SEQUENCE, 'pp-delay']
+      : [...PRINT_SEQUENCE, 'pp-ontrack', 'pp-delay'];
 
   const toggle = async (ref: TemplateRef, enabled: boolean) => {
     setTogglingRef(ref);

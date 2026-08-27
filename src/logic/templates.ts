@@ -123,7 +123,7 @@ ${CLOSING_LINE}`,
 
 We're writing with an update on {{release_title}} by {{artist}}. {{reason_line}}
 
-Your edition was previously expected to ship by {{old_promise_date}}. We now expect to ship it between {{ship_window}}.
+Your edition was previously expected to ship from {{old_promise_date}}. We now expect to ship it between {{ship_window}}.
 
 We know delays are frustrating, and we're sorry for the wait — every edition is made to the artist's exacting standard, and we won't ship anything that falls short of it. We'll continue to update you as your edition progresses, and you can reply to this email with any questions.
 

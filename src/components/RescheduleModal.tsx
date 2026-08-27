@@ -11,7 +11,14 @@ import type { Batch, Order, Release, ScheduledSend } from '../types';
 import { addDays, daysBetween, formatDay, today } from '../logic/dates';
 import { buildDefaultDelayEmail, remainingSequence } from '../logic/reschedule';
 import { generateMilestonePlan } from '../logic/plan';
-import { releaseFillerTemplate, releaseSequenceFor } from '../logic/templates';
+import {
+  buildNextSteps,
+  buildTemplateFields,
+  effectiveTemplate,
+  patchTokens,
+  releaseFillerTemplate,
+  releaseSequenceFor,
+} from '../logic/templates';
 import { EmailPreview } from './EmailPreview';
 import { useApp } from '../ui/AppContext';
 import { plural } from '../ui/format';
@@ -108,9 +115,11 @@ export function RescheduleModal({
         userId: '', // attributed to the signed-in user by the data layer
       });
       const sendCount = 1 + result.regeneratedSends.length;
+      // A never-split release has no batch language anywhere — the toast
+      // must not introduce "Batch 1" either.
       const message = result.splitOccurred
         ? `${result.batch.name} created — ${plural(sendCount, 'send')} pending approval`
-        : `${result.batch.name} rescheduled — ${plural(sendCount, 'send')} pending approval`;
+        : `${batchLabel ? `${result.batch.name} rescheduled` : 'Delivery rescheduled'} — ${plural(sendCount, 'send')} pending approval`;
       reset();
       onDone(message);
     } catch (err) {
@@ -134,6 +143,17 @@ export function RescheduleModal({
         ]),
         fillerTemplate: releaseFillerTemplate(release),
       })
+    : [];
+
+  // The step-2 preview must show the email exactly as it will save: the
+  // saved delay send also carries a headline and the regenerated plan as
+  // its "What happens next?" card.
+  const previewFields = dateValid ? buildTemplateFields(release, newDate) : {};
+  const previewHeadline = dateValid
+    ? patchTokens(effectiveTemplate(release, 'pp-delay').headline, previewFields)
+    : undefined;
+  const previewSteps = dateValid
+    ? buildNextSteps(previewPlan.map((s) => s.templateRef), previewFields)
     : [];
 
   const groupName = batchLabel ?? 'this release';
@@ -269,7 +289,9 @@ export function RescheduleModal({
               </Text>
               <EmailPreview
                 subject={subject}
+                headline={previewHeadline}
                 body={body}
+                nextSteps={previewSteps}
                 sampleRecipientName={selectedOrders[0]?.collectorName}
               />
             </BlockStack>

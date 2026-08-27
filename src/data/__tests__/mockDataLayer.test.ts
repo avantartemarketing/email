@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import type { DataLayer } from '../DataLayer';
 import type { MockDataLayer } from '../mock/MockDataLayer';
 import { createSeededMockDataLayer } from '../mock/seed';
-import { NIGHT_GARDEN_CSV } from '../mock/fixtures';
+import { FALLING_LIGHT_ALLOCATION_CSV, NIGHT_GARDEN_CSV } from '../mock/fixtures';
 import { addDays, today } from '../../logic/dates';
 
 /**
@@ -373,6 +373,24 @@ describe('real email format, allocation and lineage behaviours', () => {
     expect(refs).not.toContain('pp-ontrack');
     expect(refs[refs.length - 1]).toBe('pp-dispatch');
     await layer.setCurrentUser('user-tom');
+  });
+
+  it('re-importing allocations after a sibling line item is removed keeps variant matching', async () => {
+    const { release } = await releaseByTitle('Falling Light');
+    const before = await layer.getRelease(release.id);
+    const unframed = before.orders.find(
+      (o) => o.shopifyOrderName === '#AA10418' && o.variant === 'Unframed',
+    )!;
+    await layer.removeOrder(unframed.id, 'Partial refund — unframed print cancelled');
+    await layer.importAllocations(release.id, FALLING_LIGHT_ALLOCATION_CSV);
+    const after = await layer.getRelease(release.id);
+    const framed = after.orders.find(
+      (o) => o.shopifyOrderName === '#AA10418' && o.variant === 'Framed',
+    )!;
+    // The surviving framed line item still takes only its own sheet row —
+    // not the removed sibling's Print Only row as well.
+    expect(framed.allocations).toHaveLength(1);
+    expect(framed.allocations![0].fulfilment).toBe('Framed');
   });
 
   it('a date-only edit does not opt a send out of release copy propagation', async () => {

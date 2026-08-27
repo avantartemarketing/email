@@ -407,8 +407,11 @@ export class MockDataLayer implements DataLayer {
         // matches this line item's variant (Framed ↔ Framed, everything
         // else ↔ Print Only); fall back to the whole order's rows.
         const wantFramed = /framed/i.test(order.variant) && !/unframed/i.test(order.variant);
+        // Multi-line-item detection looks at ALL of the order's line items,
+        // removed ones included: the sheet reflects the order as placed, so
+        // a surviving line item must still take only its own rows.
         const variantRows =
-          activeOrders.length > 1
+          orders.length > 1
             ? rows.filter((r) =>
                 wantFramed ? /framed/i.test(r.allocation.fulfilment) : !/framed/i.test(r.allocation.fulfilment),
               )
