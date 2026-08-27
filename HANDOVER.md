@@ -7,6 +7,22 @@ it once absorbed.
 
 ## Where things stand
 
+**Round-2 feedback (same day, after the round-2 artifact) is also applied:**
+- Print releases run **framed and unframed as separate batches** ("Framed" /
+  "Unframed", created at import by variant) with their own promise dates;
+  unframed plans never include the framing email; splits inherit the flow
+  and name inside it ("Framed 2"). Sculptures keep a single default batch.
+- **Emails are templated; the setup work is images.** The email table moved
+  off the release page into the "Release emails" modal: an image pick per
+  slot (`Release.templateImages`, slots incl. pp-ontrack-1..3 cycled across
+  fillers, `ScheduledSend.imageSlot/imageName`,
+  `DataLayer.setReleaseEmailImage` — image picks never reset approvals);
+  copy editing is the exception path.
+- **No two-line table cells anywhere.** Every field is its own column;
+  `src/ui/useColumns.tsx` is the Shopify-style show/hide Columns control
+  (localStorage-persisted per table) used by the orders table, approval
+  queue and releases index.
+
 - **Round-1 design feedback is applied and pushed** to
   `claude/post-purchase-comms-tool-tcm104`. Tom supplied two real
   artefacts — an actual HubSpot post-purchase email (Yoon Hyup "Printing in
@@ -49,12 +65,10 @@ it once absorbed.
 
 ## Open decisions (the amber blocks on the review page)
 
-The big one: **framed vs unframed email variants.** Tom's real unframed
-printing email has no Framing step; the tool sends one email per batch.
-Split releases by fulfilment, render next-steps per collector at send time,
-or accept one shared version? This decides schema before phase 2 — don't
-start phase 2 without it. Also open: dispatch-window semantics (7-day width,
-promise date = window start), edition numbers in emails or not, drafts vs
+Framed/unframed is SETTLED (separate batches, built). Still open: where
+images come from in phase 2 (HubSpot image library vs pasted URLs; are three
+on-track slots enough), dispatch-window semantics (7-day width, promise date
+= window start), edition numbers in emails or not, drafts vs
 straight-to-queue, whether flags should block approval.
 
 ## Then, in order

@@ -4,19 +4,18 @@ import {
   BlockStack,
   Button,
   ButtonGroup,
-  Card,
   IndexTable,
   Modal,
+  Select,
   Text,
   TextField,
 } from '@shopify/polaris';
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
-import type { Release, TemplateRef } from '../types';
+import type { ImageSlot, Release, TemplateRef } from '../types';
 import {
+  IMAGE_OPTIONS,
   MASTER_TEMPLATES,
-  SCULPTURE_SEQUENCE,
-  PRINT_SEQUENCE,
   effectiveTemplate,
 } from '../logic/templates';
 import { TEMPLATE_LABELS } from '../ui/format';
@@ -24,33 +23,77 @@ import { useApp } from '../ui/AppContext';
 import { EmailPreview } from './EmailPreview';
 
 /**
- * The release's email set as a table: which emails go out and with what
- * copy. Defaults come from the HubSpot masters; each can be customised or
- * (except dispatch and the delay notice) switched off for this release.
- * Edits here apply to every batch — upcoming sends are re-rendered, approved
- * ones return to the approval queue. Sends someone edited by hand keep
- * their words.
+ * The release's email set, opened from the release page's "Release emails"
+ * action so it stays out of the day-to-day flow. Emails are templated by
+ * default: the routine per-release work is picking the hero image for each
+ * slot (the on-track email gets three, cycled across a plan's fillers).
+ * Custom copy is the exception — an artist photo to talk about, a delay —
+ * and lives behind "Edit copy". Copy changes apply to every batch; image
+ * picks update upcoming sends without resetting approvals.
  */
-export function ReleaseEmailsCard({
+
+interface EmailRow {
+  slot: ImageSlot;
+  ref: TemplateRef;
+  label: string;
+  /** Copy actions render only on a template's first row. */
+  copyRow: boolean;
+}
+
+const MASTER_IMAGE = '__master__';
+
+function rowsFor(release: Release): EmailRow[] {
+  if (release.productKind === 'sculpture') {
+    return [
+      { slot: 'pp-ontrack-1', ref: 'pp-ontrack', label: 'On track 1', copyRow: true },
+      { slot: 'pp-ontrack-2', ref: 'pp-ontrack', label: 'On track 2', copyRow: false },
+      { slot: 'pp-ontrack-3', ref: 'pp-ontrack', label: 'On track 3', copyRow: false },
+      { slot: 'pp-dispatch', ref: 'pp-dispatch', label: 'Preparing for dispatch', copyRow: true },
+      { slot: 'pp-delay', ref: 'pp-delay', label: 'Delay notice', copyRow: true },
+    ];
+  }
+  return [
+    { slot: 'pp-printing', ref: 'pp-printing', label: 'Printing in progress', copyRow: true },
+    { slot: 'pp-signing', ref: 'pp-signing', label: 'Signing', copyRow: true },
+    { slot: 'pp-framing', ref: 'pp-framing', label: 'Framing', copyRow: true },
+    { slot: 'pp-ontrack-1', ref: 'pp-ontrack', label: 'On track 1', copyRow: true },
+    { slot: 'pp-ontrack-2', ref: 'pp-ontrack', label: 'On track 2', copyRow: false },
+    { slot: 'pp-ontrack-3', ref: 'pp-ontrack', label: 'On track 3', copyRow: false },
+    { slot: 'pp-dispatch', ref: 'pp-dispatch', label: 'Preparing for dispatch', copyRow: true },
+    { slot: 'pp-delay', ref: 'pp-delay', label: 'Delay notice', copyRow: true },
+  ];
+}
+
+export function ReleaseEmailsModal({
+  open,
   release,
+  onClose,
   onChanged,
 }: {
+  open: boolean;
   release: Release;
+  onClose: () => void;
   onChanged: () => void;
 }): ReactElement {
   const { data, showToast } = useApp();
   const [editingRef, setEditingRef] = useState<TemplateRef | null>(null);
-  const [togglingRef, setTogglingRef] = useState<TemplateRef | null>(null);
+  const [busySlot, setBusySlot] = useState<string | null>(null);
 
-  // Prints get the on-track email too: long plans insert it as a gap
-  // filler, so it must be manageable here like everything else that sends.
-  const refs: TemplateRef[] =
-    release.productKind === 'sculpture'
-      ? [...SCULPTURE_SEQUENCE, 'pp-delay']
-      : [...PRINT_SEQUENCE, 'pp-ontrack', 'pp-delay'];
+  const rows = rowsFor(release);
+
+  const pickImage = async (slot: ImageSlot, value: string) => {
+    setBusySlot(slot);
+    try {
+      await data.setReleaseEmailImage(release.id, slot, value === MASTER_IMAGE ? null : value);
+      onChanged();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : String(err), true);
+    } finally {
+      setBusySlot(null);
+    }
+  };
 
   const toggle = async (ref: TemplateRef, enabled: boolean) => {
-    setTogglingRef(ref);
     try {
       const result = await data.updateReleaseEmail(release.id, ref, { enabled });
       showToast(
@@ -61,46 +104,72 @@ export function ReleaseEmailsCard({
       onChanged();
     } catch (err) {
       showToast(err instanceof Error ? err.message : String(err), true);
-    } finally {
-      setTogglingRef(null);
     }
   };
 
+  const imageChoices = [
+    { label: 'Master default', value: MASTER_IMAGE },
+    ...IMAGE_OPTIONS.map((name) => ({ label: name, value: name })),
+  ];
+
   return (
-    <Card padding="0">
-      <div style={{ padding: 'var(--p-space-400) var(--p-space-400) var(--p-space-200)' }}>
-        <Text as="h2" variant="headingSm">
-          Emails for this release
-        </Text>
+    <Modal
+      open={open}
+      onClose={onClose}
+      size="large"
+      title={`Release emails — ${release.title}`}
+      primaryAction={{ content: 'Done', onAction: onClose }}
+    >
+      <Modal.Section>
         <Text as="p" variant="bodySm" tone="subdued">
-          Defaults from the HubSpot masters. Changes here apply to every batch.
+          Emails are templated — the routine setup here is picking the hero image for each
+          send. Custom copy is the exception (an artist photo to talk about, a delay) and
+          applies to every batch. Image picks update upcoming sends without resetting
+          approvals.
         </Text>
-      </div>
+      </Modal.Section>
       <IndexTable
         resourceName={{ singular: 'email', plural: 'emails' }}
-        itemCount={refs.length}
+        itemCount={rows.length}
         selectable={false}
         headings={[
           { title: 'Email' },
+          { title: 'Image' },
           { title: 'Copy' },
           { title: 'Subject' },
           { title: 'Actions' },
         ]}
       >
-        {refs.map((ref, index) => {
-          const disabled = release.disabledTemplates.includes(ref);
-          const customised = Boolean(release.templateOverrides[ref]);
-          const template = effectiveTemplate(release, ref);
-          const canToggle = ref !== 'pp-dispatch' && ref !== 'pp-delay';
+        {rows.map((row, index) => {
+          const disabled = release.disabledTemplates.includes(row.ref);
+          const customised = Boolean(release.templateOverrides[row.ref]);
+          const template = effectiveTemplate(release, row.ref);
+          const canToggle = row.ref !== 'pp-dispatch' && row.ref !== 'pp-delay';
           return (
-            <IndexTable.Row id={ref} key={ref} position={index}>
+            <IndexTable.Row id={row.slot} key={row.slot} position={index}>
               <IndexTable.Cell>
                 <Text as="span" fontWeight="semibold" tone={disabled ? 'subdued' : undefined}>
-                  {TEMPLATE_LABELS[ref]}
+                  {row.label}
                 </Text>
               </IndexTable.Cell>
               <IndexTable.Cell>
-                {disabled ? (
+                <div onClick={(e) => e.stopPropagation()} style={{ minWidth: 170 }}>
+                  <Select
+                    label={`Image for ${row.label}`}
+                    labelHidden
+                    options={imageChoices}
+                    value={release.templateImages[row.slot] ?? MASTER_IMAGE}
+                    disabled={disabled || busySlot === row.slot}
+                    onChange={(value) => void pickImage(row.slot, value)}
+                  />
+                </div>
+              </IndexTable.Cell>
+              <IndexTable.Cell>
+                {!row.copyRow ? (
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    Shares On track copy
+                  </Text>
+                ) : disabled ? (
                   <Badge>Off</Badge>
                 ) : customised ? (
                   <Badge tone="info">Customised</Badge>
@@ -110,28 +179,29 @@ export function ReleaseEmailsCard({
               </IndexTable.Cell>
               <IndexTable.Cell>
                 <Text as="span" variant="bodySm" tone="subdued" truncate>
-                  {disabled ? '—' : template.subject}
+                  {disabled || !row.copyRow ? '—' : template.subject}
                 </Text>
               </IndexTable.Cell>
               <IndexTable.Cell>
                 <div onClick={(e) => e.stopPropagation()}>
-                  <ButtonGroup>
-                    {!disabled ? (
-                      <Button size="slim" onClick={() => setEditingRef(ref)}>
-                        Edit copy
-                      </Button>
-                    ) : null}
-                    {canToggle ? (
-                      <Button
-                        size="slim"
-                        variant="tertiary"
-                        loading={togglingRef === ref}
-                        onClick={() => void toggle(ref, disabled)}
-                      >
-                        {disabled ? 'Switch on' : 'Switch off'}
-                      </Button>
-                    ) : null}
-                  </ButtonGroup>
+                  {row.copyRow ? (
+                    <ButtonGroup>
+                      {!disabled ? (
+                        <Button size="slim" onClick={() => setEditingRef(row.ref)}>
+                          Edit copy
+                        </Button>
+                      ) : null}
+                      {canToggle ? (
+                        <Button
+                          size="slim"
+                          variant="tertiary"
+                          onClick={() => void toggle(row.ref, disabled)}
+                        >
+                          {disabled ? 'Switch on' : 'Switch off'}
+                        </Button>
+                      ) : null}
+                    </ButtonGroup>
+                  ) : null}
                 </div>
               </IndexTable.Cell>
             </IndexTable.Row>
@@ -144,7 +214,7 @@ export function ReleaseEmailsCard({
         onClose={() => setEditingRef(null)}
         onSaved={onChanged}
       />
-    </Card>
+    </Modal>
   );
 }
 
@@ -176,6 +246,9 @@ function ReleaseEmailEditModal({
 
   const customised = templateRef ? Boolean(release.templateOverrides[templateRef]) : false;
   const isDelay = templateRef === 'pp-delay';
+  const previewImage = templateRef
+    ? release.templateImages[templateRef === 'pp-ontrack' ? 'pp-ontrack-1' : templateRef]
+    : undefined;
 
   const save = async (resetToDefault = false) => {
     if (!templateRef) return;
@@ -254,7 +327,12 @@ function ReleaseEmailEditModal({
             autoComplete="off"
             helpText="Tokens: {{artist}}, {{release_title}}, {{ship_window}}, {{promise_date}}, {{first_name}} — left intact here, patched per batch."
           />
-          <EmailPreview subject={subject} headline={headline} body={body} />
+          <EmailPreview
+            subject={subject}
+            headline={headline}
+            body={body}
+            imageName={previewImage}
+          />
         </BlockStack>
       </Modal.Section>
     </Modal>

@@ -4,11 +4,13 @@ import {
   buildNextSteps,
   buildTemplateFields,
   effectiveTemplate,
+  imageSlotsForPlan,
   patchTokens,
   releaseSequenceFor,
   renderForRecipient,
   renderReleaseTemplate,
   renderTemplate,
+  sequenceForBatch,
   shipWindowText,
 } from '../templates';
 
@@ -23,6 +25,7 @@ function makeRelease(overrides: Partial<Release> = {}): Release {
     productKind: 'print',
     disabledTemplates: [],
     templateOverrides: {},
+    templateImages: {},
     createdAt: '2026-05-01T00:00:00.000Z',
     ...overrides,
   };
@@ -125,6 +128,46 @@ describe('releaseSequenceFor', () => {
   it('never drops dispatch, even if listed as disabled', () => {
     const release = makeRelease({ disabledTemplates: ['pp-dispatch'] });
     expect(releaseSequenceFor(release)).toContain('pp-dispatch');
+  });
+});
+
+describe('sequenceForBatch', () => {
+  it('unframed batches skip the framing email; framed keep it', () => {
+    const release = makeRelease();
+    expect(sequenceForBatch(release, { fulfilment: 'unframed' })).toEqual([
+      'pp-printing',
+      'pp-signing',
+      'pp-dispatch',
+    ]);
+    expect(sequenceForBatch(release, { fulfilment: 'framed' })).toEqual([
+      'pp-printing',
+      'pp-signing',
+      'pp-framing',
+      'pp-dispatch',
+    ]);
+    expect(sequenceForBatch(release, {})).toEqual(releaseSequenceFor(release));
+  });
+});
+
+describe('imageSlotsForPlan', () => {
+  it('gives milestones their own slot and cycles on-track fillers through three', () => {
+    expect(
+      imageSlotsForPlan([
+        'pp-printing',
+        'pp-ontrack',
+        'pp-ontrack',
+        'pp-ontrack',
+        'pp-ontrack',
+        'pp-dispatch',
+      ]),
+    ).toEqual([
+      'pp-printing',
+      'pp-ontrack-1',
+      'pp-ontrack-2',
+      'pp-ontrack-3',
+      'pp-ontrack-1',
+      'pp-dispatch',
+    ]);
   });
 });
 

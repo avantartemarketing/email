@@ -1,4 +1,4 @@
-import type { ScheduledSend, SendRecipient } from '../../types';
+import type { Batch, BatchFulfilment, ScheduledSend, SendRecipient } from '../../types';
 import { addDays, parseDay, today } from '../../logic/dates';
 import { buildDefaultDelayEmail } from '../../logic/reschedule';
 import { MockDataLayer } from './MockDataLayer';
@@ -21,12 +21,15 @@ import {
  * as sent (what the cron worker will do) and completing a release.
  *
  * Everything is dated relative to "today" so the screens always look alive:
- *   - Falling Light: the delayed release. Batch 1 nearly done, Batch 2 split
- *     and delayed once, Batch 3 split two days ago with its delay notice
- *     still unapproved (overdue — the attention state).
- *   - Vessel VIII: sculpture, long window, on-track cadence, one held send.
- *   - Blue Interval: completed, full sent history.
- *   - Night Garden: imported yesterday, no promise date yet.
+ *   - Falling Light: the delayed print release. Framed and unframed flows
+ *     run as separate batches on their own dates; the framed flow has been
+ *     split and delayed twice ("Framed 2" delayed once, "Framed 3" split
+ *     two days ago with its delay notice still unapproved — the overdue
+ *     state). The warehouse allocation sheet is imported.
+ *   - Vessel VIII: sculpture, long window, on-track cadence with custom
+ *     "casting" copy, one held send.
+ *   - Blue Interval: completed, framed and unframed flows both fully sent.
+ *   - Night Garden: imported yesterday, no promise dates yet.
  */
 
 let sentCounter = 0;
@@ -111,8 +114,22 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
     [...layer._store.sends.values()]
       .filter((s) => s.batchId === batchId)
       .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
+  const batchOf = (releaseId: string, fulfilment: BatchFulfilment): Batch => {
+    const batch = [...layer._store.batches.values()].find(
+      (b) => b.releaseId === releaseId && b.fulfilment === fulfilment,
+    );
+    if (!batch) throw new Error(`Seed error: no ${fulfilment} batch for ${releaseId}`);
+    return batch;
+  };
   const sentAt = (send: ScheduledSend) =>
     new Date(parseDay(send.scheduledDate).getTime() - 2 * 3600_000).toISOString();
+  const approveAndSendPlan = async (batchId: string, sendUpTo: (s: ScheduledSend) => boolean) => {
+    await layer.submitBatchPlanForApproval(batchId);
+    for (const send of findSends(batchId)) {
+      await layer.approveSend(send.id);
+      if (sendUpTo(send)) markSent(layer, send.id, sentAt(send));
+    }
+  };
 
   // --- Blue Interval — completed release, clean history -------------------
   clock(-120);
@@ -125,15 +142,12 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
     shopifyProductIds: ['9051230001'],
   });
   await layer.importOrders(blueInterval.id, BLUE_INTERVAL_CSV);
-  const biBatch = [...layer._store.batches.values()].find((b) => b.releaseId === blueInterval.id)!;
   clock(-118);
-  await layer.setPromiseDate(biBatch.id, addDays(T, -30));
-  await layer.submitBatchPlanForApproval(biBatch.id);
+  await layer.setPromiseDate(batchOf(blueInterval.id, 'unframed').id, addDays(T, -40));
+  await layer.setPromiseDate(batchOf(blueInterval.id, 'framed').id, addDays(T, -30));
   clock(-117);
-  for (const send of findSends(biBatch.id)) {
-    await layer.approveSend(send.id);
-    markSent(layer, send.id, sentAt(send));
-  }
+  await approveAndSendPlan(batchOf(blueInterval.id, 'unframed').id, () => true);
+  await approveAndSendPlan(batchOf(blueInterval.id, 'framed').id, () => true);
   layer._store.releases.get(blueInterval.id)!.status = 'completed';
 
   // --- Falling Light — the delayed release -------------------------------
@@ -147,36 +161,41 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
     shopifyProductIds: ['9051230412'],
   });
   await layer.importOrders(fallingLight.id, FALLING_LIGHT_CSV);
-  const flBatch1 = [...layer._store.batches.values()].find(
-    (b) => b.releaseId === fallingLight.id,
-  )!;
+  // The CRM manager picks hero images for the templated emails at setup.
+  await layer.setReleaseEmailImage(fallingLight.id, 'pp-printing', 'Studio — printing');
+  await layer.setReleaseEmailImage(fallingLight.id, 'pp-signing', 'Artist at work');
+  await layer.setReleaseEmailImage(fallingLight.id, 'pp-ontrack-1', 'Artwork detail');
+  await layer.setReleaseEmailImage(fallingLight.id, 'pp-delay', 'Artist portrait');
+  const flFramed = batchOf(fallingLight.id, 'framed');
+  const flUnframed = batchOf(fallingLight.id, 'unframed');
 
-  // Promise date set, plan approved. Printing/signing/framing went out on
-  // schedule; dispatch is approved and queued for T+15.
+  // Separate dates per flow: unframed ships first, framing adds weeks.
   clock(-58);
-  await layer.setPromiseDate(flBatch1.id, addDays(T, 20));
-  await layer.submitBatchPlanForApproval(flBatch1.id);
+  await layer.setPromiseDate(flUnframed.id, addDays(T, 10));
+  await layer.setPromiseDate(flFramed.id, addDays(T, 20));
   clock(-57);
-  for (const send of findSends(flBatch1.id)) await layer.approveSend(send.id);
-  const [flPrinting, flSigning, flFraming] = findSends(flBatch1.id);
-  markSent(layer, flPrinting.id, sentAt(flPrinting));
-  markSent(layer, flSigning.id, sentAt(flSigning));
+  // Unframed: printing and signing out on schedule; dispatch queued.
+  await approveAndSendPlan(flUnframed.id, (s) => s.templateRef !== 'pp-dispatch');
+  // Framed: printing and signing out; framing and dispatch still ahead.
+  await approveAndSendPlan(
+    flFramed.id,
+    (s) => s.templateRef === 'pp-printing' || s.templateRef === 'pp-signing',
+  );
+  const flFraming = findSends(flFramed.id).find((s) => s.templateRef === 'pp-framing');
 
-  // T-12: the framers push the second framing run back — 9 orders split off
-  // into Batch 2, delayed to T+45. Delay notice approved and sent same day.
+  // T-12: the framers push the second framing run back — 6 framed orders
+  // split off into "Framed 2", delayed to T+45. Delay notice approved and
+  // sent same day; its regenerated framing email also went out.
   clock(-12);
   await as('user-pm');
   const flSplit1 = await layer.reschedule({
     releaseId: fallingLight.id,
-    batchId: flBatch1.id,
+    batchId: flFramed.id,
     orderIds: findOrders(fallingLight.id, [
       '#AA10428',
-      '#AA10430',
       '#AA10431',
       '#AA10433',
-      '#AA10434',
       '#AA10436',
-      '#AA10437',
       '#AA10439',
       '#AA10440',
     ]),
@@ -192,20 +211,19 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
     userId: 'user-pm',
   });
   await as('user-crm');
-  const flBatch2Sends = findSends(flSplit1.batch.id);
-  const flDelay1 = flBatch2Sends.find((s) => s.type === 'delay')!;
+  const flFramed2Sends = findSends(flSplit1.batch.id);
+  const flDelay1 = flFramed2Sends.find((s) => s.type === 'delay')!;
   await layer.approveSend(flDelay1.id);
   markSent(layer, flDelay1.id, sentAt(flDelay1));
-  // Batch 2's regenerated framing milestone also went out.
-  const flB2Framing = flBatch2Sends.find((s) => s.templateRef === 'pp-framing');
-  if (flB2Framing) {
-    await layer.approveSend(flB2Framing.id);
-    markSent(layer, flB2Framing.id, sentAt(flB2Framing));
+  const flF2Framing = flFramed2Sends.find((s) => s.templateRef === 'pp-framing');
+  if (flF2Framing) {
+    await layer.approveSend(flF2Framing.id);
+    markSent(layer, flF2Framing.id, sentAt(flF2Framing));
   }
 
-  // Batch 1's framing send fired on schedule at T-8.
+  // The framed batch's own framing email fired on schedule at T-8.
   clock(-8);
-  markSent(layer, flFraming.id, sentAt(flFraming));
+  if (flFraming) markSent(layer, flFraming.id, sentAt(flFraming));
 
   // T-5: a refund comes through Shopify; the order is removed by hand.
   clock(-5);
@@ -220,15 +238,15 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
   await as('user-warehouse');
   await layer.importAllocations(fallingLight.id, FALLING_LIGHT_ALLOCATION_CSV);
 
-  // T-2: frame moulding out of stock for 4 orders — split to Batch 3,
-  // delayed to T+75. The delay notice is still waiting for approval, two
-  // days past its scheduled date: this is the overdue/attention state.
+  // T-2: frame moulding out of stock for 4 framed orders — split to
+  // "Framed 3", delayed to T+75. The delay notice is still waiting for
+  // approval, two days past its scheduled date: the overdue state.
   clock(-2);
   await as('user-warehouse');
   await layer.reschedule({
     releaseId: fallingLight.id,
-    batchId: flBatch1.id,
-    orderIds: findOrders(fallingLight.id, ['#AA10443', '#AA10445', '#AA10446', '#AA10448']),
+    batchId: flFramed.id,
+    orderIds: findOrders(fallingLight.id, ['#AA10419', '#AA10443', '#AA10446', '#AA10449']),
     newPromiseDate: addDays(T, 75),
     reason: 'Frame moulding out of stock at the supplier',
     delaySubject: 'An update on your Falling Light delivery date',
@@ -261,6 +279,9 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
 
 You can expect more updates along the way, but please don't hesitate to contact us if you have any questions.`,
   });
+  await layer.setReleaseEmailImage(vessel.id, 'pp-ontrack-1', 'Artist at work');
+  await layer.setReleaseEmailImage(vessel.id, 'pp-ontrack-2', 'Artwork detail');
+  await layer.setReleaseEmailImage(vessel.id, 'pp-ontrack-3', 'Behind the scenes');
   clock(-19);
   await layer.setPromiseDate(vBatch.id, addDays(T, 150));
   await layer.submitBatchPlanForApproval(vBatch.id);

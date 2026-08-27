@@ -1,4 +1,4 @@
-import type { ImportRowIssue } from '../types';
+import type { BatchFulfilment, ImportRowIssue } from '../types';
 import { parseCsv } from './csv';
 
 /**
@@ -194,4 +194,15 @@ export function filterItemsForRelease(
 /** Dedupe key shared by the importer and the data layer. */
 export function orderDedupeKey(shopifyOrderName: string, lineItemTitle: string): string {
   return `${shopifyOrderName.trim().toLowerCase()}::${lineItemTitle.trim().toLowerCase()}`;
+}
+
+/**
+ * Which print flow a line item belongs to. Framed and unframed prints ship
+ * on separate timelines (framing adds weeks and its own email), so print
+ * imports route into a Framed or Unframed batch by variant. Anything that
+ * doesn't say "framed" — including "Print Only" and blank variants — is
+ * treated as unframed: no framing promise is safer than a wrong one.
+ */
+export function classifyFulfilment(variant: string): BatchFulfilment {
+  return /framed/i.test(variant) && !/unframed/i.test(variant) ? 'framed' : 'unframed';
 }

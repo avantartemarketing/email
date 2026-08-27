@@ -18,12 +18,15 @@ export function EmailPreview({
   headline,
   body,
   nextSteps,
+  imageName,
   sampleRecipientName,
 }: {
   subject: string;
   headline?: string;
   body: string;
   nextSteps?: SendStep[];
+  /** The release's picked hero image for this send's slot, if any. */
+  imageName?: string;
   sampleRecipientName?: string;
 }): ReactElement {
   const sample = sampleRecipientName ?? 'Jane Smith';
@@ -39,7 +42,9 @@ export function EmailPreview({
       </div>
       <div className="pp-email-preview__page">
         <div className="pp-email-preview__logo">AVANT ARTE</div>
-        <div className="pp-email-preview__hero">Artist hero image — from the HubSpot master</div>
+        <div className="pp-email-preview__hero">
+          {imageName ? `Hero image: ${imageName}` : 'Artist hero image — from the HubSpot master'}
+        </div>
         {headline ? <h1 className="pp-email-preview__headline">{headline}</h1> : null}
         <div className="pp-email-preview__body">{renderForRecipient(body, sample)}</div>
         {nextSteps && nextSteps.length > 0 ? (

@@ -129,6 +129,7 @@ export function EditSendModal({
             headline={headline || undefined}
             body={body}
             nextSteps={steps}
+            imageName={send?.imageName}
           />
         </BlockStack>
       </Modal.Section>

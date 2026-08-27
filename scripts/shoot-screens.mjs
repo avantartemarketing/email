@@ -43,22 +43,21 @@ await goHome();
 await page.getByText('Falling Light').first().waitFor();
 await shot('01-releases-index');
 
-// --- 2. release detail: Falling Light batch 1 -----------------------------
+// --- 2. release detail: Falling Light framed flow -------------------------
 await page.getByText('Falling Light').first().click();
-await page.getByRole('tab', { name: /Batch 1/ }).waitFor();
-
-// emails table is always visible now
-await page.getByText('Delay notice').first().waitFor();
+await page.getByRole('tab', { name: /^Framed \(/ }).waitFor();
+await page.waitForTimeout(300);
 await shot('03-release-emails-card');
 
-// edit-copy modal for the printing email
-await page.getByRole('button', { name: 'Edit copy' }).first().click();
+// the release-emails modal: image slots + copy status per email
+await page.getByRole('button', { name: 'Release emails' }).click();
 await page.getByRole('dialog').waitFor();
+await page.getByText('On track 1', { exact: true }).waitFor();
 await shot('04-release-email-edit', { fullPage: false });
-await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click();
+await page.getByRole('dialog').getByRole('button', { name: 'Done', exact: true }).click();
 
-// batch 3 — the overdue split batch, with inherited story in the plan
-await page.getByRole('tab', { name: /Batch 3/ }).click();
+// Framed 3 — the overdue split batch, with inherited story in the plan
+await page.getByRole('tab', { name: /^Framed 3/ }).click();
 await page.getByText('received before the split').first().waitFor();
 await shot('05-release-fl-batch3');
 
@@ -72,7 +71,7 @@ await shot('06-allocation-import', { fullPage: false });
 await page.getByRole('button', { name: 'Done' }).click();
 
 // --- 4. reschedule flow ---------------------------------------------------
-await page.getByRole('tab', { name: /Batch 1/ }).click();
+await page.getByRole('tab', { name: /^Framed \(/ }).click();
 await page.waitForTimeout(400);
 // select three orders, open the reschedule modal
 const checkboxes = page.locator('.Polaris-IndexTable__TableRow input[type="checkbox"]');
@@ -92,10 +91,10 @@ await page.getByText('What happens when you save').waitFor();
 await shot('08-reschedule-step2', { fullPage: false });
 await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click();
 
-// --- 5. batchless release (Night Garden) ----------------------------------
+// --- 5. batchless release (Vessel VIII, sculpture) ------------------------
 await goHome();
-await page.getByText('Night Garden').first().click();
-await page.getByRole('button', { name: 'Set promise date' }).waitFor();
+await page.getByText('Vessel VIII').first().click();
+await page.getByRole('button', { name: 'Change delivery date' }).first().waitFor();
 await shot('09-release-nightgarden-batchless');
 
 // --- 6. approval queue ----------------------------------------------------
@@ -114,14 +113,14 @@ await page.keyboard.press('Escape');
 // --- 7. send detail -------------------------------------------------------
 await goHome();
 await page.getByText('Falling Light').first().click();
-await page.getByRole('tab', { name: /Batch 1/ }).waitFor();
+await page.getByRole('tab', { name: /^Framed \(/ }).waitFor();
 await page.getByRole('button', { name: 'Signing', exact: true }).click();
 await page.getByText('Email as sent').waitFor();
 await shot('12-send-detail-sent');
 
 // an upcoming send with the structured preview + "they last received"
 await page.goBack({ waitUntil: 'networkidle' });
-await page.getByRole('tab', { name: /Batch 3/ }).click();
+await page.getByRole('tab', { name: /^Framed 3/ }).click();
 await page.getByRole('button', { name: 'Delay notice', exact: true }).click();
 await page.getByText('Email as it will send').waitFor();
 await shot('13-send-detail-upcoming');

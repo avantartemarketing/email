@@ -22,6 +22,7 @@ const release: Release = {
   productKind: 'print',
   disabledTemplates: [],
   templateOverrides: {},
+  templateImages: {},
   createdAt: '2026-05-01T00:00:00.000Z',
 };
 
@@ -362,6 +363,37 @@ describe('nextBatchName', () => {
     expect(nextBatchName(['Batch 1'])).toBe('Batch 2');
     expect(nextBatchName(['Batch 1', 'Batch 3'])).toBe('Batch 4');
     expect(nextBatchName(['Launch batch'])).toBe('Batch 2');
+  });
+
+  it('counts within a fulfilment flow when given a prefix', () => {
+    expect(nextBatchName(['Framed', 'Unframed'], 'Framed')).toBe('Framed 2');
+    expect(nextBatchName(['Framed', 'Framed 2', 'Unframed'], 'Framed')).toBe('Framed 3');
+    expect(nextBatchName(['Framed', 'Framed 2'], 'Unframed')).toBe('Unframed 2');
+  });
+});
+
+describe('planReschedule — framed/unframed flows', () => {
+  it('a split from a framed batch stays framed and is named within the flow', () => {
+    const framedBatch = makeBatch({ name: 'Framed', fulfilment: 'framed' });
+    const ctx = makeCtx({
+      batch: framedBatch,
+      allBatchNames: ['Framed', 'Unframed'],
+    });
+    const result = planReschedule(makeInput(['o1', 'o2']), ctx);
+    expect(result.newBatch!.name).toBe('Framed 2');
+    expect(result.newBatch!.fulfilment).toBe('framed');
+  });
+
+  it('an unframed batch is never promised a framing email', () => {
+    const unframedBatch = makeBatch({ name: 'Unframed', fulfilment: 'unframed' });
+    const ctx = makeCtx({ batch: unframedBatch, allBatchNames: ['Framed', 'Unframed'] });
+    const result = planReschedule(makeInput(['o1', 'o2', 'o3']), ctx);
+    const refs = result.newSends.slice(1).map((s) => s.templateRef);
+    expect(refs).not.toContain('pp-framing');
+    expect(refs[refs.length - 1]).toBe('pp-dispatch');
+    for (const send of result.newSends) {
+      expect(send.nextSteps?.some((s) => s.templateRef === 'pp-framing') ?? false).toBe(false);
+    }
   });
 });
 

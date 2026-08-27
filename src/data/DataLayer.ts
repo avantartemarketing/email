@@ -1,6 +1,7 @@
 import type {
   AllocationImportSummary,
   Batch,
+  ImageSlot,
   ImportSummary,
   LastSentInfo,
   Order,
@@ -121,6 +122,16 @@ export interface DataLayer {
     templateRef: TemplateRef,
     patch: ReleaseEmailPatch,
   ): Promise<ReleaseEmailUpdateResult>;
+  /**
+   * Pick the hero image for one of the release's email slots (null clears
+   * it back to the master's image). Upcoming sends drawing on that slot are
+   * updated in place — an image pick never resets approvals.
+   */
+  setReleaseEmailImage(
+    releaseId: string,
+    slot: ImageSlot,
+    imageName: string | null,
+  ): Promise<Release>;
 
   // --- batches and plans -------------------------------------------------
   /**

@@ -1,6 +1,5 @@
 import {
   Badge,
-  BlockStack,
   Card,
   IndexTable,
   InlineStack,
@@ -15,6 +14,7 @@ import { formatDayShort } from '../logic/dates';
 import { TEMPLATE_LABELS, releaseStatusBadge } from '../ui/format';
 import { useApp } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
+import { useColumns } from '../ui/useColumns';
 import { NewReleaseModal } from '../components/NewReleaseModal';
 
 export function ReleasesIndex(): ReactElement {
@@ -22,6 +22,17 @@ export function ReleasesIndex(): ReactElement {
   const navigate = useNavigate();
   const [newReleaseOpen, setNewReleaseOpen] = useState(false);
   const releases = useAsync(() => data.listReleases(), []);
+
+  const columns = useColumns('releases', [
+    { id: 'release', title: 'Release', locked: true },
+    { id: 'artist', title: 'Artist' },
+    { id: 'edition', title: 'Edition size', defaultHidden: true },
+    { id: 'status', title: 'Status' },
+    { id: 'orders', title: 'Orders' },
+    { id: 'batches', title: 'Batches' },
+    { id: 'next', title: 'Next scheduled send' },
+    { id: 'attention', title: 'Attention', locked: true },
+  ]);
 
   return (
     <Page
@@ -31,6 +42,15 @@ export function ReleasesIndex(): ReactElement {
       primaryAction={{ content: 'New release', onAction: () => setNewReleaseOpen(true) }}
     >
       <Card padding="0">
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            padding: 'var(--p-space-300) var(--p-space-400) 0',
+          }}
+        >
+          {columns.columnsButton}
+        </div>
         {releases.data === null ? (
           <div style={{ padding: 'var(--p-space-400)' }}>
             <SkeletonBodyText lines={6} />
@@ -40,14 +60,7 @@ export function ReleasesIndex(): ReactElement {
             resourceName={{ singular: 'release', plural: 'releases' }}
             itemCount={releases.data.length}
             selectable={false}
-            headings={[
-              { title: 'Release' },
-              { title: 'Status' },
-              { title: 'Orders' },
-              { title: 'Batches' },
-              { title: 'Next scheduled send' },
-              { title: 'Attention' },
-            ]}
+            headings={columns.headings as [{ title: string }]}
           >
             {releases.data.map((summary, index) => {
               const { release } = summary;
@@ -60,38 +73,46 @@ export function ReleasesIndex(): ReactElement {
                   onClick={() => navigate(`/releases/${release.id}`)}
                 >
                   <IndexTable.Cell>
-                    <BlockStack gap="050">
-                      <Text as="span" fontWeight="semibold">
-                        {release.title}
-                      </Text>
-                      <Text as="span" variant="bodySm" tone="subdued">
-                        {release.artist}
-                        {release.editionSize ? ` · edition of ${release.editionSize}` : ''}
-                      </Text>
-                    </BlockStack>
+                    <Text as="span" fontWeight="semibold">
+                      {release.title}
+                    </Text>
                   </IndexTable.Cell>
-                  <IndexTable.Cell>{releaseStatusBadge(release.status)}</IndexTable.Cell>
-                  <IndexTable.Cell>{summary.orderCount}</IndexTable.Cell>
-                  <IndexTable.Cell>
-                    {summary.batchCount > 1 ? (
-                      summary.batchCount
-                    ) : (
-                      <Text as="span" variant="bodySm" tone="subdued">
-                        —
-                      </Text>
-                    )}
-                  </IndexTable.Cell>
-                  <IndexTable.Cell>
-                    {next ? (
-                      <Text as="span" variant="bodySm">
-                        {formatDayShort(next.scheduledDate)} · {TEMPLATE_LABELS[next.templateRef]}
-                      </Text>
-                    ) : (
-                      <Text as="span" variant="bodySm" tone="subdued">
-                        —
-                      </Text>
-                    )}
-                  </IndexTable.Cell>
+                  {columns.show('artist') ? (
+                    <IndexTable.Cell>{release.artist}</IndexTable.Cell>
+                  ) : null}
+                  {columns.show('edition') ? (
+                    <IndexTable.Cell>{release.editionSize ?? '—'}</IndexTable.Cell>
+                  ) : null}
+                  {columns.show('status') ? (
+                    <IndexTable.Cell>{releaseStatusBadge(release.status)}</IndexTable.Cell>
+                  ) : null}
+                  {columns.show('orders') ? (
+                    <IndexTable.Cell>{summary.orderCount}</IndexTable.Cell>
+                  ) : null}
+                  {columns.show('batches') ? (
+                    <IndexTable.Cell>
+                      {summary.batchCount > 1 ? (
+                        summary.batchCount
+                      ) : (
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          —
+                        </Text>
+                      )}
+                    </IndexTable.Cell>
+                  ) : null}
+                  {columns.show('next') ? (
+                    <IndexTable.Cell>
+                      {next ? (
+                        <Text as="span" variant="bodySm">
+                          {formatDayShort(next.scheduledDate)} · {TEMPLATE_LABELS[next.templateRef]}
+                        </Text>
+                      ) : (
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          —
+                        </Text>
+                      )}
+                    </IndexTable.Cell>
+                  ) : null}
                   <IndexTable.Cell>
                     <InlineStack gap="100" wrap>
                       {summary.overdueCount > 0 ? (

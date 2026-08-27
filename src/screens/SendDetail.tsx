@@ -145,6 +145,7 @@ export function SendDetail(): ReactElement {
                   headline={send.headline}
                   body={send.body}
                   nextSteps={send.nextSteps}
+                  imageName={send.imageName}
                   sampleRecipientName={recipientRows[0]?.name}
                 />
               </BlockStack>

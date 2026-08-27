@@ -1,4 +1,4 @@
-import type { Release, SendStep, TemplateRef } from '../types';
+import type { Batch, ImageSlot, Release, SendStep, TemplateRef } from '../types';
 import { addDays, formatDay } from './dates';
 
 /**
@@ -218,6 +218,52 @@ export function releaseSequenceFor(release: Release): TemplateRef[] {
  */
 export function releaseFillerTemplate(release: Release): TemplateRef | null {
   return release.disabledTemplates.includes('pp-ontrack') ? null : 'pp-ontrack';
+}
+
+/**
+ * The milestone sequence for one batch: the release's sequence, minus the
+ * framing email for unframed batches — unframed prints never get framed.
+ */
+export function sequenceForBatch(
+  release: Release,
+  batch: Pick<Batch, 'fulfilment'>,
+): TemplateRef[] {
+  const base = releaseSequenceFor(release);
+  return batch.fulfilment === 'unframed' ? base.filter((ref) => ref !== 'pp-framing') : base;
+}
+
+/**
+ * Image slots, in the order the release-emails screen lists them. The
+ * on-track email gets three so a long plan's fillers rotate pictures.
+ */
+export const ONTRACK_IMAGE_SLOTS: ImageSlot[] = ['pp-ontrack-1', 'pp-ontrack-2', 'pp-ontrack-3'];
+
+/** Phase-1 stand-ins for the HubSpot image library. */
+export const IMAGE_OPTIONS: string[] = [
+  'Artist portrait',
+  'Artist at work',
+  'Studio — printing',
+  'Studio — signing',
+  'Framing bench',
+  'Packing & dispatch',
+  'Artwork detail',
+  'Behind the scenes',
+];
+
+/**
+ * Assign an image slot to each planned step: milestones use their own slot;
+ * on-track fillers cycle through the three on-track slots in order.
+ */
+export function imageSlotsForPlan(refs: TemplateRef[]): ImageSlot[] {
+  let ontrackCount = 0;
+  return refs.map((ref) => {
+    if (ref === 'pp-ontrack') {
+      const slot = ONTRACK_IMAGE_SLOTS[ontrackCount % ONTRACK_IMAGE_SLOTS.length];
+      ontrackCount += 1;
+      return slot;
+    }
+    return ref as ImageSlot;
+  });
 }
 
 export function renderTemplate(

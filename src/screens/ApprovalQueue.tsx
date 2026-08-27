@@ -22,6 +22,7 @@ import { formatDayShort, today } from '../logic/dates';
 import { TEMPLATE_LABELS, plural, sendStatusBadge } from '../ui/format';
 import { useApp } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
+import { useColumns } from '../ui/useColumns';
 import { EmailPreview } from '../components/EmailPreview';
 
 /**
@@ -41,6 +42,18 @@ export function ApprovalQueue(): ReactElement {
   const pending = items.filter((i) => i.send.status === 'pending_approval');
   const held = items.filter((i) => i.send.status === 'held');
   const shown = tab === 0 ? pending : held;
+
+  const columns = useColumns('approval-queue', [
+    { id: 'scheduled', title: 'Scheduled', locked: true },
+    { id: 'email', title: 'Email' },
+    { id: 'subject', title: 'Subject' },
+    { id: 'release', title: 'Release' },
+    { id: 'batch', title: 'Batch', defaultHidden: true },
+    { id: 'recipients', title: 'Recipients' },
+    { id: 'lastReceived', title: 'They last received' },
+    { id: 'status', title: 'Status', locked: true },
+    { id: 'actions', title: 'Actions', locked: true },
+  ]);
 
   const act = async (
     item: PendingSendItem,
@@ -113,14 +126,17 @@ export function ApprovalQueue(): ReactElement {
     >
       <BlockStack gap="400">
         <Card padding="0">
-          <Tabs
-            tabs={[
-              { id: 'pending', content: queue.data ? `Pending (${pending.length})` : 'Pending' },
-              { id: 'held', content: queue.data ? `Held (${held.length})` : 'Held' },
-            ]}
-            selected={tab}
-            onSelect={setTab}
-          />
+          <InlineStack align="space-between" blockAlign="center" wrap>
+            <Tabs
+              tabs={[
+                { id: 'pending', content: queue.data ? `Pending (${pending.length})` : 'Pending' },
+                { id: 'held', content: queue.data ? `Held (${held.length})` : 'Held' },
+              ]}
+              selected={tab}
+              onSelect={setTab}
+            />
+            <div style={{ padding: '0 var(--p-space-400)' }}>{columns.columnsButton}</div>
+          </InlineStack>
           {queue.data === null ? (
             <div style={{ padding: 'var(--p-space-400)' }}>
               <SkeletonBodyText lines={6} />
@@ -141,15 +157,7 @@ export function ApprovalQueue(): ReactElement {
               resourceName={{ singular: 'send', plural: 'sends' }}
               itemCount={shown.length}
               selectable={false}
-              headings={[
-                { title: 'Scheduled' },
-                { title: 'Email' },
-                { title: 'Release / batch' },
-                { title: 'Recipients' },
-                { title: 'They last received' },
-                { title: 'Status' },
-                { title: 'Actions' },
-              ]}
+              headings={columns.headings as [{ title: string }]}
             >
               {shown.map((item, index) => {
                 const overdue =
@@ -169,45 +177,51 @@ export function ApprovalQueue(): ReactElement {
                         {overdue ? <Badge tone="critical">Overdue</Badge> : null}
                       </InlineStack>
                     </IndexTable.Cell>
-                    <IndexTable.Cell>
-                      <BlockStack gap="050">
+                    {columns.show('email') ? (
+                      <IndexTable.Cell>
                         <Text as="span" fontWeight="semibold">
                           {TEMPLATE_LABELS[item.send.templateRef]}
                           {item.send.type === 'delay' ? ' (delay)' : ''}
                         </Text>
+                      </IndexTable.Cell>
+                    ) : null}
+                    {columns.show('subject') ? (
+                      <IndexTable.Cell>
                         <Text as="span" variant="bodySm" tone="subdued" truncate>
                           {item.send.subject}
                         </Text>
-                      </BlockStack>
-                    </IndexTable.Cell>
-                    <IndexTable.Cell>
-                      <BlockStack gap="050">
-                        <Text as="span">{item.release.title}</Text>
+                      </IndexTable.Cell>
+                    ) : null}
+                    {columns.show('release') ? (
+                      <IndexTable.Cell>{item.release.title}</IndexTable.Cell>
+                    ) : null}
+                    {columns.show('batch') ? (
+                      <IndexTable.Cell>
                         {item.releaseBatchCount > 1 ? (
+                          item.batch.name
+                        ) : (
                           <Text as="span" variant="bodySm" tone="subdued">
-                            {item.batch.name}
+                            —
                           </Text>
-                        ) : null}
-                      </BlockStack>
-                    </IndexTable.Cell>
-                    <IndexTable.Cell>{item.recipientCount}</IndexTable.Cell>
-                    <IndexTable.Cell>
-                      {item.lastSent ? (
-                        <BlockStack gap="050">
+                        )}
+                      </IndexTable.Cell>
+                    ) : null}
+                    {columns.show('recipients') ? (
+                      <IndexTable.Cell>{item.recipientCount}</IndexTable.Cell>
+                    ) : null}
+                    {columns.show('lastReceived') ? (
+                      <IndexTable.Cell>
+                        {item.lastSent ? (
                           <Text as="span" variant="bodySm">
-                            {TEMPLATE_LABELS[item.lastSent.templateRef]}
-                            {item.lastSent.type === 'delay' ? ' (delay)' : ''}
+                            {`${TEMPLATE_LABELS[item.lastSent.templateRef]}${item.lastSent.type === 'delay' ? ' (delay)' : ''} · ${formatDayShort(item.lastSent.sentAt.slice(0, 10))}`}
                           </Text>
+                        ) : (
                           <Text as="span" variant="bodySm" tone="subdued">
-                            {formatDayShort(item.lastSent.sentAt.slice(0, 10))}
+                            Nothing yet
                           </Text>
-                        </BlockStack>
-                      ) : (
-                        <Text as="span" variant="bodySm" tone="subdued">
-                          Nothing yet
-                        </Text>
-                      )}
-                    </IndexTable.Cell>
+                        )}
+                      </IndexTable.Cell>
+                    ) : null}
                     <IndexTable.Cell>{sendStatusBadge(item.send)}</IndexTable.Cell>
                     <IndexTable.Cell>
                       <div onClick={(e) => e.stopPropagation()}>{actions(item)}</div>
@@ -311,6 +325,7 @@ export function ApprovalQueue(): ReactElement {
                 headline={preview.send.headline}
                 body={preview.send.body}
                 nextSteps={preview.send.nextSteps}
+                imageName={preview.send.imageName}
               />
             </BlockStack>
           </Modal.Section>

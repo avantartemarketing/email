@@ -3,6 +3,8 @@ import type {
   Batch,
   BatchEvent,
   BatchEventType,
+  BatchFulfilment,
+  ImageSlot,
   ImportSummary,
   LastSentInfo,
   Order,
@@ -28,7 +30,12 @@ import type {
 } from '../DataLayer';
 import { formatDay, toDay } from '../../logic/dates';
 import { allocationOrderKey, parseEditionAllocationCsv } from '../../logic/allocation';
-import { filterItemsForRelease, orderDedupeKey, parseShopifyOrderExport } from '../../logic/importer';
+import {
+  classifyFulfilment,
+  filterItemsForRelease,
+  orderDedupeKey,
+  parseShopifyOrderExport,
+} from '../../logic/importer';
 import { generateMilestonePlan } from '../../logic/plan';
 import { inheritedSentStory, planReschedule, sentStoryForBatch } from '../../logic/reschedule';
 import {
@@ -36,9 +43,10 @@ import {
   buildNextSteps,
   buildTemplateFields,
   effectiveTemplate,
+  imageSlotsForPlan,
   releaseFillerTemplate,
-  releaseSequenceFor,
   renderReleaseTemplate,
+  sequenceForBatch,
 } from '../../logic/templates';
 
 /**
@@ -164,9 +172,46 @@ export class MockDataLayer implements DataLayer {
     return [...this._store.orders.values()].filter((o) => o.batchId === batchId && !o.removed);
   }
 
-  private defaultBatch(releaseId: string): Batch {
-    const batch = this.releaseBatches(releaseId).find((b) => b.isDefault);
-    if (!batch) throw new Error(`Release ${releaseId} has no default batch`);
+  /**
+   * Where release-level events land when no more specific batch applies:
+   * the oldest batch, or null while a print release has no orders yet.
+   */
+  private anchorBatch(releaseId: string): Batch | null {
+    const batches = this.releaseBatches(releaseId).sort((a, b) =>
+      a.createdAt.localeCompare(b.createdAt),
+    );
+    return batches[0] ?? null;
+  }
+
+  /**
+   * The batch new print orders of a fulfilment land in: the release's
+   * "Framed"/"Unframed" batch, created on first use. Sculpture releases
+   * keep their single default batch.
+   */
+  private intakeBatch(release: Release, fulfilment: BatchFulfilment | null): Batch {
+    if (release.productKind !== 'print' || fulfilment === null) {
+      const existing = this.releaseBatches(release.id).find((b) => b.isDefault);
+      if (existing) return existing;
+      throw new Error(`Release ${release.id} has no default batch`);
+    }
+    const existing = this.releaseBatches(release.id).find((b) => b.fulfilment === fulfilment);
+    if (existing) return existing;
+    const batch: Batch = {
+      id: this._newId('batch'),
+      releaseId: release.id,
+      name: fulfilment === 'framed' ? 'Framed' : 'Unframed',
+      promiseDate: null,
+      isDefault: true,
+      fulfilment,
+      createdAt: this.now().toISOString(),
+    };
+    this._store.batches.set(batch.id, batch);
+    this._addEvent(
+      release.id,
+      batch.id,
+      'batch_created',
+      `${batch.name} batch created — print orders ship on separate ${fulfilment} timelines`,
+    );
     return batch;
   }
 
@@ -270,21 +315,26 @@ export class MockDataLayer implements DataLayer {
       productKind: input.productKind,
       disabledTemplates,
       templateOverrides: {},
+      templateImages: {},
       createdAt: nowIso,
     };
     if (!release.title) throw new Error('Release title is required');
     if (!release.artist) throw new Error('Artist is required');
     this._store.releases.set(release.id, release);
-    const batch: Batch = {
-      id: this._newId('batch'),
-      releaseId: release.id,
-      name: 'Batch 1',
-      promiseDate: null,
-      isDefault: true,
-      createdAt: nowIso,
-    };
-    this._store.batches.set(batch.id, batch);
-    this._addEvent(release.id, batch.id, 'batch_created', 'Batch 1 created (default batch)');
+    // Prints get no batch up front: their Framed/Unframed batches are
+    // created by the import, from what was actually ordered.
+    if (release.productKind !== 'print') {
+      const batch: Batch = {
+        id: this._newId('batch'),
+        releaseId: release.id,
+        name: 'Batch 1',
+        promiseDate: null,
+        isDefault: true,
+        createdAt: nowIso,
+      };
+      this._store.batches.set(batch.id, batch);
+      this._addEvent(release.id, batch.id, 'batch_created', 'Batch 1 created (default batch)');
+    }
     return this.settle(release);
   }
 
@@ -294,7 +344,6 @@ export class MockDataLayer implements DataLayer {
     options: ImportOptions = {},
   ): Promise<ImportSummary> {
     const release = this.mustGet(this._store.releases, releaseId, 'release');
-    const defaultBatch = this.defaultBatch(releaseId);
 
     const parsed = parseShopifyOrderExport(csvText);
     const matchers = options.titleMatchers?.length ? options.titleMatchers : [release.title];
@@ -312,7 +361,9 @@ export class MockDataLayer implements DataLayer {
     let duplicatesSkipped = 0;
     let missingEmail = 0;
     let missingHubspotContact = 0;
-    const createdIds: string[] = [];
+    // Print orders route into Framed/Unframed batches by variant — the two
+    // flows ship on separate timelines with separate plans.
+    const createdByBatch = new Map<string, string[]>();
 
     for (const item of matched) {
       const key = orderDedupeKey(item.shopifyOrderName, item.lineItemTitle);
@@ -322,10 +373,14 @@ export class MockDataLayer implements DataLayer {
       }
       seen.add(key);
       const hubspotContactId = item.email ? (this.hubspotDirectory[item.email] ?? null) : null;
+      const batch = this.intakeBatch(
+        release,
+        release.productKind === 'print' ? classifyFulfilment(item.variant) : null,
+      );
       const order: Order = {
         id: this._newId('order'),
         releaseId,
-        batchId: defaultBatch.id,
+        batchId: batch.id,
         shopifyOrderName: item.shopifyOrderName,
         lineItemTitle: item.lineItemTitle,
         collectorName: item.collectorName,
@@ -336,19 +391,21 @@ export class MockDataLayer implements DataLayer {
         removed: false,
       };
       this._store.orders.set(order.id, order);
-      createdIds.push(order.id);
+      const list = createdByBatch.get(batch.id) ?? [];
+      list.push(order.id);
+      createdByBatch.set(batch.id, list);
       newOrders += 1;
       if (!item.email) missingEmail += 1;
       else if (!hubspotContactId) missingHubspotContact += 1;
     }
 
-    if (newOrders > 0) {
+    for (const [batchId, orderIds] of createdByBatch) {
       this._addEvent(
         releaseId,
-        defaultBatch.id,
+        batchId,
         'orders_imported',
-        `${newOrders} order${newOrders === 1 ? '' : 's'} imported from Shopify export`,
-        { orderIds: createdIds },
+        `${orderIds.length} order${orderIds.length === 1 ? '' : 's'} imported from Shopify export`,
+        { orderIds },
       );
     }
 
@@ -365,7 +422,6 @@ export class MockDataLayer implements DataLayer {
 
   async importAllocations(releaseId: string, csvText: string): Promise<AllocationImportSummary> {
     this.mustGet(this._store.releases, releaseId, 'release');
-    const defaultBatch = this.defaultBatch(releaseId);
     const parsed = parseEditionAllocationCsv(csvText);
 
     const releaseOrders = [...this._store.orders.values()].filter(
@@ -426,10 +482,11 @@ export class MockDataLayer implements DataLayer {
       (o) => !o.removed && (!o.allocations || o.allocations.length === 0),
     ).length;
 
-    if (matchedOrderIds.length > 0) {
+    const anchor = this.anchorBatch(releaseId);
+    if (matchedOrderIds.length > 0 && anchor) {
       this._addEvent(
         releaseId,
-        defaultBatch.id,
+        anchor.id,
         'allocation_imported',
         `Warehouse allocation imported — ${matchedOrderIds.length} order${matchedOrderIds.length === 1 ? '' : 's'} matched`,
         { orderIds: matchedOrderIds },
@@ -452,15 +509,16 @@ export class MockDataLayer implements DataLayer {
     patch: ReleaseEmailPatch,
   ): Promise<ReleaseEmailUpdateResult> {
     const release = this.mustGet(this._store.releases, releaseId, 'release');
-    const defaultBatch = this.defaultBatch(releaseId);
     const templateName = MASTER_TEMPLATES[templateRef].name;
     let updatedSendCount = 0;
     let cancelledSendCount = 0;
     // A release-level edit is logged on every batch it actually touched, so
     // each batch's history explains its own cancelled/reset sends. With no
-    // sends touched, the default batch carries the record.
+    // sends touched, the oldest batch carries the record (none exist only
+    // while a print release awaits its first import — nothing to log on).
     const emitTo = (batchIds: Set<string>, description: string): void => {
-      const targets = batchIds.size > 0 ? [...batchIds] : [defaultBatch.id];
+      const anchor = this.anchorBatch(releaseId);
+      const targets = batchIds.size > 0 ? [...batchIds] : anchor ? [anchor.id] : [];
       for (const batchId of targets) {
         this._addEvent(releaseId, batchId, 'release_emails_edited', description, { templateRef });
       }
@@ -496,12 +554,9 @@ export class MockDataLayer implements DataLayer {
       );
     } else if (patch.enabled === true) {
       release.disabledTemplates = release.disabledTemplates.filter((r) => r !== templateRef);
-      this._addEvent(
-        releaseId,
-        defaultBatch.id,
-        'release_emails_edited',
+      emitTo(
+        new Set(),
         `“${templateName}” switched back on for this release — future plans will include it`,
-        { templateRef },
       );
     }
 
@@ -565,6 +620,25 @@ export class MockDataLayer implements DataLayer {
     return this.settle({ release, updatedSendCount, cancelledSendCount });
   }
 
+  async setReleaseEmailImage(
+    releaseId: string,
+    slot: ImageSlot,
+    imageName: string | null,
+  ): Promise<Release> {
+    const release = this.mustGet(this._store.releases, releaseId, 'release');
+    if (imageName) release.templateImages[slot] = imageName;
+    else delete release.templateImages[slot];
+    // Upcoming sends drawing on this slot pick up the new image in place.
+    // An image choice is not a copy change: no approval resets, no
+    // copyEdited pinning.
+    for (const send of this.releaseSends(releaseId)) {
+      if (send.imageSlot !== slot) continue;
+      if (!UNSENT.includes(send.status)) continue;
+      send.imageName = imageName ?? undefined;
+    }
+    return this.settle(release);
+  }
+
   // --- batches and plans -------------------------------------------------
 
   async setPromiseDate(batchId: string, promiseDate: string): Promise<void> {
@@ -582,9 +656,10 @@ export class MockDataLayer implements DataLayer {
     const user = this.currentUser();
     const fields = buildTemplateFields(release, promiseDate);
     const steps = generateMilestonePlan(this.nowDay(), promiseDate, release.productKind, {
-      sequence: releaseSequenceFor(release),
+      sequence: sequenceForBatch(release, batch),
       fillerTemplate: releaseFillerTemplate(release),
     });
+    const imageSlots = imageSlotsForPlan(steps.map((s) => s.templateRef));
     steps.forEach((step, idx) => {
       const rendered = renderReleaseTemplate(release, step.templateRef, fields);
       const send: ScheduledSend = {
@@ -597,6 +672,8 @@ export class MockDataLayer implements DataLayer {
         status: 'draft',
         subject: rendered.subject,
         headline: rendered.headline,
+        imageSlot: imageSlots[idx],
+        imageName: release.templateImages[imageSlots[idx]],
         body: rendered.body,
         nextSteps: buildNextSteps(
           steps.slice(idx + 1).map((s) => s.templateRef),
@@ -635,6 +712,7 @@ export class MockDataLayer implements DataLayer {
         reason_line: 'Production is taking longer than planned.',
       }),
     );
+    const imageSlot: ImageSlot = templateRef === 'pp-ontrack' ? 'pp-ontrack-1' : templateRef;
     const send: ScheduledSend = {
       id: this._newId('send'),
       releaseId: release.id,
@@ -645,6 +723,8 @@ export class MockDataLayer implements DataLayer {
       status: 'draft',
       subject: rendered.subject,
       headline: rendered.headline,
+      imageSlot,
+      imageName: release.templateImages[imageSlot],
       body: rendered.body,
       createdAt: this.now().toISOString(),
       createdBy: this.currentUser().id,

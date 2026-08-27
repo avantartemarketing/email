@@ -14,10 +14,11 @@ import {
   buildNextSteps,
   buildTemplateFields,
   effectiveTemplate,
+  imageSlotsForPlan,
   patchTokens,
   releaseFillerTemplate,
-  releaseSequenceFor,
   renderReleaseTemplate,
+  sequenceForBatch,
   shipWindowText,
 } from './templates';
 
@@ -150,7 +151,20 @@ export function remainingSequence(
   return sequence.includes('pp-dispatch') ? sequence : [...sequence, 'pp-dispatch'];
 }
 
-export function nextBatchName(existingNames: string[]): string {
+/**
+ * Name for a split batch. Fulfilment batches count within their own flow:
+ * splitting "Framed" yields "Framed 2", then "Framed 3". Batches without a
+ * fulfilment keep the plain "Batch N" numbering.
+ */
+export function nextBatchName(existingNames: string[], prefix?: string): string {
+  if (prefix) {
+    let max = 0;
+    for (const name of existingNames) {
+      const m = new RegExp(`^${prefix}(?:\\s+(\\d+))?$`, 'i').exec(name.trim());
+      if (m) max = Math.max(max, m[1] ? Number(m[1]) : 1);
+    }
+    return `${prefix} ${Math.max(max, 1) + 1}`;
+  }
   let max = 0;
   for (const name of existingNames) {
     const m = /batch\s+(\d+)/i.exec(name);
@@ -158,6 +172,11 @@ export function nextBatchName(existingNames: string[]): string {
   }
   return `Batch ${Math.max(max, existingNames.length) + 1}`;
 }
+
+const FULFILMENT_PREFIX: Record<string, string> = {
+  framed: 'Framed',
+  unframed: 'Unframed',
+};
 
 export function planReschedule(
   input: RescheduleInput,
@@ -196,9 +215,15 @@ export function planReschedule(
     newBatch = {
       id: ctx.newId('batch'),
       releaseId: release.id,
-      name: nextBatchName(ctx.allBatchNames),
+      name: nextBatchName(
+        ctx.allBatchNames,
+        batch.fulfilment ? FULFILMENT_PREFIX[batch.fulfilment] : undefined,
+      ),
       promiseDate: input.newPromiseDate,
       isDefault: false,
+      // The split stays inside its flow: framed orders split into another
+      // framed batch, and its plan keeps (or keeps skipping) framing.
+      ...(batch.fulfilment ? { fulfilment: batch.fulfilment } : {}),
       sourceBatchId: batch.id,
       createdAt: nowIso,
     };
@@ -216,12 +241,13 @@ export function planReschedule(
 
   const fields = buildTemplateFields(release, input.newPromiseDate);
   const plannedSteps = generateMilestonePlan(nowDay, input.newPromiseDate, release.productKind, {
-    sequence: remainingSequence(releaseSequenceFor(release), [
+    sequence: remainingSequence(sequenceForBatch(release, batch), [
       ...inheritedSentSends,
       ...batchSends,
     ]),
     fillerTemplate: releaseFillerTemplate(release),
   });
+  const imageSlots = imageSlotsForPlan(plannedSteps.map((s) => s.templateRef));
 
   const delayTemplate = effectiveTemplate(release, 'pp-delay');
   const delaySend: ScheduledSend = {
@@ -234,6 +260,8 @@ export function planReschedule(
     status: 'pending_approval',
     subject: input.delaySubject,
     headline: patchTokens(delayTemplate.headline, fields),
+    imageSlot: 'pp-delay',
+    imageName: release.templateImages['pp-delay'],
     body: input.delayBody,
     // After a delay notice, "what happens next" is the regenerated plan.
     nextSteps: buildNextSteps(plannedSteps.map((s) => s.templateRef), fields),
@@ -253,6 +281,8 @@ export function planReschedule(
       status: 'pending_approval' as const,
       subject: rendered.subject,
       headline: rendered.headline,
+      imageSlot: imageSlots[idx],
+      imageName: release.templateImages[imageSlots[idx]],
       body: rendered.body,
       nextSteps: buildNextSteps(
         plannedSteps.slice(idx + 1).map((s) => s.templateRef),

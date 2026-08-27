@@ -34,6 +34,22 @@ export interface ReleaseTemplateOverride {
   body?: string;
 }
 
+/**
+ * Image slots a release fills for its emails. Milestone emails have one
+ * slot each; the on-track email has three, cycled across a plan's filler
+ * sends so collectors never get the same picture twice in a row. Phase 1
+ * stores a picked image name; phase 2 swaps in HubSpot image URLs.
+ */
+export type ImageSlot =
+  | 'pp-printing'
+  | 'pp-signing'
+  | 'pp-framing'
+  | 'pp-dispatch'
+  | 'pp-ontrack-1'
+  | 'pp-ontrack-2'
+  | 'pp-ontrack-3'
+  | 'pp-delay';
+
 export interface Release {
   id: string;
   title: string;
@@ -50,6 +66,8 @@ export interface Release {
   disabledTemplates: TemplateRef[];
   /** Release-level custom copy, keyed by template. Applies to every batch. */
   templateOverrides: Partial<Record<TemplateRef, ReleaseTemplateOverride>>;
+  /** Hero image picked per slot; unset slots use the HubSpot master's image. */
+  templateImages: Partial<Record<ImageSlot, string>>;
   createdAt: string;
 }
 
@@ -95,6 +113,13 @@ export interface Order {
   removedReason?: string;
 }
 
+/**
+ * Print orders ship on separate framed/unframed timelines: framing adds
+ * weeks and its own milestone email. Print batches therefore always carry a
+ * fulfilment; sculpture batches don't split this way.
+ */
+export type BatchFulfilment = 'framed' | 'unframed';
+
 export interface Batch {
   id: string;
   releaseId: string;
@@ -102,6 +127,8 @@ export interface Batch {
   /** ISO date or null while unset; setting it triggers plan generation. */
   promiseDate: string | null;
   isDefault: boolean;
+  /** Set for print batches; unframed batches skip the framing email. */
+  fulfilment?: BatchFulfilment;
   /**
    * The batch this one was split from, when it was created by a reschedule
    * split. Lineage matters: a split batch's collectors received everything
@@ -163,6 +190,10 @@ export interface ScheduledSend {
   subject: string;
   /** The email's H1, pre-filled from the master and editable. */
   headline?: string;
+  /** Which release image slot this send draws its hero image from. */
+  imageSlot?: ImageSlot;
+  /** The picked image for that slot at generation time; master default if unset. */
+  imageName?: string;
   /** Editable body copy, pre-filled from the master template with fields patched. */
   body: string;
   /** "What happens next?" rows — the milestones still ahead of this send. */

@@ -26,7 +26,6 @@ import type {
   ScheduledSend,
 } from '../types';
 import { formatDay, formatDayShort, today } from '../logic/dates';
-import { describeAllocationSpec } from '../logic/allocation';
 import { inheritedSentStory } from '../logic/reschedule';
 import { plural, releaseStatusBadge } from '../ui/format';
 import { useApp } from '../ui/AppContext';
@@ -40,7 +39,8 @@ import { EditSendModal } from '../components/EditSendModal';
 import { RemoveOrderModal } from '../components/RemoveOrderModal';
 import { ImportCsvModal } from '../components/ImportCsvModal';
 import { AllocationImportModal } from '../components/AllocationImportModal';
-import { ReleaseEmailsCard } from '../components/ReleaseEmailsCard';
+import { ReleaseEmailsModal } from '../components/ReleaseEmailsCard';
+import { useColumns } from '../ui/useColumns';
 
 export function ReleaseDetail(): ReactElement {
   const { releaseId } = useParams<{ releaseId: string }>();
@@ -50,6 +50,7 @@ export function ReleaseDetail(): ReactElement {
   const [selectedTab, setSelectedTab] = useState(0);
   const [importOpen, setImportOpen] = useState(false);
   const [allocationOpen, setAllocationOpen] = useState(false);
+  const [emailsOpen, setEmailsOpen] = useState(false);
 
   if (detail.error) {
     return (
@@ -84,6 +85,7 @@ export function ReleaseDetail(): ReactElement {
       titleMetadata={releaseStatusBadge(d.release.status)}
       backAction={{ content: 'Releases', onAction: () => navigate('/') }}
       secondaryActions={[
+        { content: 'Release emails', onAction: () => setEmailsOpen(true) },
         { content: 'Import orders', onAction: () => setImportOpen(true) },
         { content: 'Import warehouse allocation', onAction: () => setAllocationOpen(true) },
       ]}
@@ -108,8 +110,6 @@ export function ReleaseDetail(): ReactElement {
           </Banner>
         ) : null}
 
-        <ReleaseEmailsCard release={d.release} onChanged={() => detail.reload()} />
-
         {d.orders.length === 0 ? (
           <Card>
             <BlockStack gap="300">
@@ -117,18 +117,20 @@ export function ReleaseDetail(): ReactElement {
                 No orders yet
               </Text>
               <Text as="p" tone="subdued">
-                Import the Shopify order export to create this release's orders.
+                Review the release's emails and images, then import the Shopify order export
+                to create its orders{d.release.productKind === 'print' ? ' — framed and unframed prints land in their own batches with separate timelines' : ''}.
               </Text>
-              <InlineStack>
+              <InlineStack gap="200">
                 <Button variant="primary" onClick={() => setImportOpen(true)}>
                   Import orders
                 </Button>
+                <Button onClick={() => setEmailsOpen(true)}>Release emails</Button>
               </InlineStack>
             </BlockStack>
           </Card>
         ) : (
           <>
-            {!singleBatch ? (
+            {batches.length > 1 ? (
               <Tabs
                 tabs={batches.map((b) => {
                   const active = d.orders.filter((o) => o.batchId === b.id && !o.removed).length;
@@ -167,6 +169,12 @@ export function ReleaseDetail(): ReactElement {
         onClose={() => setAllocationOpen(false)}
         onImported={() => detail.reload()}
       />
+      <ReleaseEmailsModal
+        open={emailsOpen}
+        release={d.release}
+        onClose={() => setEmailsOpen(false)}
+        onChanged={() => detail.reload()}
+      />
     </Page>
   );
 }
@@ -179,10 +187,14 @@ function editionSummary(allocations: OrderAllocation[] | undefined): string | nu
   return allocations.length > 1 ? `${label} · ${allocations.length} prints` : label;
 }
 
-function allocationSpec(allocations: OrderAllocation[] | undefined): string | null {
+/** One allocation field as a single-line cell value (distinct values joined). */
+function allocationField(
+  allocations: OrderAllocation[] | undefined,
+  pick: (a: OrderAllocation) => string | null,
+): string | null {
   if (!allocations || allocations.length === 0) return null;
-  const framed = allocations.find((a) => /framed/i.test(a.fulfilment)) ?? allocations[0];
-  return describeAllocationSpec(framed);
+  const values = [...new Set(allocations.map(pick).filter((v): v is string => Boolean(v)))];
+  return values.length > 0 ? values.join(', ') : null;
 }
 
 function BatchSection({
@@ -226,6 +238,19 @@ function BatchSection({
 
   const { selectedResources, allResourcesSelected, handleSelectionChange, clearSelection } =
     useIndexResourceState(activeOrders as unknown as { [key: string]: unknown }[]);
+
+  const orderColumns = useColumns('orders', [
+    { id: 'order', title: 'Order', locked: true },
+    { id: 'collector', title: 'Collector' },
+    { id: 'contact', title: 'Contact' },
+    { id: 'item', title: 'Item' },
+    { id: 'frame', title: 'Frame' },
+    { id: 'glass', title: 'Glass', defaultHidden: true },
+    { id: 'mount', title: 'Mount', defaultHidden: true },
+    { id: 'edition', title: 'Edition' },
+    { id: 'ordered', title: 'Ordered' },
+    { id: 'actions', title: '', locked: true },
+  ]);
 
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [promiseOpen, setPromiseOpen] = useState(false);
@@ -312,16 +337,19 @@ function BatchSection({
 
           <Card padding="0">
             <div style={{ padding: 'var(--p-space-400) var(--p-space-400) var(--p-space-200)' }}>
-              <InlineStack align="space-between" blockAlign="center" wrap>
+              <InlineStack align="space-between" blockAlign="center" wrap gap="200">
                 <Text as="h2" variant="headingSm">
                   Orders
                 </Text>
-                {hasAllocations ? (
-                  <Text as="span" variant="bodySm" tone="subdued">
-                    Warehouse allocation: {allocatedCount} of {activeOrders.length}
-                    {allocatedCount < activeOrders.length ? ' — re-import the sheet for the rest' : ''}
-                  </Text>
-                ) : null}
+                <InlineStack gap="300" blockAlign="center" wrap>
+                  {hasAllocations ? (
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      Warehouse allocation: {allocatedCount} of {activeOrders.length}
+                      {allocatedCount < activeOrders.length ? ' — re-import the sheet for the rest' : ''}
+                    </Text>
+                  ) : null}
+                  {orderColumns.columnsButton}
+                </InlineStack>
               </InlineStack>
               <Text as="p" variant="bodySm" tone="subdued">
                 {batch.promiseDate
@@ -334,15 +362,7 @@ function BatchSection({
               itemCount={activeOrders.length}
               selectedItemsCount={allResourcesSelected ? 'All' : selectedResources.length}
               onSelectionChange={handleSelectionChange}
-              headings={[
-                { title: 'Order' },
-                { title: 'Collector' },
-                { title: 'Contact' },
-                { title: 'Item' },
-                { title: 'Edition' },
-                { title: 'Ordered' },
-                { title: '' },
-              ]}
+              headings={orderColumns.headings as [{ title: string }]}
               promotedBulkActions={
                 batch.promiseDate
                   ? [
@@ -355,7 +375,6 @@ function BatchSection({
               }
             >
               {activeOrders.map((order, index) => {
-                const spec = allocationSpec(order.allocations);
                 const edition = editionSummary(order.allocations);
                 return (
                   <IndexTable.Row
@@ -369,38 +388,54 @@ function BatchSection({
                         {order.shopifyOrderName}
                       </Text>
                     </IndexTable.Cell>
-                    <IndexTable.Cell>{order.collectorName}</IndexTable.Cell>
-                    <IndexTable.Cell>
-                      <InlineStack gap="100" blockAlign="center" wrap>
-                        <Text as="span" variant="bodySm">
-                          {order.email ?? '—'}
-                        </Text>
-                        {!order.email ? <Badge tone="critical">No email</Badge> : null}
-                        {order.email && !order.hubspotContactId ? (
-                          <Badge tone="warning">No HubSpot contact</Badge>
-                        ) : null}
-                      </InlineStack>
-                    </IndexTable.Cell>
-                    <IndexTable.Cell>
-                      <BlockStack gap="025">
-                        <Text as="span">{order.variant || '—'}</Text>
-                        {spec ? (
-                          <Text as="span" variant="bodySm" tone="subdued">
-                            {spec}
+                    {orderColumns.show('collector') ? (
+                      <IndexTable.Cell>{order.collectorName}</IndexTable.Cell>
+                    ) : null}
+                    {orderColumns.show('contact') ? (
+                      <IndexTable.Cell>
+                        <InlineStack gap="100" blockAlign="center" wrap>
+                          <Text as="span" variant="bodySm">
+                            {order.email ?? '—'}
                           </Text>
-                        ) : null}
-                      </BlockStack>
-                    </IndexTable.Cell>
-                    <IndexTable.Cell>
-                      {edition ? (
-                        <Text as="span">{edition}</Text>
-                      ) : (
-                        <Text as="span" variant="bodySm" tone="subdued">
-                          {hasAllocations ? 'Not allocated' : '—'}
-                        </Text>
-                      )}
-                    </IndexTable.Cell>
-                    <IndexTable.Cell>{formatDayShort(order.orderDate)}</IndexTable.Cell>
+                          {!order.email ? <Badge tone="critical">No email</Badge> : null}
+                          {order.email && !order.hubspotContactId ? (
+                            <Badge tone="warning">No HubSpot contact</Badge>
+                          ) : null}
+                        </InlineStack>
+                      </IndexTable.Cell>
+                    ) : null}
+                    {orderColumns.show('item') ? (
+                      <IndexTable.Cell>{order.variant || '—'}</IndexTable.Cell>
+                    ) : null}
+                    {orderColumns.show('frame') ? (
+                      <IndexTable.Cell>
+                        {allocationField(order.allocations, (a) => a.frameFinish) ?? '—'}
+                      </IndexTable.Cell>
+                    ) : null}
+                    {orderColumns.show('glass') ? (
+                      <IndexTable.Cell>
+                        {allocationField(order.allocations, (a) => a.glass) ?? '—'}
+                      </IndexTable.Cell>
+                    ) : null}
+                    {orderColumns.show('mount') ? (
+                      <IndexTable.Cell>
+                        {allocationField(order.allocations, (a) => a.mountingType) ?? '—'}
+                      </IndexTable.Cell>
+                    ) : null}
+                    {orderColumns.show('edition') ? (
+                      <IndexTable.Cell>
+                        {edition ? (
+                          <Text as="span">{edition}</Text>
+                        ) : (
+                          <Text as="span" variant="bodySm" tone="subdued">
+                            {hasAllocations ? 'Not allocated' : '—'}
+                          </Text>
+                        )}
+                      </IndexTable.Cell>
+                    ) : null}
+                    {orderColumns.show('ordered') ? (
+                      <IndexTable.Cell>{formatDayShort(order.orderDate)}</IndexTable.Cell>
+                    ) : null}
                     <IndexTable.Cell>
                       <div onClick={(e) => e.stopPropagation()}>
                         <Button

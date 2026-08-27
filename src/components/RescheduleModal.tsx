@@ -292,6 +292,7 @@ export function RescheduleModal({
                 headline={previewHeadline}
                 body={body}
                 nextSteps={previewSteps}
+                imageName={release.templateImages['pp-delay']}
                 sampleRecipientName={selectedOrders[0]?.collectorName}
               />
             </BlockStack>

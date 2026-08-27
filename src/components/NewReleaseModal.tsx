@@ -130,9 +130,10 @@ export function NewReleaseModal({
 function ChoiceListFootnote(): ReactElement {
   return (
     <p style={{ color: 'var(--p-color-text-secondary)', fontSize: 'var(--p-font-size-300)' }}>
-      “Preparing for dispatch” and the delay notice are always available. Copy for every email
-      starts from the HubSpot master defaults and can be customised per release — or per send —
-      from the release page.
+      “Preparing for dispatch” and the delay notice are always available. Emails are templated —
+      pick each one's hero image (and customise copy where needed) under “Release emails” on the
+      release page. Framed and unframed print orders land in their own batches with separate
+      timelines.
     </p>
   );
 }
