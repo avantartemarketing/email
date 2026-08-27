@@ -1,0 +1,84 @@
+/* Vertical timeline for comms plans and batch history. Polaris has no
+   timeline component; this uses Polaris design tokens so it inherits the
+   admin look. */
+
+.pp-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pp-timeline__item {
+  position: relative;
+  padding: 0 0 var(--p-space-400) var(--p-space-600);
+}
+
+.pp-timeline__item::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 18px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--p-color-border);
+}
+
+.pp-timeline__item:last-child::before {
+  display: none;
+}
+
+.pp-timeline__dot {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--p-color-border);
+  background: var(--p-color-bg-surface);
+}
+
+.pp-timeline__dot--sent {
+  background: var(--p-color-bg-fill-success);
+  border-color: var(--p-color-bg-fill-success);
+}
+
+.pp-timeline__dot--overdue {
+  background: var(--p-color-bg-fill-critical);
+  border-color: var(--p-color-bg-fill-critical);
+}
+
+.pp-timeline__dot--attention {
+  background: var(--p-color-bg-fill-caution);
+  border-color: var(--p-color-bg-fill-caution);
+}
+
+.pp-timeline__item--muted {
+  opacity: 0.65;
+}
+
+/* Email preview chrome */
+
+.pp-email-preview {
+  border: var(--p-border-width-025) solid var(--p-color-border);
+  border-radius: var(--p-border-radius-200);
+  overflow: hidden;
+}
+
+.pp-email-preview__header {
+  padding: var(--p-space-300) var(--p-space-400);
+  background: var(--p-color-bg-surface-secondary);
+  border-bottom: var(--p-border-width-025) solid var(--p-color-border);
+}
+
+.pp-email-preview__body {
+  padding: var(--p-space-400);
+  white-space: pre-wrap;
+  font-size: var(--p-font-size-325);
+  line-height: var(--p-font-line-height-500);
+  background: var(--p-color-bg-surface);
+}
+
+.pp-clickable-row {
+  cursor: pointer;
+}
