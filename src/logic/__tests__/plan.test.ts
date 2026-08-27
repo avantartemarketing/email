@@ -78,6 +78,16 @@ describe('generateMilestonePlan', () => {
     expect(daysBetween(last, '2026-12-04')).toBe(5);
   });
 
+  it('inserts no fillers when fillerTemplate is null (on-track switched off)', () => {
+    const plan = generateMilestonePlan(NOW, '2027-04-30', 'print', { fillerTemplate: null });
+    expect(plan.map((s) => s.templateRef)).toEqual([
+      'pp-printing',
+      'pp-signing',
+      'pp-framing',
+      'pp-dispatch',
+    ]);
+  });
+
   it('keeps all dates strictly in the future', () => {
     for (const promise of ['2026-08-30', '2026-10-01', '2027-06-01']) {
       const plan = generateMilestonePlan(NOW, promise, 'print');

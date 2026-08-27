@@ -35,6 +35,8 @@ import {
   MASTER_TEMPLATES,
   buildNextSteps,
   buildTemplateFields,
+  effectiveTemplate,
+  releaseFillerTemplate,
   releaseSequenceFor,
   renderReleaseTemplate,
 } from '../../logic/templates';
@@ -369,6 +371,8 @@ export class MockDataLayer implements DataLayer {
     const releaseOrders = [...this._store.orders.values()].filter(
       (o) => o.releaseId === releaseId,
     );
+    // Removed orders still count as "known" (their sheet rows aren't
+    // unmatched), but they receive no allocation and aren't counted matched.
     const ordersByKey = new Map<string, Order[]>();
     for (const order of releaseOrders) {
       const key = allocationOrderKey(order.shopifyOrderName);
@@ -395,14 +399,16 @@ export class MockDataLayer implements DataLayer {
         unmatchedOrderNumbers.push(rows[0].orderNumber);
         continue;
       }
+      const activeOrders = orders.filter((o) => !o.removed);
+      if (activeOrders.length === 0) continue;
       allocationsApplied += rows.length;
-      for (const order of orders) {
+      for (const order of activeOrders) {
         // Multi-line-item orders: prefer the sheet rows whose fulfilment
         // matches this line item's variant (Framed ↔ Framed, everything
         // else ↔ Print Only); fall back to the whole order's rows.
         const wantFramed = /framed/i.test(order.variant) && !/unframed/i.test(order.variant);
         const variantRows =
-          orders.length > 1
+          activeOrders.length > 1
             ? rows.filter((r) =>
                 wantFramed ? /framed/i.test(r.allocation.fulfilment) : !/framed/i.test(r.allocation.fulfilment),
               )
@@ -447,6 +453,15 @@ export class MockDataLayer implements DataLayer {
     const templateName = MASTER_TEMPLATES[templateRef].name;
     let updatedSendCount = 0;
     let cancelledSendCount = 0;
+    // A release-level edit is logged on every batch it actually touched, so
+    // each batch's history explains its own cancelled/reset sends. With no
+    // sends touched, the default batch carries the record.
+    const emitTo = (batchIds: Set<string>, description: string): void => {
+      const targets = batchIds.size > 0 ? [...batchIds] : [defaultBatch.id];
+      for (const batchId of targets) {
+        this._addEvent(releaseId, batchId, 'release_emails_edited', description, { templateRef });
+      }
+    };
 
     if (patch.enabled === false) {
       if (templateRef === 'pp-dispatch') {
@@ -458,19 +473,23 @@ export class MockDataLayer implements DataLayer {
       if (!release.disabledTemplates.includes(templateRef)) {
         release.disabledTemplates = [...release.disabledTemplates, templateRef];
       }
-      // The milestone leaves every batch's upcoming plan.
+      // The milestone leaves every batch's upcoming plan — including the
+      // "What happens next?" rows of other unsent sends, which would
+      // otherwise keep promising a stage that no longer exists.
+      const touchedBatches = new Set<string>();
       for (const send of this.releaseSends(releaseId)) {
-        if (send.templateRef === templateRef && UNSENT.includes(send.status)) {
+        if (!UNSENT.includes(send.status)) continue;
+        if (send.templateRef === templateRef) {
           send.status = 'cancelled';
           cancelledSendCount += 1;
+          touchedBatches.add(send.batchId);
+        } else if (send.nextSteps?.some((s) => s.templateRef === templateRef)) {
+          send.nextSteps = send.nextSteps.filter((s) => s.templateRef !== templateRef);
         }
       }
-      this._addEvent(
-        releaseId,
-        defaultBatch.id,
-        'release_emails_edited',
+      emitTo(
+        touchedBatches,
         `“${templateName}” switched off for this release${cancelledSendCount > 0 ? ` — ${cancelledSendCount} upcoming send${cancelledSendCount === 1 ? '' : 's'} cancelled` : ''}`,
-        { templateRef },
       );
     } else if (patch.enabled === true) {
       release.disabledTemplates = release.disabledTemplates.filter((r) => r !== templateRef);
@@ -483,11 +502,15 @@ export class MockDataLayer implements DataLayer {
       );
     }
 
-    const copyChanged =
-      patch.resetToDefault ||
-      patch.subject !== undefined ||
-      patch.headline !== undefined ||
-      patch.body !== undefined;
+    // A save that changes nothing (same copy re-saved, or a reset with no
+    // override stored) must be a no-op: no "Customised" badge, no approval
+    // resets, no history noise.
+    const before = effectiveTemplate(release, templateRef);
+    const copyChanged = patch.resetToDefault
+      ? release.templateOverrides[templateRef] !== undefined
+      : (patch.subject !== undefined && patch.subject !== before.subject) ||
+        (patch.headline !== undefined && patch.headline !== before.headline) ||
+        (patch.body !== undefined && patch.body !== before.body);
     if (copyChanged) {
       if (patch.resetToDefault) {
         delete release.templateOverrides[templateRef];
@@ -503,6 +526,7 @@ export class MockDataLayer implements DataLayer {
       // Re-render every batch's upcoming sends from the new copy. Delay
       // sends are bespoke per reschedule and individually edited sends are
       // someone's deliberate words — both are left alone.
+      const touchedBatches = new Set<string>();
       if (templateRef !== 'pp-delay') {
         for (const send of this.releaseSends(releaseId)) {
           if (send.templateRef !== templateRef) continue;
@@ -524,16 +548,14 @@ export class MockDataLayer implements DataLayer {
             send.approvedBy = undefined;
           }
           updatedSendCount += 1;
+          touchedBatches.add(send.batchId);
         }
       }
-      this._addEvent(
-        releaseId,
-        defaultBatch.id,
-        'release_emails_edited',
+      emitTo(
+        touchedBatches,
         patch.resetToDefault
           ? `“${templateName}” reset to the default copy${updatedSendCount > 0 ? ` — ${updatedSendCount} upcoming send${updatedSendCount === 1 ? '' : 's'} updated` : ''}`
           : `“${templateName}” copy customised for this release${updatedSendCount > 0 ? ` — ${updatedSendCount} upcoming send${updatedSendCount === 1 ? '' : 's'} updated` : ''}`,
-        { templateRef },
       );
     }
 
@@ -558,6 +580,7 @@ export class MockDataLayer implements DataLayer {
     const fields = buildTemplateFields(release, promiseDate);
     const steps = generateMilestonePlan(this.nowDay(), promiseDate, release.productKind, {
       sequence: releaseSequenceFor(release),
+      fillerTemplate: releaseFillerTemplate(release),
     });
     steps.forEach((step, idx) => {
       const rendered = renderReleaseTemplate(release, step.templateRef, fields);
@@ -649,7 +672,10 @@ export class MockDataLayer implements DataLayer {
       send.body = patch.body;
       copyTouched = true;
     }
-    if (patch.nextSteps !== undefined) {
+    if (
+      patch.nextSteps !== undefined &&
+      JSON.stringify(patch.nextSteps) !== JSON.stringify(send.nextSteps ?? [])
+    ) {
       send.nextSteps = patch.nextSteps;
       copyTouched = true;
     }

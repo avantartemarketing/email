@@ -4,7 +4,7 @@ import type { ReactElement } from 'react';
 import type { Batch, Release } from '../types';
 import { addDays, formatDay, today } from '../logic/dates';
 import { generateMilestonePlan } from '../logic/plan';
-import { releaseSequenceFor } from '../logic/templates';
+import { releaseFillerTemplate, releaseSequenceFor } from '../logic/templates';
 import { plural } from '../ui/format';
 import { useApp } from '../ui/AppContext';
 
@@ -34,6 +34,7 @@ export function PromiseDateModal({
   const preview = valid
     ? generateMilestonePlan(today(), date, release.productKind, {
         sequence: releaseSequenceFor(release),
+        fillerTemplate: releaseFillerTemplate(release),
       })
     : [];
 

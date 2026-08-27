@@ -29,8 +29,11 @@ export interface PlanOptions {
   firstLeadDays?: number;
   /** How far before the promise date the dispatch email lands (default 5 days). */
   dispatchLeadDays?: number;
-  /** Template used to fill long gaps (default pp-ontrack). */
-  fillerTemplate?: TemplateRef;
+  /**
+   * Template used to fill long gaps (default pp-ontrack). Pass null for no
+   * fillers at all — e.g. a release that switched the on-track email off.
+   */
+  fillerTemplate?: TemplateRef | null;
 }
 
 export interface PlannedStep {
@@ -53,7 +56,7 @@ export function generateMilestonePlan(
   const minGap = options.minGapDays ?? 7;
   const firstLead = options.firstLeadDays ?? 3;
   const dispatchLead = options.dispatchLeadDays ?? 5;
-  const filler = options.fillerTemplate ?? 'pp-ontrack';
+  const filler = options.fillerTemplate === undefined ? 'pp-ontrack' : options.fillerTemplate;
 
   if (sequence.length === 0) return [];
 
@@ -76,12 +79,15 @@ export function generateMilestonePlan(
   }
 
   // How many sends: enough that no gap exceeds maxGap, capped so no gap
-  // falls under minGap, aiming for the full sequence when it fits.
+  // falls under minGap, aiming for the full sequence when it fits. With no
+  // filler available, the sequence is all there is — gaps may stretch.
   const minSends = Math.ceil(span / maxGap) + 1;
   const maxSends = Math.floor(span / minGap) + 1;
-  const count = Math.max(minSends, Math.min(sequence.length, maxSends));
+  let count = Math.max(minSends, Math.min(sequence.length, maxSends));
+  if (filler === null) count = Math.min(count, sequence.length);
 
-  // Pick templates for `count` slots.
+  // Pick templates for `count` slots. `filler` can only be null when count
+  // was capped to the sequence length, i.e. `fillers` below is 0.
   let templates: TemplateRef[];
   if (count >= sequence.length) {
     // Whole sequence, with fillers distributed across the gaps between
@@ -91,7 +97,7 @@ export function generateMilestonePlan(
     templates = [];
     if (gaps === 0) {
       // Single-step sequence: fillers all precede the final step.
-      for (let f = 0; f < fillers; f++) templates.push(filler);
+      for (let f = 0; f < fillers; f++) templates.push(filler as TemplateRef);
       templates.push(sequence[0]);
     } else {
       const base = Math.floor(fillers / gaps);
@@ -102,7 +108,7 @@ export function generateMilestonePlan(
           // Bias extras toward the later gaps — the long quiet stretch is
           // usually near the end of production.
           const fillersHere = base + (idx >= gaps - extra ? 1 : 0);
-          for (let f = 0; f < fillersHere; f++) templates.push(filler);
+          for (let f = 0; f < fillersHere; f++) templates.push(filler as TemplateRef);
         }
       });
     }

@@ -264,6 +264,9 @@ describe('real email format, allocation and lineage behaviours', () => {
     expect(unframed.allocations![0].fulfilment).toBe('Print Only');
     // Orders the sheet doesn't cover yet stay visibly unallocated.
     expect(byName('#AA10448')[0].allocations ?? []).toHaveLength(0);
+    // The refunded order is on the sheet, but removed orders take nothing.
+    expect(byName('#AA10442')[0].removed).toBe(true);
+    expect(byName('#AA10442')[0].allocations ?? []).toHaveLength(0);
   });
 
   it('reviewers see the last email collectors received, across splits', async () => {
@@ -343,9 +346,50 @@ describe('real email format, allocation and lineage behaviours', () => {
     expect(
       after.sends.filter((s) => s.templateRef === 'pp-framing' && s.status !== 'cancelled'),
     ).toHaveLength(0);
+    // No other upcoming email may keep promising the switched-off stage in
+    // its "What happens next?" card.
+    for (const send of after.sends) {
+      if (send.status === 'cancelled' || send.status === 'sent') continue;
+      expect(send.nextSteps?.some((s) => s.templateRef === 'pp-framing') ?? false).toBe(false);
+    }
     await expect(
       layer.updateReleaseEmail(release.id, 'pp-dispatch', { enabled: false }),
     ).rejects.toThrow(/cannot be switched off/);
+  });
+
+  it('a release with the on-track email switched off gets no filler sends', async () => {
+    await layer.setCurrentUser('user-crm');
+    const release = await layer.createRelease({
+      title: 'Quiet Harbour',
+      artist: 'Ama Sarpong',
+      editionSize: 40,
+      productKind: 'print',
+      disabledTemplates: ['pp-ontrack'],
+    });
+    const detail = await layer.getRelease(release.id);
+    await layer.setPromiseDate(detail.batches[0].id, addDays(today(), 240));
+    const planned = await layer.getRelease(release.id);
+    const refs = planned.sends.map((s) => s.templateRef);
+    expect(refs).not.toContain('pp-ontrack');
+    expect(refs[refs.length - 1]).toBe('pp-dispatch');
+    await layer.setCurrentUser('user-tom');
+  });
+
+  it('a date-only edit does not opt a send out of release copy propagation', async () => {
+    const { release } = await releaseByTitle('Falling Light');
+    const detail = await layer.getRelease(release.id);
+    const pending = detail.sends.find(
+      (s) => s.status === 'pending_approval' && s.type === 'milestone' && !s.copyEdited,
+    )!;
+    const moved = await layer.updateSend(pending.id, {
+      subject: pending.subject,
+      headline: pending.headline,
+      body: pending.body,
+      nextSteps: pending.nextSteps,
+      scheduledDate: addDays(today(), 33),
+    });
+    expect(moved.scheduledDate).toBe(addDays(today(), 33));
+    expect(moved.copyEdited ?? false).toBe(false);
   });
 });
 

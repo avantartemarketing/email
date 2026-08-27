@@ -11,7 +11,7 @@ import type { Batch, Order, Release, ScheduledSend } from '../types';
 import { addDays, daysBetween, formatDay, today } from '../logic/dates';
 import { buildDefaultDelayEmail, remainingSequence } from '../logic/reschedule';
 import { generateMilestonePlan } from '../logic/plan';
-import { releaseSequenceFor } from '../logic/templates';
+import { releaseFillerTemplate, releaseSequenceFor } from '../logic/templates';
 import { EmailPreview } from './EmailPreview';
 import { useApp } from '../ui/AppContext';
 import { plural } from '../ui/format';
@@ -132,6 +132,7 @@ export function RescheduleModal({
           ...inheritedSentSends,
           ...batchSends,
         ]),
+        fillerTemplate: releaseFillerTemplate(release),
       })
     : [];
 

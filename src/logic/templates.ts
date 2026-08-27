@@ -212,6 +212,14 @@ export function releaseSequenceFor(release: Release): TemplateRef[] {
   );
 }
 
+/**
+ * The gap-filler template for a release's plans: the generic on-track email,
+ * or null (no fillers) when the release switched it off.
+ */
+export function releaseFillerTemplate(release: Release): TemplateRef | null {
+  return release.disabledTemplates.includes('pp-ontrack') ? null : 'pp-ontrack';
+}
+
 export function renderTemplate(
   ref: TemplateRef,
   fields: TemplateFields,

@@ -15,6 +15,7 @@ import {
   buildTemplateFields,
   effectiveTemplate,
   patchTokens,
+  releaseFillerTemplate,
   releaseSequenceFor,
   renderReleaseTemplate,
   shipWindowText,
@@ -219,6 +220,7 @@ export function planReschedule(
       ...inheritedSentSends,
       ...batchSends,
     ]),
+    fillerTemplate: releaseFillerTemplate(release),
   });
 
   const delayTemplate = effectiveTemplate(release, 'pp-delay');
