@@ -25,6 +25,7 @@ export function ReleasesIndex(): ReactElement {
 
   return (
     <Page
+      fullWidth
       title="Releases"
       subtitle="Every release with post-purchase comms, and what needs attention"
       primaryAction={{ content: 'New release', onAction: () => setNewReleaseOpen(true) }}

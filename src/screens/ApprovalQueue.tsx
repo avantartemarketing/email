@@ -107,6 +107,7 @@ export function ApprovalQueue(): ReactElement {
 
   return (
     <Page
+      fullWidth
       title="Approval queue"
       subtitle="Nothing sends without an approval from this screen"
     >

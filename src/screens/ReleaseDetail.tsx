@@ -49,7 +49,7 @@ export function ReleaseDetail(): ReactElement {
   }
   if (detail.data === null) {
     return (
-      <SkeletonPage title="Release">
+      <SkeletonPage fullWidth title="Release">
         <SkeletonBodyText lines={10} />
       </SkeletonPage>
     );
@@ -64,6 +64,7 @@ export function ReleaseDetail(): ReactElement {
 
   return (
     <Page
+      fullWidth
       title={d.release.title}
       subtitle={`${d.release.artist}${d.release.editionSize ? ` · edition of ${d.release.editionSize}` : ''} · ${d.release.productKind}`}
       titleMetadata={releaseStatusBadge(d.release.status)}

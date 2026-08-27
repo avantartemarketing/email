@@ -42,7 +42,7 @@ export function SendDetail(): ReactElement {
   }
   if (detail.data === null) {
     return (
-      <SkeletonPage title="Send">
+      <SkeletonPage fullWidth title="Send">
         <SkeletonBodyText lines={8} />
       </SkeletonPage>
     );
@@ -96,6 +96,7 @@ export function SendDetail(): ReactElement {
 
   return (
     <Page
+      fullWidth
       title={TEMPLATE_LABELS[send.templateRef]}
       subtitle={`${release.title} · ${batch.name}`}
       titleMetadata={sendStatusBadge(send)}
