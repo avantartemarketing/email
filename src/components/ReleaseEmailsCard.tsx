@@ -3,8 +3,9 @@ import {
   Banner,
   BlockStack,
   Button,
+  ButtonGroup,
   Card,
-  InlineStack,
+  IndexTable,
   Modal,
   Text,
   TextField,
@@ -23,11 +24,12 @@ import { useApp } from '../ui/AppContext';
 import { EmailPreview } from './EmailPreview';
 
 /**
- * The release's email set: which emails go out and with what copy. Defaults
- * come from the HubSpot masters; each can be customised or (except dispatch
- * and the delay notice) switched off for this release. Edits here apply to
- * every batch — upcoming sends are re-rendered, approved ones return to the
- * approval queue. Sends someone edited by hand keep their words.
+ * The release's email set as a table: which emails go out and with what
+ * copy. Defaults come from the HubSpot masters; each can be customised or
+ * (except dispatch and the delay notice) switched off for this release.
+ * Edits here apply to every batch — upcoming sends are re-rendered, approved
+ * ones return to the approval queue. Sends someone edited by hand keep
+ * their words.
  */
 export function ReleaseEmailsCard({
   release,
@@ -39,7 +41,6 @@ export function ReleaseEmailsCard({
   const { data, showToast } = useApp();
   const [editingRef, setEditingRef] = useState<TemplateRef | null>(null);
   const [togglingRef, setTogglingRef] = useState<TemplateRef | null>(null);
-  const [expanded, setExpanded] = useState(false);
 
   const sequence =
     release.productKind === 'sculpture' ? SCULPTURE_SEQUENCE : PRINT_SEQUENCE;
@@ -63,48 +64,55 @@ export function ReleaseEmailsCard({
   };
 
   return (
-    <Card>
-      <BlockStack gap="300">
-        <InlineStack align="space-between" blockAlign="center">
-          <BlockStack gap="050">
-            <Text as="h2" variant="headingSm">
-              Emails for this release
-            </Text>
-            <Text as="p" variant="bodySm" tone="subdued">
-              Defaults from the HubSpot masters. Changes here apply to every batch.
-            </Text>
-          </BlockStack>
-          <Button variant="plain" onClick={() => setExpanded((v) => !v)}>
-            {expanded ? 'Hide' : `Show all (${refs.length})`}
-          </Button>
-        </InlineStack>
-        {expanded ? (
-          <BlockStack gap="200">
-            {refs.map((ref) => {
-              const disabled = release.disabledTemplates.includes(ref);
-              const customised = Boolean(release.templateOverrides[ref]);
-              const template = effectiveTemplate(release, ref);
-              const canToggle = ref !== 'pp-dispatch' && ref !== 'pp-delay';
-              return (
-                <InlineStack key={ref} align="space-between" blockAlign="center" wrap gap="200">
-                  <BlockStack gap="050">
-                    <InlineStack gap="200" blockAlign="center">
-                      <Text as="span" fontWeight="semibold" tone={disabled ? 'subdued' : undefined}>
-                        {TEMPLATE_LABELS[ref]}
-                      </Text>
-                      {disabled ? (
-                        <Badge>Off</Badge>
-                      ) : customised ? (
-                        <Badge tone="info">Customised</Badge>
-                      ) : (
-                        <Badge tone="new">Default</Badge>
-                      )}
-                    </InlineStack>
-                    <Text as="span" variant="bodySm" tone="subdued" truncate>
-                      {template.subject}
-                    </Text>
-                  </BlockStack>
-                  <InlineStack gap="200">
+    <Card padding="0">
+      <div style={{ padding: 'var(--p-space-400) var(--p-space-400) var(--p-space-200)' }}>
+        <Text as="h2" variant="headingSm">
+          Emails for this release
+        </Text>
+        <Text as="p" variant="bodySm" tone="subdued">
+          Defaults from the HubSpot masters. Changes here apply to every batch.
+        </Text>
+      </div>
+      <IndexTable
+        resourceName={{ singular: 'email', plural: 'emails' }}
+        itemCount={refs.length}
+        selectable={false}
+        headings={[
+          { title: 'Email' },
+          { title: 'Copy' },
+          { title: 'Subject' },
+          { title: 'Actions' },
+        ]}
+      >
+        {refs.map((ref, index) => {
+          const disabled = release.disabledTemplates.includes(ref);
+          const customised = Boolean(release.templateOverrides[ref]);
+          const template = effectiveTemplate(release, ref);
+          const canToggle = ref !== 'pp-dispatch' && ref !== 'pp-delay';
+          return (
+            <IndexTable.Row id={ref} key={ref} position={index}>
+              <IndexTable.Cell>
+                <Text as="span" fontWeight="semibold" tone={disabled ? 'subdued' : undefined}>
+                  {TEMPLATE_LABELS[ref]}
+                </Text>
+              </IndexTable.Cell>
+              <IndexTable.Cell>
+                {disabled ? (
+                  <Badge>Off</Badge>
+                ) : customised ? (
+                  <Badge tone="info">Customised</Badge>
+                ) : (
+                  <Badge tone="new">Default</Badge>
+                )}
+              </IndexTable.Cell>
+              <IndexTable.Cell>
+                <Text as="span" variant="bodySm" tone="subdued" truncate>
+                  {disabled ? '—' : template.subject}
+                </Text>
+              </IndexTable.Cell>
+              <IndexTable.Cell>
+                <div onClick={(e) => e.stopPropagation()}>
+                  <ButtonGroup>
                     {!disabled ? (
                       <Button size="slim" onClick={() => setEditingRef(ref)}>
                         Edit copy
@@ -120,13 +128,13 @@ export function ReleaseEmailsCard({
                         {disabled ? 'Switch on' : 'Switch off'}
                       </Button>
                     ) : null}
-                  </InlineStack>
-                </InlineStack>
-              );
-            })}
-          </BlockStack>
-        ) : null}
-      </BlockStack>
+                  </ButtonGroup>
+                </div>
+              </IndexTable.Cell>
+            </IndexTable.Row>
+          );
+        })}
+      </IndexTable>
       <ReleaseEmailEditModal
         release={release}
         templateRef={editingRef}

@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Avant Arte post-purchase comms tool — batches, promise dates, milestone/delay emails behind an approval gate",
+  "description": "Avant Arte post-purchase comms tool \u2014 batches, promise dates, milestone/delay emails behind an approval gate",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -11,7 +11,8 @@
     "serve": "node server/index.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "build:artifact": "vite build --config vite.artifact.config.ts"
   },
   "dependencies": {
     "@shopify/polaris": "^13.9.5",
@@ -30,6 +31,7 @@
     "playwright": "^1.62.1",
     "typescript": "^5.7.2",
     "vite": "^7.1.0",
+    "vite-plugin-singlefile": "^2.3.3",
     "vitest": "^4.0.0"
   }
 }

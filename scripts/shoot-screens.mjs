@@ -46,10 +46,8 @@ await shot('01-releases-index');
 // --- 2. release detail: Falling Light batch 1 -----------------------------
 await page.getByText('Falling Light').first().click();
 await page.getByRole('tab', { name: /Batch 1/ }).waitFor();
-await shot('02-release-fl-batch1');
 
-// emails card expanded
-await page.getByRole('button', { name: /Show all/ }).click();
+// emails table is always visible now
 await page.getByText('Delay notice').first().waitFor();
 await shot('03-release-emails-card');
 

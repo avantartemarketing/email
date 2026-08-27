@@ -262,9 +262,7 @@ function BatchSection({
   };
 
   return (
-    <Layout>
-      <Layout.Section>
-        <BlockStack gap="400">
+    <BlockStack gap="400">
           <Card>
             <BlockStack gap="300">
               <InlineStack align="space-between" blockAlign="center" wrap>
@@ -437,32 +435,33 @@ function BatchSection({
             ) : null}
           </Card>
 
-          <Card>
-            <BlockStack gap="300">
-              <Text as="h2" variant="headingSm">
-                Comms plan
-              </Text>
-              <PlanTimeline
-                sends={batchSends}
-                inheritedSends={singleBatch ? [] : inheritedSends}
-                onEdit={(send) => setEditingSend(send)}
-                onCancel={(send) => setCancellingSend(send)}
-              />
-            </BlockStack>
-          </Card>
-        </BlockStack>
-      </Layout.Section>
-
-      <Layout.Section variant="oneThird">
-        <Card>
-          <BlockStack gap="300">
-            <Text as="h2" variant="headingSm">
-              {singleBatch ? 'History' : 'Batch history'}
-            </Text>
-            <BatchHistoryTimeline events={batchEvents} />
-          </BlockStack>
-        </Card>
-      </Layout.Section>
+          <Layout>
+            <Layout.Section>
+              <Card>
+                <BlockStack gap="300">
+                  <Text as="h2" variant="headingSm">
+                    Comms plan
+                  </Text>
+                  <PlanTimeline
+                    sends={batchSends}
+                    inheritedSends={singleBatch ? [] : inheritedSends}
+                    onEdit={(send) => setEditingSend(send)}
+                    onCancel={(send) => setCancellingSend(send)}
+                  />
+                </BlockStack>
+              </Card>
+            </Layout.Section>
+            <Layout.Section variant="oneThird">
+              <Card>
+                <BlockStack gap="300">
+                  <Text as="h2" variant="headingSm">
+                    {singleBatch ? 'History' : 'Batch history'}
+                  </Text>
+                  <BatchHistoryTimeline events={batchEvents} />
+                </BlockStack>
+              </Card>
+            </Layout.Section>
+          </Layout>
 
       <RescheduleModal
         open={rescheduleOpen}
@@ -530,6 +529,6 @@ function BatchSection({
           </Text>
         </Modal.Section>
       </Modal>
-    </Layout>
+    </BlockStack>
   );
 }

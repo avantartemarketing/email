@@ -17,6 +17,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import {
   BrowserRouter,
+  HashRouter,
   Link as RouterLink,
   Navigate,
   Route,
@@ -90,12 +91,15 @@ export function AppRoot(): ReactElement {
     );
   }
 
+  // The single-file artifact build has no server behind it — hash routing
+  // keeps navigation working from one static HTML file.
+  const Router = import.meta.env.VITE_HASH_ROUTER ? HashRouter : BrowserRouter;
   return (
-    <BrowserRouter>
+    <Router>
       <AppProvider i18n={en} linkComponent={AppLink}>
         <AppFrame data={boot.data} initialUser={boot.user} users={boot.users} />
       </AppProvider>
-    </BrowserRouter>
+    </Router>
   );
 }
 
