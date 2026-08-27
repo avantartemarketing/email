@@ -51,7 +51,7 @@ it once absorbed.
     ran over this session's diff and their confirmed findings are fixed
     (filler-template leak, copyEdited pinning, stale next-steps rows,
     no-op release saves, per-batch events, removed-order allocations).
-- `npm test` → 109 green; `npm run build` clean.
+- `npm test` → 117 green; `npm run build` clean.
 - **Two artifacts are live** (publish with `url:` to update, never without):
   - Review page "The Five Screens" (round 2):
     https://claude.ai/code/artifact/175468ca-3af9-4b54-bc18-7443ae935ea0
