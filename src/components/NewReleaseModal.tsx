@@ -1,9 +1,16 @@
-import { BlockStack, FormLayout, Modal, Select, TextField } from '@shopify/polaris';
+import { BlockStack, ChoiceList, FormLayout, Modal, Select, TextField } from '@shopify/polaris';
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { ProductKind } from '../types';
+import type { ProductKind, TemplateRef } from '../types';
+import { TEMPLATE_LABELS } from '../ui/format';
 import { useApp } from '../ui/AppContext';
+
+/** Milestones the operator can include/exclude at setup, per product kind. */
+const OPTIONAL_MILESTONES: Record<ProductKind, TemplateRef[]> = {
+  print: ['pp-printing', 'pp-signing', 'pp-framing'],
+  sculpture: ['pp-ontrack'],
+};
 
 export function NewReleaseModal({
   open,
@@ -18,7 +25,12 @@ export function NewReleaseModal({
   const [artist, setArtist] = useState('');
   const [editionSize, setEditionSize] = useState('');
   const [productKind, setProductKind] = useState<ProductKind>('print');
+  const [selectedMilestones, setSelectedMilestones] = useState<string[]>(
+    OPTIONAL_MILESTONES.print,
+  );
   const [saving, setSaving] = useState(false);
+
+  const optional = OPTIONAL_MILESTONES[productKind];
 
   const save = async () => {
     setSaving(true);
@@ -28,8 +40,9 @@ export function NewReleaseModal({
         artist,
         editionSize: editionSize ? Number.parseInt(editionSize, 10) : null,
         productKind,
+        disabledTemplates: optional.filter((ref) => !selectedMilestones.includes(ref)),
       });
-      showToast(`${release.title} created — import the Shopify order export next`);
+      showToast(`${release.title} created — review its emails, then import the Shopify order export`);
       onClose();
       navigate(`/releases/${release.id}`);
     } catch (err) {
@@ -85,13 +98,40 @@ export function NewReleaseModal({
                   { label: 'Sculpture', value: 'sculpture' },
                 ]}
                 value={productKind}
-                onChange={(value) => setProductKind(value as ProductKind)}
+                onChange={(value) => {
+                  const kind = value as ProductKind;
+                  setProductKind(kind);
+                  setSelectedMilestones(OPTIONAL_MILESTONES[kind]);
+                }}
                 helpText="Drives the milestone sequence (sculptures get on-track updates instead of printing/signing/framing)."
               />
             </FormLayout.Group>
+            <ChoiceList
+              allowMultiple
+              title="Emails this release sends"
+              choices={optional.map((ref) => ({
+                label: TEMPLATE_LABELS[ref],
+                value: ref,
+              }))}
+              selected={selectedMilestones}
+              onChange={setSelectedMilestones}
+            />
           </FormLayout>
+          <BlockStack gap="100">
+            <ChoiceListFootnote />
+          </BlockStack>
         </BlockStack>
       </Modal.Section>
     </Modal>
+  );
+}
+
+function ChoiceListFootnote(): ReactElement {
+  return (
+    <p style={{ color: 'var(--p-color-text-secondary)', fontSize: 'var(--p-font-size-300)' }}>
+      “Preparing for dispatch” and the delay notice are always available. Copy for every email
+      starts from the HubSpot master defaults and can be customised per release — or per send —
+      from the release page.
+    </p>
   );
 }

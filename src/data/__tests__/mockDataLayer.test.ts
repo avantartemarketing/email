@@ -225,6 +225,130 @@ describe('live behaviour through the interface', () => {
   });
 });
 
+describe('real email format, allocation and lineage behaviours', () => {
+  it('generated sends carry the structured email content', async () => {
+    const { release } = await releaseByTitle('Falling Light');
+    const detail = await layer.getRelease(release.id);
+    const printing = detail.sends.find((s) => s.templateRef === 'pp-printing')!;
+    expect(printing.headline).toBe('Printing in progress');
+    expect(printing.body).toContain('ship your edition between');
+    expect(printing.nextSteps!.map((s) => s.title)).toEqual(['Signing', 'Framing', 'Dispatching']);
+  });
+
+  it('release-level custom copy applies when plans are generated (Vessel VIII)', async () => {
+    const { release } = await releaseByTitle('Vessel VIII');
+    expect(release.templateOverrides['pp-ontrack']).toBeDefined();
+    const detail = await layer.getRelease(release.id);
+    const ontrack = detail.sends.filter((s) => s.templateRef === 'pp-ontrack');
+    expect(ontrack.length).toBeGreaterThan(0);
+    expect(ontrack[0].headline).toBe('Casting in progress');
+  });
+
+  it('warehouse allocation lands on the customer-by-customer view', async () => {
+    const { release } = await releaseByTitle('Falling Light');
+    const detail = await layer.getRelease(release.id);
+    const byName = (name: string) => detail.orders.filter((o) => o.shopifyOrderName === name);
+    const jane = byName('#AA10412')[0];
+    expect(jane.allocations).toHaveLength(1);
+    expect(jane.allocations![0].editionNumber).toBe('1');
+    expect(jane.allocations![0].frameFinish).toBe('BLACK');
+    // Artist's proofs keep their non-numeric edition "number".
+    expect(byName('#AA10427')[0].allocations![0].editionNumber).toBe('AP');
+    // #AA10418 has a framed and an unframed line item; each line item gets
+    // the sheet row matching its fulfilment.
+    const priya = byName('#AA10418');
+    expect(priya).toHaveLength(2);
+    const framed = priya.find((o) => o.variant === 'Framed')!;
+    const unframed = priya.find((o) => o.variant === 'Unframed')!;
+    expect(framed.allocations![0].fulfilment).toBe('Framed');
+    expect(unframed.allocations![0].fulfilment).toBe('Print Only');
+    // Orders the sheet doesn't cover yet stay visibly unallocated.
+    expect(byName('#AA10448')[0].allocations ?? []).toHaveLength(0);
+  });
+
+  it('reviewers see the last email collectors received, across splits', async () => {
+    const { release } = await releaseByTitle('Falling Light');
+    const detail = await layer.getRelease(release.id);
+    const batch3 = detail.batches[2];
+    expect(batch3.sourceBatchId).toBe(detail.batches[0].id);
+    const b3Delay = detail.sends.find((s) => s.batchId === batch3.id && s.type === 'delay')!;
+    const view = await layer.getSendDetail(b3Delay.id);
+    // These collectors sat in Batch 1 until two days ago — the last thing
+    // they received is Batch 1's framing email, not nothing.
+    expect(view.lastSent).not.toBeNull();
+    expect(view.lastSent!.templateRef).toBe('pp-framing');
+    expect(view.lastSent!.batchName).toBe('Batch 1');
+    expect(view.releaseBatchCount).toBe(3);
+
+    const queue = await layer.listApprovalQueue();
+    const flItem = queue.find((i) => i.release.title === 'Falling Light');
+    expect(flItem?.lastSent).not.toBeNull();
+  });
+
+  it('a second reschedule of a split batch never repeats milestones its collectors received', async () => {
+    const { release } = await releaseByTitle('Falling Light');
+    const before = await layer.getRelease(release.id);
+    const batch2 = before.batches[1];
+    const activeOrders = before.orders.filter((o) => !o.removed && o.batchId === batch2.id);
+    await layer.setCurrentUser('user-pm');
+    const result = await layer.reschedule({
+      releaseId: release.id,
+      batchId: batch2.id,
+      orderIds: activeOrders.map((o) => o.id),
+      newPromiseDate: addDays(today(), 90),
+      reason: 'Replacement moulding delayed again',
+      delaySubject: 'An update on your Falling Light delivery date',
+      delayBody: 'Hi {{first_name}}, delay body.',
+      userId: 'user-pm',
+    });
+    await layer.setCurrentUser('user-tom');
+    const refs = result.regeneratedSends.map((s) => s.templateRef);
+    // Printing and signing were sent while these collectors sat in Batch 1;
+    // framing was sent by Batch 2 itself. None may repeat.
+    expect(refs).not.toContain('pp-printing');
+    expect(refs).not.toContain('pp-signing');
+    expect(refs).not.toContain('pp-framing');
+    expect(refs[refs.length - 1]).toBe('pp-dispatch');
+  });
+
+  it('editing release copy re-renders upcoming sends but not hand-edited ones', async () => {
+    const { release } = await releaseByTitle('Falling Light');
+    const result = await layer.updateReleaseEmail(release.id, 'pp-dispatch', {
+      subject: 'On its way soon — {{release_title}}',
+    });
+    expect(result.updatedSendCount).toBeGreaterThan(0);
+    const after = await layer.getRelease(release.id);
+    // The Batch 1 dispatch send was edited by hand earlier — it keeps its words.
+    const handEdited = after.sends.find((s) => s.body.includes('PS: edited.'));
+    expect(handEdited).toBeDefined();
+    expect(handEdited!.subject).not.toContain('On its way soon');
+    // Untouched upcoming dispatch sends got the new subject, tokens patched.
+    const rerendered = after.sends.filter(
+      (s) => s.templateRef === 'pp-dispatch' && s.subject === 'On its way soon — Falling Light',
+    );
+    expect(rerendered.length).toBeGreaterThan(0);
+  });
+
+  it('switching a milestone off cancels its upcoming sends; dispatch is protected', async () => {
+    const { release } = await releaseByTitle('Night Garden');
+    const before = await layer.getRelease(release.id);
+    const framingBefore = before.sends.filter(
+      (s) => s.templateRef === 'pp-framing' && s.status === 'draft',
+    );
+    expect(framingBefore.length).toBeGreaterThan(0);
+    const result = await layer.updateReleaseEmail(release.id, 'pp-framing', { enabled: false });
+    expect(result.cancelledSendCount).toBe(framingBefore.length);
+    const after = await layer.getRelease(release.id);
+    expect(after.release.disabledTemplates).toContain('pp-framing');
+    expect(
+      after.sends.filter((s) => s.templateRef === 'pp-framing' && s.status !== 'cancelled'),
+    ).toHaveLength(0);
+    await expect(
+      layer.updateReleaseEmail(release.id, 'pp-dispatch', { enabled: false }),
+    ).rejects.toThrow(/cannot be switched off/);
+  });
+});
+
 // Type-level assertion that the mock stays swappable: the screens only ever
 // see DataLayer, and MockDataLayer must keep satisfying it.
 const _interfaceCheck: DataLayer = null as unknown as MockDataLayer;

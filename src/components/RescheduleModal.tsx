@@ -11,6 +11,7 @@ import type { Batch, Order, Release, ScheduledSend } from '../types';
 import { addDays, daysBetween, formatDay, today } from '../logic/dates';
 import { buildDefaultDelayEmail, remainingSequence } from '../logic/reschedule';
 import { generateMilestonePlan } from '../logic/plan';
+import { releaseSequenceFor } from '../logic/templates';
 import { EmailPreview } from './EmailPreview';
 import { useApp } from '../ui/AppContext';
 import { plural } from '../ui/format';
@@ -28,20 +29,26 @@ export function RescheduleModal({
   onClose,
   release,
   batch,
+  batchLabel,
   selectedOrders,
   batchActiveOrderCount,
   batchSends,
+  inheritedSentSends = [],
   onDone,
 }: {
   open: boolean;
   onClose: () => void;
   release: Release;
   batch: Batch;
+  /** Batch name for titles/copy, or null when the release has no splits. */
+  batchLabel?: string | null;
   /** Active orders the operator selected (all active orders if none). */
   selectedOrders: Order[];
   batchActiveOrderCount: number;
   /** The batch's current sends — used to preview the regenerated plan. */
   batchSends: ScheduledSend[];
+  /** Sent sends inherited from the batch this one was split from. */
+  inheritedSentSends?: ScheduledSend[];
   onDone: (message: string) => void;
 }): ReactElement {
   const { data, showToast } = useApp();
@@ -117,17 +124,24 @@ export function RescheduleModal({
 
   // A quick shape preview of the regenerated plan — same functions the save
   // path uses, so the count in the banner is the count that will be created.
+  // Inherited sent sends matter: a split batch must not re-promise stages
+  // its collectors already received in the batch it came from.
   const previewPlan = dateValid
     ? generateMilestonePlan(today(), newDate, release.productKind, {
-        sequence: remainingSequence(release.productKind, batchSends),
+        sequence: remainingSequence(releaseSequenceFor(release), [
+          ...inheritedSentSends,
+          ...batchSends,
+        ]),
       })
     : [];
+
+  const groupName = batchLabel ?? 'this release';
 
   return (
     <Modal
       open={open}
       onClose={close}
-      title={`Change delivery date — ${batch.name}`}
+      title={batchLabel ? `Change delivery date — ${batchLabel}` : 'Change delivery date'}
       primaryAction={
         step === 1
           ? {
@@ -159,17 +173,18 @@ export function RescheduleModal({
             ) : isSubset ? (
               <Banner tone="info" title={`${plural(selectedOrders.length, 'order')} of ${batchActiveOrderCount} selected`}>
                 <p>
-                  The selection is part of {batch.name}, so it will be split into a new batch
-                  with its own promise date and comms plan. The {batchActiveOrderCount - selectedOrders.length}{' '}
+                  The selection is part of {groupName}, so it will be split into a batch with its
+                  own promise date and comms plan. The {batchActiveOrderCount - selectedOrders.length}{' '}
                   remaining order{batchActiveOrderCount - selectedOrders.length === 1 ? ' keeps' : 's keep'} the
                   current plan.
                 </p>
               </Banner>
             ) : (
-              <Banner tone="info" title={`All ${plural(selectedOrders.length, 'active order')} in ${batch.name} selected`}>
+              <Banner tone="info" title={`All ${plural(selectedOrders.length, 'active order')} in ${groupName} selected`}>
                 <p>
-                  The whole batch moves to the new date. Its unsent milestone emails will be
-                  replaced by a regenerated plan; everything already sent stays in the history.
+                  {batchLabel ? 'The whole batch moves' : 'Everyone moves'} to the new date.
+                  Unsent milestone emails will be replaced by a regenerated plan; everything
+                  already sent stays in the history.
                 </p>
               </Banner>
             )}
@@ -183,8 +198,8 @@ export function RescheduleModal({
               autoComplete="off"
               helpText={
                 batch.promiseDate
-                  ? `Currently promised by ${formatDay(batch.promiseDate)}`
-                  : 'This batch has no promise date yet'
+                  ? `Current dispatch window starts ${formatDay(batch.promiseDate)}`
+                  : 'No promise date set yet'
               }
             />
             {!isLaterThanCurrent && dateValid ? (

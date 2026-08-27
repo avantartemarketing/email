@@ -1,6 +1,8 @@
 import type {
+  AllocationImportSummary,
   Batch,
   ImportSummary,
+  LastSentInfo,
   Order,
   PendingSendItem,
   ProductKind,
@@ -10,6 +12,7 @@ import type {
   RescheduleInput,
   RescheduleResult,
   ScheduledSend,
+  SendStep,
   TemplateRef,
   User,
 } from '../types';
@@ -31,6 +34,8 @@ export interface CreateReleaseInput {
   editionSize: number | null;
   productKind: ProductKind;
   shopifyProductIds?: string[];
+  /** Milestones switched off for this release (dispatch can't be). */
+  disabledTemplates?: TemplateRef[];
 }
 
 export interface ImportOptions {
@@ -40,8 +45,31 @@ export interface ImportOptions {
 
 export interface SendPatch {
   subject?: string;
+  headline?: string;
   body?: string;
+  nextSteps?: SendStep[];
   scheduledDate?: string;
+}
+
+/**
+ * Release-level email edit. Copy fields keep their `{{tokens}}` — they are
+ * patched per batch when sends are generated or updated. `resetToDefault`
+ * drops the release's override for this template entirely.
+ */
+export interface ReleaseEmailPatch {
+  enabled?: boolean;
+  subject?: string;
+  headline?: string;
+  body?: string;
+  resetToDefault?: boolean;
+}
+
+export interface ReleaseEmailUpdateResult {
+  release: Release;
+  /** Upcoming sends across all batches re-rendered from the new copy. */
+  updatedSendCount: number;
+  /** Unsent sends cancelled because the milestone was disabled. */
+  cancelledSendCount: number;
 }
 
 /** Everything the send detail screen needs in one fetch. */
@@ -51,6 +79,10 @@ export interface SendDetailView {
   batch: Batch;
   /** For unsent sends: the active orders that would receive it today. */
   prospectiveRecipients: Order[];
+  /** How many batches the release has — 1 means "don't talk about batches". */
+  releaseBatchCount: number;
+  /** The last email these collectors received (lineage-aware). */
+  lastSent: LastSentInfo | null;
 }
 
 export interface DataLayer {
@@ -71,6 +103,24 @@ export interface DataLayer {
    * the same or a fresher export is always safe.
    */
   importOrders(releaseId: string, csvText: string, options?: ImportOptions): Promise<ImportSummary>;
+  /**
+   * Parse the warehouse edition-allocation sheet and attach allocation rows
+   * (print, spec, edition number) to this release's orders by order number.
+   * Re-importing replaces each matched order's allocations.
+   */
+  importAllocations(releaseId: string, csvText: string): Promise<AllocationImportSummary>;
+  /**
+   * Edit the release's email set: toggle a milestone on/off or override its
+   * copy. Copy changes re-render every batch's upcoming sends built from
+   * that template (individually edited sends are left alone; approved sends
+   * return to pending). Disabling cancels the milestone's unsent sends and
+   * keeps it out of future plans.
+   */
+  updateReleaseEmail(
+    releaseId: string,
+    templateRef: TemplateRef,
+    patch: ReleaseEmailPatch,
+  ): Promise<ReleaseEmailUpdateResult>;
 
   // --- batches and plans -------------------------------------------------
   /**

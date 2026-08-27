@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Batch, Order, Release, ScheduledSend, User } from '../../types';
-import { buildDefaultDelayEmail, nextBatchName, planReschedule } from '../reschedule';
+import {
+  buildDefaultDelayEmail,
+  inheritedSentStory,
+  nextBatchName,
+  planReschedule,
+  sentStoryForBatch,
+} from '../reschedule';
 import type { RescheduleContext } from '../reschedule';
 
 const NOW_DAY = '2026-08-27';
@@ -14,6 +20,8 @@ const release: Release = {
   editionSize: 150,
   status: 'active',
   productKind: 'print',
+  disabledTemplates: [],
+  templateOverrides: {},
   createdAt: '2026-05-01T00:00:00.000Z',
 };
 
@@ -72,6 +80,7 @@ function makeCtx(overrides: Partial<RescheduleContext> = {}): RescheduleContext 
     batch: makeBatch(),
     batchOrders: [makeOrder('o1'), makeOrder('o2'), makeOrder('o3')],
     batchSends: [],
+    inheritedSentSends: [],
     allBatchNames: ['Batch 1'],
     nowDay: NOW_DAY,
     nowIso: NOW_ISO,
@@ -100,11 +109,12 @@ describe('planReschedule — subset selection (split)', () => {
   });
   const result = planReschedule(makeInput(['o1', 'o2']), ctx);
 
-  it('creates a new batch carrying the new promise date', () => {
+  it('creates a new batch carrying the new promise date and its lineage', () => {
     expect(result.splitOccurred).toBe(true);
     expect(result.newBatch).not.toBeNull();
     expect(result.newBatch!.name).toBe('Batch 2');
     expect(result.newBatch!.promiseDate).toBe('2026-11-20');
+    expect(result.newBatch!.sourceBatchId).toBe('batch-1');
     expect(result.targetBatchId).toBe(result.newBatch!.id);
     expect(result.movedOrderIds).toEqual(['o1', 'o2']);
   });
@@ -124,6 +134,15 @@ describe('planReschedule — subset selection (split)', () => {
     expect(delay.batchId).toBe(result.targetBatchId);
   });
 
+  it('gives the delay send the regenerated plan as its next steps', () => {
+    const delay = result.newSends[0];
+    const milestoneRefs = result.newSends.slice(1).map((s) => s.templateRef);
+    expect(delay.nextSteps!.length).toBeGreaterThan(0);
+    for (const step of delay.nextSteps!) {
+      expect(milestoneRefs).toContain(step.templateRef);
+    }
+  });
+
   it('regenerates milestones against the new date, all pending approval', () => {
     const milestones = result.newSends.slice(1);
     expect(milestones.length).toBeGreaterThan(0);
@@ -133,8 +152,10 @@ describe('planReschedule — subset selection (split)', () => {
       expect(send.batchId).toBe(result.targetBatchId);
     }
     expect(milestones[milestones.length - 1].templateRef).toBe('pp-dispatch');
-    // Patched copy carries the new promise date.
+    // Patched copy carries the new promise date (as the ship window start).
     expect(milestones[0].body).toContain('20 November 2026');
+    // Each milestone's "what happens next" covers the steps after it.
+    expect(milestones[milestones.length - 1].nextSteps).toEqual([]);
   });
 
   it('records batch_created, orders_split and reschedule events with the full story', () => {
@@ -199,6 +220,83 @@ describe('planReschedule — regenerated plan skips milestones already sent', ()
     // Dispatch legitimately repeats at the new date.
     expect(refs[refs.length - 1]).toBe('pp-dispatch');
   });
+
+  it('also skips stages inherited from the source batch (second reschedule of a split)', () => {
+    // Batch 2 was split from Batch 1 after printing and signing went out.
+    // Batch 2 then sent its own framing. Rescheduling Batch 2 again must
+    // regenerate only dispatch (plus fillers) — nothing they already got.
+    const batch2 = makeBatch({ id: 'batch-2', name: 'Batch 2', sourceBatchId: 'batch-1' });
+    const ctx = makeCtx({
+      batch: batch2,
+      batchOrders: [
+        makeOrder('o1', { batchId: 'batch-2' }),
+        makeOrder('o2', { batchId: 'batch-2' }),
+      ],
+      batchSends: [
+        makeSend('s10', { batchId: 'batch-2', status: 'sent', templateRef: 'pp-framing' }),
+        makeSend('s11', { batchId: 'batch-2', status: 'pending_approval', templateRef: 'pp-dispatch' }),
+      ],
+      inheritedSentSends: [
+        makeSend('s1', { status: 'sent', templateRef: 'pp-printing' }),
+        makeSend('s2', { status: 'sent', templateRef: 'pp-signing' }),
+      ],
+      allBatchNames: ['Batch 1', 'Batch 2'],
+    });
+    const result = planReschedule({ ...makeInput(['o1', 'o2']), batchId: 'batch-2' }, ctx);
+    const refs = result.newSends.slice(1).map((s) => s.templateRef);
+    expect(refs).not.toContain('pp-printing');
+    expect(refs).not.toContain('pp-signing');
+    expect(refs).not.toContain('pp-framing');
+    expect(refs[refs.length - 1]).toBe('pp-dispatch');
+  });
+});
+
+describe('lineage — inheritedSentStory / sentStoryForBatch', () => {
+  const batch1 = makeBatch();
+  const batch2 = makeBatch({
+    id: 'batch-2',
+    name: 'Batch 2',
+    sourceBatchId: 'batch-1',
+    createdAt: '2026-08-10T09:00:00.000Z',
+  });
+  const batch3 = makeBatch({
+    id: 'batch-3',
+    name: 'Batch 3',
+    sourceBatchId: 'batch-2',
+    createdAt: '2026-08-20T09:00:00.000Z',
+  });
+  const sends = [
+    makeSend('printing', { status: 'sent', templateRef: 'pp-printing', sentAt: '2026-07-01T08:00:00.000Z' }),
+    // Sent by Batch 1 AFTER Batch 2 split off — batch 2 never received it.
+    makeSend('framing', { status: 'sent', templateRef: 'pp-framing', sentAt: '2026-08-15T08:00:00.000Z' }),
+    makeSend('b2-delay', {
+      id: 'b2-delay',
+      batchId: 'batch-2',
+      type: 'delay',
+      templateRef: 'pp-delay',
+      status: 'sent',
+      sentAt: '2026-08-11T08:00:00.000Z',
+    }),
+  ];
+  const batches = [batch1, batch2, batch3];
+
+  it('inherits only what was sent before the orders left each ancestor', () => {
+    const inherited = inheritedSentStory(batch2, batches, sends);
+    expect(inherited.map((s) => s.id)).toEqual(['printing']);
+  });
+
+  it('walks grandparent lineage with the right cutoffs', () => {
+    const inherited = inheritedSentStory(batch3, batches, sends);
+    // From batch-2: the delay (sent before batch-3 split at 08-20). From
+    // batch-1: printing (sent before batch-2 split at 08-10) — but NOT the
+    // framing sent 08-15, after these collectors had left batch 1.
+    expect(inherited.map((s) => s.id)).toEqual(['printing', 'b2-delay']);
+  });
+
+  it('sentStoryForBatch appends the batch’s own sent sends in order', () => {
+    const story = sentStoryForBatch(batch2, batches, sends);
+    expect(story.map((s) => s.id)).toEqual(['printing', 'b2-delay']);
+  });
 });
 
 describe('planReschedule — selection excluding removed orders', () => {
@@ -231,6 +329,32 @@ describe('planReschedule — validation', () => {
     const input = { ...makeInput(['o1']), reason: '   ' };
     expect(() => planReschedule(input, makeCtx())).toThrow(/reason is required/);
   });
+
+  it('rejects a new date that is today or in the past', () => {
+    expect(() =>
+      planReschedule({ ...makeInput(['o1', 'o2', 'o3']), newPromiseDate: NOW_DAY }, makeCtx()),
+    ).toThrow(/must be in the future/);
+    expect(() =>
+      planReschedule({ ...makeInput(['o1', 'o2', 'o3']), newPromiseDate: '2026-08-01' }, makeCtx()),
+    ).toThrow(/must be in the future/);
+  });
+
+  it('rejects a batch with no promise date — nothing has been promised yet', () => {
+    const ctx = makeCtx({ batch: makeBatch({ promiseDate: null }) });
+    expect(() => planReschedule(makeInput(['o1', 'o2', 'o3']), ctx)).toThrow(/no promise date/);
+  });
+
+  it('deduplicates repeated order ids — a duplicated subset must still split', () => {
+    // o1 twice + o2 = 3 ids but only 2 distinct orders of 3 → split, and the
+    // source batch's plan must survive.
+    const ctx = makeCtx({
+      batchSends: [makeSend('s1', { status: 'pending_approval' })],
+    });
+    const result = planReschedule(makeInput(['o1', 'o1', 'o2']), ctx);
+    expect(result.splitOccurred).toBe(true);
+    expect(result.movedOrderIds).toEqual(['o1', 'o2']);
+    expect(result.cancelledSendIds).toEqual([]);
+  });
 });
 
 describe('nextBatchName', () => {
@@ -253,6 +377,17 @@ describe('buildDefaultDelayEmail', () => {
     expect(body).toContain('The framing run failed quality checks.');
     expect(body).toContain('15 September 2026');
     expect(body).toContain('20 November 2026');
+  });
+
+  it('honours a release-level custom delay body', () => {
+    const custom: Release = {
+      ...release,
+      templateOverrides: {
+        'pp-delay': { body: 'Bespoke delay for {{release_title}}: {{reason_line}}' },
+      },
+    };
+    const { body } = buildDefaultDelayEmail(custom, null, '2026-11-20', 'Kiln failure');
+    expect(body).toBe('Bespoke delay for Falling Light: Kiln failure.');
   });
 
   it('handles a missing previous promise date', () => {

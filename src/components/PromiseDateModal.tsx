@@ -4,6 +4,7 @@ import type { ReactElement } from 'react';
 import type { Batch, Release } from '../types';
 import { addDays, formatDay, today } from '../logic/dates';
 import { generateMilestonePlan } from '../logic/plan';
+import { releaseSequenceFor } from '../logic/templates';
 import { plural } from '../ui/format';
 import { useApp } from '../ui/AppContext';
 
@@ -12,12 +13,15 @@ export function PromiseDateModal({
   open,
   release,
   batch,
+  batchLabel,
   onClose,
   onSaved,
 }: {
   open: boolean;
   release: Release;
   batch: Batch;
+  /** Batch name for the title, or null when the release has no splits. */
+  batchLabel?: string | null;
   onClose: () => void;
   onSaved: () => void;
 }): ReactElement {
@@ -27,7 +31,11 @@ export function PromiseDateModal({
   const tomorrow = addDays(today(), 1);
   const valid = date >= tomorrow;
 
-  const preview = valid ? generateMilestonePlan(today(), date, release.productKind) : [];
+  const preview = valid
+    ? generateMilestonePlan(today(), date, release.productKind, {
+        sequence: releaseSequenceFor(release),
+      })
+    : [];
 
   const save = async () => {
     setSaving(true);
@@ -47,7 +55,7 @@ export function PromiseDateModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={`Set promise date — ${batch.name}`}
+      title={batchLabel ? `Set promise date — ${batchLabel}` : 'Set promise date'}
       primaryAction={{
         content: 'Set date & draft plan',
         onAction: () => void save(),
@@ -59,7 +67,7 @@ export function PromiseDateModal({
       <Modal.Section>
         <BlockStack gap="400">
           <TextField
-            label="Promised delivery date"
+            label="Promised dispatch date"
             type="date"
             value={date}
             onChange={setDate}

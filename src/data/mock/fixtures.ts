@@ -77,6 +77,44 @@ export const NIGHT_GARDEN_CSV = `${HEADER}
 `;
 
 /**
+ * Warehouse edition-allocation sheet for Falling Light, in the real sheet's
+ * shape: junk validation rows above the header, a blank leading column,
+ * framing columns empty for "Print Only" rows, an artist's proof ("AP")
+ * edition, a multi-line-item order (#AA10418) with one framed and one
+ * unframed row, two orders the warehouse hasn't allocated yet (#AA10448,
+ * #AA10449) and one sheet row with no matching order (#AA10999).
+ */
+export const FALLING_LIGHT_ALLOCATION_CSV = `,,#REF!,0,0,TRUE,,,,Mismatches:,0
+,,,0,0,TRUE,,,,,All multi-print orders have consistent edition numbers
+,Order Number,Print Name,Fulfilment,Frame Finish,Glass,Mounting Type,Set_Size,Edition No.,,
+,#AA10412,Falling Light,Framed,BLACK,Museum-grade acrylic,FLOAT,1,1,,
+,#AA10413,Falling Light,Print Only,,,,1,2,,
+,#AA10415,Falling Light,Print Only,,,,1,3,,
+,#AA10416,Falling Light,Framed,WHITE,UV-protective acrylic,FLOAT,1,4,,
+,#AA10418,Falling Light,Framed,BLACK,UV-protective acrylic,FLOAT,2,5,,
+,#AA10418,Falling Light,Print Only,,,,2,5,,
+,#AA10419,Falling Light,Framed,DARK BROWN,Museum-grade acrylic,WINDOW,1,6,,
+,#AA10421,Falling Light,Print Only,,,,1,7,,
+,#AA10422,Falling Light,Framed,BLACK,UV-protective acrylic,FLOAT,1,8,,
+,#AA10425,Falling Light,Framed,WHITE,UV-protective acrylic,FLOAT,1,9,,
+,#AA10427,Falling Light,Print Only,,,,1,AP,,
+,#AA10428,Falling Light,Framed,BLACK,UV-protective acrylic,FLOAT,1,10,,
+,#AA10430,Falling Light,Print Only,,,,1,11,,
+,#AA10431,Falling Light,Framed,BLACK,Museum-grade acrylic,FLOAT,1,12,,
+,#AA10433,Falling Light,Framed,GREEN,UV-protective acrylic,FLOAT,1,13,,
+,#AA10434,Falling Light,Print Only,,,,1,14,,
+,#AA10436,Falling Light,Framed,BLACK,UV-protective acrylic,FLOAT,1,15,,
+,#AA10437,Falling Light,Print Only,,,,1,16,,
+,#AA10439,Falling Light,Framed,WHITE,Museum-grade acrylic,FLOAT,1,17,,
+,#AA10440,Falling Light,Framed,BLACK,UV-protective acrylic,FLOAT,1,18,,
+,#AA10442,Falling Light,Print Only,,,,1,19,,
+,#AA10443,Falling Light,Framed,BLACK,UV-protective acrylic,FLOAT,1,20,,
+,#AA10445,Falling Light,Print Only,,,,1,21,,
+,#AA10446,Falling Light,Framed,BURGUNDY,UV-protective acrylic,FLOAT,1,22,,
+,#AA10999,Falling Light,Framed,BLACK,UV-protective acrylic,FLOAT,1,23,,
+`;
+
+/**
  * Fake HubSpot contact directory (email → contact id). Deliberately missing:
  *   - tom.rivera@example.net   (Falling Light — flagged at import)
  *   - arthur.beaumont@example.net (Vessel VIII — flagged at import)

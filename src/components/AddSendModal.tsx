@@ -14,11 +14,14 @@ const TEMPLATE_OPTIONS = (Object.keys(TEMPLATE_LABELS) as TemplateRef[]).map((re
 export function AddSendModal({
   open,
   batch,
+  batchLabel,
   onClose,
   onSaved,
 }: {
   open: boolean;
   batch: Batch;
+  /** Batch name for the title, or null when the release has no splits. */
+  batchLabel?: string | null;
   onClose: () => void;
   onSaved: () => void;
 }): ReactElement {
@@ -45,7 +48,7 @@ export function AddSendModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={`Add send — ${batch.name}`}
+      title={batchLabel ? `Add send — ${batchLabel}` : 'Add send'}
       primaryAction={{
         content: 'Add draft send',
         onAction: () => void save(),

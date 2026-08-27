@@ -146,6 +146,7 @@ export function ApprovalQueue(): ReactElement {
                 { title: 'Email' },
                 { title: 'Release / batch' },
                 { title: 'Recipients' },
+                { title: 'They last received' },
                 { title: 'Status' },
                 { title: 'Actions' },
               ]}
@@ -182,12 +183,31 @@ export function ApprovalQueue(): ReactElement {
                     <IndexTable.Cell>
                       <BlockStack gap="050">
                         <Text as="span">{item.release.title}</Text>
-                        <Text as="span" variant="bodySm" tone="subdued">
-                          {item.batch.name}
-                        </Text>
+                        {item.releaseBatchCount > 1 ? (
+                          <Text as="span" variant="bodySm" tone="subdued">
+                            {item.batch.name}
+                          </Text>
+                        ) : null}
                       </BlockStack>
                     </IndexTable.Cell>
                     <IndexTable.Cell>{item.recipientCount}</IndexTable.Cell>
+                    <IndexTable.Cell>
+                      {item.lastSent ? (
+                        <BlockStack gap="050">
+                          <Text as="span" variant="bodySm">
+                            {TEMPLATE_LABELS[item.lastSent.templateRef]}
+                            {item.lastSent.type === 'delay' ? ' (delay)' : ''}
+                          </Text>
+                          <Text as="span" variant="bodySm" tone="subdued">
+                            {formatDayShort(item.lastSent.sentAt.slice(0, 10))}
+                          </Text>
+                        </BlockStack>
+                      ) : (
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          Nothing yet
+                        </Text>
+                      )}
+                    </IndexTable.Cell>
                     <IndexTable.Cell>{sendStatusBadge(item.send)}</IndexTable.Cell>
                     <IndexTable.Cell>
                       <div onClick={(e) => e.stopPropagation()}>{actions(item)}</div>
@@ -207,7 +227,13 @@ export function ApprovalQueue(): ReactElement {
       <Modal
         open={preview !== null}
         onClose={() => setPreview(null)}
-        title={preview ? `${preview.release.title} — ${preview.batch.name}` : ''}
+        title={
+          preview
+            ? preview.releaseBatchCount > 1
+              ? `${preview.release.title} — ${preview.batch.name}`
+              : preview.release.title
+            : ''
+        }
         primaryAction={
           preview?.send.status === 'pending_approval'
             ? {
@@ -259,7 +285,33 @@ export function ApprovalQueue(): ReactElement {
                   {preview.send.templateRef}
                 </Text>
               </InlineStack>
-              <EmailPreview subject={preview.send.subject} body={preview.send.body} />
+              {preview.lastSent ? (
+                <InlineStack gap="100" blockAlign="center" wrap>
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    These collectors last received:
+                  </Text>
+                  <Button
+                    variant="plain"
+                    size="micro"
+                    onClick={() => {
+                      navigate(`/sends/${preview.lastSent!.sendId}`);
+                      setPreview(null);
+                    }}
+                  >
+                    {`${TEMPLATE_LABELS[preview.lastSent.templateRef]}${preview.lastSent.type === 'delay' ? ' (delay)' : ''} — ${formatDayShort(preview.lastSent.sentAt.slice(0, 10))}`}
+                  </Button>
+                </InlineStack>
+              ) : (
+                <Text as="span" variant="bodySm" tone="subdued">
+                  This is the first email these collectors will receive for this release.
+                </Text>
+              )}
+              <EmailPreview
+                subject={preview.send.subject}
+                headline={preview.send.headline}
+                body={preview.send.body}
+                nextSteps={preview.send.nextSteps}
+              />
             </BlockStack>
           </Modal.Section>
         ) : null}

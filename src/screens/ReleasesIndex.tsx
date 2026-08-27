@@ -72,7 +72,15 @@ export function ReleasesIndex(): ReactElement {
                   </IndexTable.Cell>
                   <IndexTable.Cell>{releaseStatusBadge(release.status)}</IndexTable.Cell>
                   <IndexTable.Cell>{summary.orderCount}</IndexTable.Cell>
-                  <IndexTable.Cell>{summary.batchCount}</IndexTable.Cell>
+                  <IndexTable.Cell>
+                    {summary.batchCount > 1 ? (
+                      summary.batchCount
+                    ) : (
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        —
+                      </Text>
+                    )}
+                  </IndexTable.Cell>
                   <IndexTable.Cell>
                     {next ? (
                       <Text as="span" variant="bodySm">

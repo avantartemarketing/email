@@ -1,8 +1,10 @@
 import type { ScheduledSend, SendRecipient } from '../../types';
-import { addDays, formatDay, parseDay, today } from '../../logic/dates';
+import { addDays, parseDay, today } from '../../logic/dates';
+import { buildDefaultDelayEmail } from '../../logic/reschedule';
 import { MockDataLayer } from './MockDataLayer';
 import {
   BLUE_INTERVAL_CSV,
+  FALLING_LIGHT_ALLOCATION_CSV,
   FALLING_LIGHT_CSV,
   HUBSPOT_DIRECTORY,
   NIGHT_GARDEN_CSV,
@@ -181,7 +183,12 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
     newPromiseDate: addDays(T, 45),
     reason: 'Second framing run pushed back at the framers',
     delaySubject: 'An update on your Falling Light delivery date',
-    delayBody: buildSeedDelayBody('Falling Light', 'Jenny Marlowe', addDays(T, 20), addDays(T, 45), 'The second framing run has been pushed back at our framers.'),
+    delayBody: buildDefaultDelayEmail(
+      layer._store.releases.get(fallingLight.id)!,
+      addDays(T, 20),
+      addDays(T, 45),
+      'The second framing run has been pushed back at our framers',
+    ).body,
     userId: 'user-pm',
   });
   await as('user-crm');
@@ -206,6 +213,13 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
   const [refunded] = findOrders(fallingLight.id, ['#AA10442']);
   await layer.removeOrder(refunded, 'Refunded in Shopify — collector cancelled');
 
+  // T-4: the warehouse shares the edition allocation sheet; two orders are
+  // still unallocated and one sheet row has no matching order — both states
+  // the screens should surface.
+  clock(-4);
+  await as('user-warehouse');
+  await layer.importAllocations(fallingLight.id, FALLING_LIGHT_ALLOCATION_CSV);
+
   // T-2: frame moulding out of stock for 4 orders — split to Batch 3,
   // delayed to T+75. The delay notice is still waiting for approval, two
   // days past its scheduled date: this is the overdue/attention state.
@@ -218,7 +232,12 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
     newPromiseDate: addDays(T, 75),
     reason: 'Frame moulding out of stock at the supplier',
     delaySubject: 'An update on your Falling Light delivery date',
-    delayBody: buildSeedDelayBody('Falling Light', 'Jenny Marlowe', addDays(T, 20), addDays(T, 75), 'The moulding used for your frame is out of stock with our supplier, and the replacement batch has a longer lead time than expected.'),
+    delayBody: buildDefaultDelayEmail(
+      layer._store.releases.get(fallingLight.id)!,
+      addDays(T, 20),
+      addDays(T, 75),
+      'The moulding used for your frame is out of stock with our supplier, and the replacement batch has a longer lead time than expected',
+    ).body,
     userId: 'user-warehouse',
   });
 
@@ -234,6 +253,14 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
   });
   await layer.importOrders(vessel.id, VESSEL_VIII_CSV);
   const vBatch = [...layer._store.batches.values()].find((b) => b.releaseId === vessel.id)!;
+  // Sculpture updates get release-level custom copy before the plan is
+  // generated — the on-track master reads too print-like for a bronze.
+  await layer.updateReleaseEmail(vessel.id, 'pp-ontrack', {
+    headline: 'Casting in progress',
+    body: `A quick update on {{release_title}} by {{artist}}: casting and finishing at the foundry are progressing as planned, and we're currently on track to ship your edition between {{ship_window}}.
+
+You can expect more updates along the way, but please don't hesitate to contact us if you have any questions.`,
+  });
   clock(-19);
   await layer.setPromiseDate(vBatch.id, addDays(T, 150));
   await layer.submitBatchPlanForApproval(vBatch.id);
@@ -261,24 +288,4 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
   await layer.setCurrentUser('user-tom');
   layer.simulatedLatencyMs = 200;
   return layer;
-}
-
-/** Seeded delay bodies mirror what buildDefaultDelayEmail produces live. */
-function buildSeedDelayBody(
-  title: string,
-  artist: string,
-  oldDate: string,
-  newDate: string,
-  reasonLine: string,
-): string {
-  return `Hi {{first_name}},
-
-We're writing with an update on ${title} by ${artist}. ${reasonLine}
-
-Your edition was previously expected by ${formatDay(oldDate)}. The updated delivery date is ${formatDay(newDate)}.
-
-We know delays are frustrating, and we're sorry for the wait — every edition is made to the artist's exacting standard, and we won't ship anything that falls short of it. We'll continue to update you as your edition progresses, and you can reply to this email with any questions.
-
-Thank you for your patience,
-Avant Arte`;
 }

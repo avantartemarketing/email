@@ -2,10 +2,12 @@ import {
   Badge,
   Banner,
   BlockStack,
+  Button,
   Card,
   IndexTable,
   InlineStack,
   Layout,
+  Modal,
   Page,
   SkeletonBodyText,
   SkeletonPage,
@@ -32,6 +34,7 @@ export function SendDetail(): ReactElement {
   const navigate = useNavigate();
   const detail = useAsync(() => data.getSendDetail(sendId!), [sendId]);
   const [editing, setEditing] = useState(false);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
 
   if (detail.error) {
     return (
@@ -48,7 +51,7 @@ export function SendDetail(): ReactElement {
     );
   }
 
-  const { send, release, batch, prospectiveRecipients } = detail.data;
+  const { send, release, batch, prospectiveRecipients, releaseBatchCount, lastSent } = detail.data;
   const sent = send.status === 'sent';
   const failures = send.recipients?.filter((r) => r.status === 'failed') ?? [];
 
@@ -63,6 +66,7 @@ export function SendDetail(): ReactElement {
       } else {
         await data.cancelSend(send.id);
         showToast('Send cancelled');
+        setConfirmingCancel(false);
       }
       detail.reload();
     } catch (err) {
@@ -98,7 +102,7 @@ export function SendDetail(): ReactElement {
     <Page
       fullWidth
       title={TEMPLATE_LABELS[send.templateRef]}
-      subtitle={`${release.title} · ${batch.name}`}
+      subtitle={releaseBatchCount > 1 ? `${release.title} · ${batch.name}` : release.title}
       titleMetadata={sendStatusBadge(send)}
       backAction={{
         content: release.title,
@@ -115,7 +119,7 @@ export function SendDetail(): ReactElement {
             ]
           : []),
         ...(!sent && send.status !== 'cancelled'
-          ? [{ content: 'Cancel send', destructive: true, onAction: () => void act('cancel') }]
+          ? [{ content: 'Cancel send', destructive: true, onAction: () => setConfirmingCancel(true) }]
           : []),
       ]}
     >
@@ -138,7 +142,9 @@ export function SendDetail(): ReactElement {
                 </Text>
                 <EmailPreview
                   subject={send.subject}
+                  headline={send.headline}
                   body={send.body}
+                  nextSteps={send.nextSteps}
                   sampleRecipientName={recipientRows[0]?.name}
                 />
               </BlockStack>
@@ -214,6 +220,25 @@ export function SendDetail(): ReactElement {
                 <DetailRow label="HubSpot email" value={send.hubspotEmailId} />
               ) : null}
               <DetailRow label="Created by" value={userName(send.createdBy)} />
+              {!sent ? (
+                <BlockStack gap="050">
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    They last received
+                  </Text>
+                  {lastSent ? (
+                    <Button
+                      variant="plain"
+                      onClick={() => navigate(`/sends/${lastSent.sendId}`)}
+                    >
+                      {`${TEMPLATE_LABELS[lastSent.templateRef]}${lastSent.type === 'delay' ? ' (delay)' : ''} — ${formatDay(lastSent.sentAt.slice(0, 10))}`}
+                    </Button>
+                  ) : (
+                    <Text as="span" variant="bodyMd">
+                      Nothing yet — this will be their first email
+                    </Text>
+                  )}
+                </BlockStack>
+              ) : null}
             </BlockStack>
           </Card>
         </Layout.Section>
@@ -223,6 +248,24 @@ export function SendDetail(): ReactElement {
         onClose={() => setEditing(false)}
         onSaved={() => detail.reload()}
       />
+      <Modal
+        open={confirmingCancel}
+        onClose={() => setConfirmingCancel(false)}
+        title={`Cancel “${send.subject}”?`}
+        primaryAction={{
+          content: 'Cancel send',
+          destructive: true,
+          onAction: () => void act('cancel'),
+        }}
+        secondaryActions={[{ content: 'Keep it', onAction: () => setConfirmingCancel(false) }]}
+      >
+        <Modal.Section>
+          <Text as="p">
+            The email will not go out and drops off the plan. This is recorded in the batch
+            history. Scheduled for {formatDay(send.scheduledDate)}.
+          </Text>
+        </Modal.Section>
+      </Modal>
     </Page>
   );
 }

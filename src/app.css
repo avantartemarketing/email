@@ -99,12 +99,98 @@
   border-bottom: var(--p-border-width-025) solid var(--p-color-border);
 }
 
-.pp-email-preview__body {
-  padding: var(--p-space-400);
-  white-space: pre-wrap;
+/* The preview page mimics the real HubSpot email: 600px column, centered
+   logo, hero slot, H1, body copy, "What happens next?" card, footer. */
+
+.pp-email-preview__page {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: var(--p-space-400) var(--p-space-500) var(--p-space-500);
+  background: var(--p-color-bg-surface);
   font-size: var(--p-font-size-325);
   line-height: var(--p-font-line-height-500);
-  background: var(--p-color-bg-surface);
+}
+
+.pp-email-preview__logo {
+  text-align: center;
+  font-weight: 650;
+  letter-spacing: 0.35em;
+  font-size: var(--p-font-size-300);
+  padding: var(--p-space-200) 0 var(--p-space-400);
+}
+
+.pp-email-preview__hero {
+  border: 1px dashed var(--p-color-border);
+  border-radius: var(--p-border-radius-100);
+  background: var(--p-color-bg-surface-secondary);
+  color: var(--p-color-text-secondary);
+  text-align: center;
+  font-size: var(--p-font-size-300);
+  padding: var(--p-space-800) var(--p-space-400);
+  margin-bottom: var(--p-space-400);
+}
+
+.pp-email-preview__headline {
+  text-align: center;
+  font-size: 22px;
+  font-weight: 650;
+  line-height: 1.4;
+  margin: 0 0 var(--p-space-400);
+}
+
+.pp-email-preview__body {
+  white-space: pre-wrap;
+}
+
+.pp-email-preview__steps {
+  border: 1px solid var(--p-color-border);
+  border-radius: var(--p-border-radius-200);
+  padding: var(--p-space-300) var(--p-space-400);
+  margin-top: var(--p-space-400);
+}
+
+.pp-email-preview__steps-title {
+  font-size: var(--p-font-size-400);
+  font-weight: 650;
+  margin: 0 0 var(--p-space-300);
+}
+
+.pp-email-preview__step {
+  display: flex;
+  gap: var(--p-space-300);
+  padding-bottom: var(--p-space-300);
+}
+
+.pp-email-preview__step:last-child {
+  padding-bottom: 0;
+}
+
+.pp-email-preview__step-icon {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  margin-top: 4px;
+  border-radius: 50%;
+  border: 2px solid var(--p-color-border);
+}
+
+.pp-email-preview__step-name {
+  font-weight: 650;
+  margin: 0;
+}
+
+.pp-email-preview__step-text {
+  margin: 0;
+}
+
+.pp-email-preview__footer {
+  border-top: 1px solid var(--p-color-border);
+  margin-top: var(--p-space-500);
+  padding-top: var(--p-space-300);
+  text-align: center;
+  color: var(--p-color-text-secondary);
+  font-size: var(--p-font-size-275);
+  line-height: 1.6;
 }
 
 .pp-clickable-row {

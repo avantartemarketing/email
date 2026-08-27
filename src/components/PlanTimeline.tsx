@@ -9,14 +9,18 @@ import { useApp } from '../ui/AppContext';
 /**
  * A batch's comms plan as a vertical timeline: sent items greyed out with
  * sent date and approver, upcoming items with status badges and edit/cancel
- * actions. Clicking through opens the send detail screen.
+ * actions. Clicking through opens the send detail screen. For split batches,
+ * `inheritedSends` prefixes the story with what these collectors already
+ * received in the batch they were split from.
  */
 export function PlanTimeline({
   sends,
+  inheritedSends = [],
   onEdit,
   onCancel,
 }: {
   sends: ScheduledSend[];
+  inheritedSends?: ScheduledSend[];
   onEdit: (send: ScheduledSend) => void;
   onCancel: (send: ScheduledSend) => void;
 }): ReactElement {
@@ -26,7 +30,7 @@ export function PlanTimeline({
   const visible = sends.filter((s) => s.status !== 'cancelled');
   const cancelled = sends.filter((s) => s.status === 'cancelled');
 
-  if (visible.length === 0 && cancelled.length === 0) {
+  if (visible.length === 0 && cancelled.length === 0 && inheritedSends.length === 0) {
     return (
       <Text as="p" tone="subdued">
         No sends planned yet — set a promise date to generate the milestone plan.
@@ -37,6 +41,24 @@ export function PlanTimeline({
   return (
     <BlockStack gap="200">
       <ul className="pp-timeline">
+        {inheritedSends.map((send) => (
+          <li key={send.id} className="pp-timeline__item pp-timeline__item--muted">
+            <span className="pp-timeline__dot pp-timeline__dot--sent" />
+            <BlockStack gap="100">
+              <InlineStack gap="200" blockAlign="center" wrap>
+                <Button variant="plain" onClick={() => navigate(`/sends/${send.id}`)}>
+                  {TEMPLATE_LABELS[send.templateRef]}
+                </Button>
+                <Text as="span" variant="bodySm" tone="subdued">
+                  received before the split
+                </Text>
+              </InlineStack>
+              <Text as="p" variant="bodySm" tone="subdued">
+                Sent {formatDateTime(send.sentAt!)}
+              </Text>
+            </BlockStack>
+          </li>
+        ))}
         {visible.map((send) => {
           const sent = send.status === 'sent';
           const dotClass = sent

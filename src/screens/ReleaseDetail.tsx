@@ -18,8 +18,16 @@ import {
 import { useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { Batch, Order, ReleaseDetail as ReleaseDetailData, ScheduledSend } from '../types';
+import type {
+  Batch,
+  Order,
+  OrderAllocation,
+  ReleaseDetail as ReleaseDetailData,
+  ScheduledSend,
+} from '../types';
 import { formatDay, formatDayShort, today } from '../logic/dates';
+import { describeAllocationSpec } from '../logic/allocation';
+import { inheritedSentStory } from '../logic/reschedule';
 import { plural, releaseStatusBadge } from '../ui/format';
 import { useApp } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
@@ -31,6 +39,8 @@ import { AddSendModal } from '../components/AddSendModal';
 import { EditSendModal } from '../components/EditSendModal';
 import { RemoveOrderModal } from '../components/RemoveOrderModal';
 import { ImportCsvModal } from '../components/ImportCsvModal';
+import { AllocationImportModal } from '../components/AllocationImportModal';
+import { ReleaseEmailsCard } from '../components/ReleaseEmailsCard';
 
 export function ReleaseDetail(): ReactElement {
   const { releaseId } = useParams<{ releaseId: string }>();
@@ -39,6 +49,7 @@ export function ReleaseDetail(): ReactElement {
   const detail = useAsync(() => data.getRelease(releaseId!), [releaseId]);
   const [selectedTab, setSelectedTab] = useState(0);
   const [importOpen, setImportOpen] = useState(false);
+  const [allocationOpen, setAllocationOpen] = useState(false);
 
   if (detail.error) {
     return (
@@ -57,6 +68,9 @@ export function ReleaseDetail(): ReactElement {
 
   const d = detail.data;
   const batches = d.batches;
+  // Most releases never split: one batch means "the release" — no batch
+  // chrome. Tabs and batch names appear only once a split has happened.
+  const singleBatch = batches.length === 1;
   const batchTab = Math.min(selectedTab, batches.length - 1);
   const batch = batches[batchTab];
   const flaggedNoEmail = d.orders.filter((o) => !o.removed && !o.email);
@@ -69,7 +83,10 @@ export function ReleaseDetail(): ReactElement {
       subtitle={`${d.release.artist}${d.release.editionSize ? ` · edition of ${d.release.editionSize}` : ''} · ${d.release.productKind}`}
       titleMetadata={releaseStatusBadge(d.release.status)}
       backAction={{ content: 'Releases', onAction: () => navigate('/') }}
-      secondaryActions={[{ content: 'Import CSV', onAction: () => setImportOpen(true) }]}
+      secondaryActions={[
+        { content: 'Import orders', onAction: () => setImportOpen(true) },
+        { content: 'Import warehouse allocation', onAction: () => setAllocationOpen(true) },
+      ]}
     >
       <BlockStack gap="400">
         {flaggedNoEmail.length > 0 || flaggedNoContact.length > 0 ? (
@@ -91,6 +108,8 @@ export function ReleaseDetail(): ReactElement {
           </Banner>
         ) : null}
 
+        <ReleaseEmailsCard release={d.release} onChanged={() => detail.reload()} />
+
         {d.orders.length === 0 ? (
           <Card>
             <BlockStack gap="300">
@@ -98,30 +117,33 @@ export function ReleaseDetail(): ReactElement {
                 No orders yet
               </Text>
               <Text as="p" tone="subdued">
-                Import the Shopify order export to create this release's orders in {batch?.name ?? 'the default batch'}.
+                Import the Shopify order export to create this release's orders.
               </Text>
               <InlineStack>
                 <Button variant="primary" onClick={() => setImportOpen(true)}>
-                  Import CSV
+                  Import orders
                 </Button>
               </InlineStack>
             </BlockStack>
           </Card>
         ) : (
           <>
-            <Tabs
-              tabs={batches.map((b) => {
-                const active = d.orders.filter((o) => o.batchId === b.id && !o.removed).length;
-                return { id: b.id, content: `${b.name} (${active})` };
-              })}
-              selected={batchTab}
-              onSelect={setSelectedTab}
-            />
+            {!singleBatch ? (
+              <Tabs
+                tabs={batches.map((b) => {
+                  const active = d.orders.filter((o) => o.batchId === b.id && !o.removed).length;
+                  return { id: b.id, content: `${b.name} (${active})` };
+                })}
+                selected={batchTab}
+                onSelect={setSelectedTab}
+              />
+            ) : null}
             {batch ? (
               <BatchSection
                 key={batch.id}
                 detail={d}
                 batch={batch}
+                singleBatch={singleBatch}
                 onChanged={() => detail.reload()}
                 onBatchCreated={() => {
                   detail.reload();
@@ -139,18 +161,40 @@ export function ReleaseDetail(): ReactElement {
         onClose={() => setImportOpen(false)}
         onImported={() => detail.reload()}
       />
+      <AllocationImportModal
+        open={allocationOpen}
+        release={d.release}
+        onClose={() => setAllocationOpen(false)}
+        onImported={() => detail.reload()}
+      />
     </Page>
   );
+}
+
+/** "12" / "12 · 4 prints" / "AP" — the Edition cell. */
+function editionSummary(allocations: OrderAllocation[] | undefined): string | null {
+  if (!allocations || allocations.length === 0) return null;
+  const numbers = [...new Set(allocations.map((a) => a.editionNumber).filter(Boolean))];
+  const label = numbers.length > 0 ? numbers.join(', ') : '—';
+  return allocations.length > 1 ? `${label} · ${allocations.length} prints` : label;
+}
+
+function allocationSpec(allocations: OrderAllocation[] | undefined): string | null {
+  if (!allocations || allocations.length === 0) return null;
+  const framed = allocations.find((a) => /framed/i.test(a.fulfilment)) ?? allocations[0];
+  return describeAllocationSpec(framed);
 }
 
 function BatchSection({
   detail,
   batch,
+  singleBatch,
   onChanged,
   onBatchCreated,
 }: {
   detail: ReleaseDetailData;
   batch: Batch;
+  singleBatch: boolean;
   onChanged: () => void;
   onBatchCreated: () => void;
 }): ReactElement {
@@ -166,11 +210,19 @@ function BatchSection({
     () => detail.sends.filter((s) => s.batchId === batch.id),
     [detail.sends, batch.id],
   );
+  const inheritedSends = useMemo(
+    () => inheritedSentStory(batch, detail.batches, detail.sends),
+    [batch, detail.batches, detail.sends],
+  );
   const batchEvents = useMemo(
     () => detail.events.filter((e) => e.batchId === batch.id),
     [detail.events, batch.id],
   );
   const draftCount = batchSends.filter((s) => s.status === 'draft').length;
+  const allocatedCount = activeOrders.filter((o) => o.allocations && o.allocations.length > 0).length;
+  const hasAllocations = detail.orders.some((o) => o.allocations && o.allocations.length > 0);
+  // "This batch" in copy; the batch name only exists once there are several.
+  const batchLabel = singleBatch ? null : batch.name;
 
   const { selectedResources, allResourcesSelected, handleSelectionChange, clearSelection } =
     useIndexResourceState(activeOrders as unknown as { [key: string]: unknown }[]);
@@ -218,10 +270,10 @@ function BatchSection({
               <InlineStack align="space-between" blockAlign="center" wrap>
                 <BlockStack gap="050">
                   <Text as="h2" variant="headingSm">
-                    Promised delivery
+                    Promised dispatch
                   </Text>
                   <Text as="p" variant="headingLg">
-                    {batch.promiseDate ? formatDay(batch.promiseDate) : 'Not set'}
+                    {batch.promiseDate ? `From ${formatDay(batch.promiseDate)}` : 'Not set'}
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
                     {plural(activeOrders.length, 'active order')}
@@ -262,12 +314,21 @@ function BatchSection({
 
           <Card padding="0">
             <div style={{ padding: 'var(--p-space-400) var(--p-space-400) var(--p-space-200)' }}>
-              <Text as="h2" variant="headingSm">
-                Orders
-              </Text>
+              <InlineStack align="space-between" blockAlign="center" wrap>
+                <Text as="h2" variant="headingSm">
+                  Orders
+                </Text>
+                {hasAllocations ? (
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    Warehouse allocation: {allocatedCount} of {activeOrders.length}
+                    {allocatedCount < activeOrders.length ? ' — re-import the sheet for the rest' : ''}
+                  </Text>
+                ) : null}
+              </InlineStack>
               <Text as="p" variant="bodySm" tone="subdued">
-                Select some to split them onto a new delivery date; select none to reschedule the
-                whole batch.
+                {batch.promiseDate
+                  ? `Select some to split them onto a new delivery date; select none to reschedule ${batchLabel ? `the whole of ${batchLabel}` : 'everyone'}.`
+                  : 'Set the promise date to draft the comms plan.'}
               </Text>
             </div>
             <IndexTable
@@ -279,57 +340,84 @@ function BatchSection({
                 { title: 'Order' },
                 { title: 'Collector' },
                 { title: 'Contact' },
-                { title: 'Variant' },
+                { title: 'Item' },
+                { title: 'Edition' },
                 { title: 'Ordered' },
                 { title: '' },
               ]}
-              promotedBulkActions={[
-                {
-                  content: 'Change delivery date',
-                  onAction: () => setRescheduleOpen(true),
-                },
-              ]}
+              promotedBulkActions={
+                batch.promiseDate
+                  ? [
+                      {
+                        content: 'Change delivery date',
+                        onAction: () => setRescheduleOpen(true),
+                      },
+                    ]
+                  : []
+              }
             >
-              {activeOrders.map((order, index) => (
-                <IndexTable.Row
-                  id={order.id}
-                  key={order.id}
-                  position={index}
-                  selected={selectedResources.includes(order.id)}
-                >
-                  <IndexTable.Cell>
-                    <Text as="span" fontWeight="semibold">
-                      {order.shopifyOrderName}
-                    </Text>
-                  </IndexTable.Cell>
-                  <IndexTable.Cell>{order.collectorName}</IndexTable.Cell>
-                  <IndexTable.Cell>
-                    <InlineStack gap="100" blockAlign="center" wrap>
-                      <Text as="span" variant="bodySm">
-                        {order.email ?? '—'}
+              {activeOrders.map((order, index) => {
+                const spec = allocationSpec(order.allocations);
+                const edition = editionSummary(order.allocations);
+                return (
+                  <IndexTable.Row
+                    id={order.id}
+                    key={order.id}
+                    position={index}
+                    selected={selectedResources.includes(order.id)}
+                  >
+                    <IndexTable.Cell>
+                      <Text as="span" fontWeight="semibold">
+                        {order.shopifyOrderName}
                       </Text>
-                      {!order.email ? <Badge tone="critical">No email</Badge> : null}
-                      {order.email && !order.hubspotContactId ? (
-                        <Badge tone="warning">No HubSpot contact</Badge>
-                      ) : null}
-                    </InlineStack>
-                  </IndexTable.Cell>
-                  <IndexTable.Cell>{order.variant || '—'}</IndexTable.Cell>
-                  <IndexTable.Cell>{formatDayShort(order.orderDate)}</IndexTable.Cell>
-                  <IndexTable.Cell>
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        size="micro"
-                        tone="critical"
-                        variant="plain"
-                        onClick={() => setRemovingOrder(order)}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  </IndexTable.Cell>
-                </IndexTable.Row>
-              ))}
+                    </IndexTable.Cell>
+                    <IndexTable.Cell>{order.collectorName}</IndexTable.Cell>
+                    <IndexTable.Cell>
+                      <InlineStack gap="100" blockAlign="center" wrap>
+                        <Text as="span" variant="bodySm">
+                          {order.email ?? '—'}
+                        </Text>
+                        {!order.email ? <Badge tone="critical">No email</Badge> : null}
+                        {order.email && !order.hubspotContactId ? (
+                          <Badge tone="warning">No HubSpot contact</Badge>
+                        ) : null}
+                      </InlineStack>
+                    </IndexTable.Cell>
+                    <IndexTable.Cell>
+                      <BlockStack gap="025">
+                        <Text as="span">{order.variant || '—'}</Text>
+                        {spec ? (
+                          <Text as="span" variant="bodySm" tone="subdued">
+                            {spec}
+                          </Text>
+                        ) : null}
+                      </BlockStack>
+                    </IndexTable.Cell>
+                    <IndexTable.Cell>
+                      {edition ? (
+                        <Text as="span">{edition}</Text>
+                      ) : (
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          {hasAllocations ? 'Not allocated' : '—'}
+                        </Text>
+                      )}
+                    </IndexTable.Cell>
+                    <IndexTable.Cell>{formatDayShort(order.orderDate)}</IndexTable.Cell>
+                    <IndexTable.Cell>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          size="micro"
+                          tone="critical"
+                          variant="plain"
+                          onClick={() => setRemovingOrder(order)}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </IndexTable.Cell>
+                  </IndexTable.Row>
+                );
+              })}
             </IndexTable>
             {removedOrders.length > 0 ? (
               <div style={{ padding: 'var(--p-space-300) var(--p-space-400)' }}>
@@ -356,6 +444,7 @@ function BatchSection({
               </Text>
               <PlanTimeline
                 sends={batchSends}
+                inheritedSends={singleBatch ? [] : inheritedSends}
                 onEdit={(send) => setEditingSend(send)}
                 onCancel={(send) => setCancellingSend(send)}
               />
@@ -368,7 +457,7 @@ function BatchSection({
         <Card>
           <BlockStack gap="300">
             <Text as="h2" variant="headingSm">
-              Batch history
+              {singleBatch ? 'History' : 'Batch history'}
             </Text>
             <BatchHistoryTimeline events={batchEvents} />
           </BlockStack>
@@ -380,9 +469,11 @@ function BatchSection({
         onClose={() => setRescheduleOpen(false)}
         release={release}
         batch={batch}
+        batchLabel={batchLabel}
         selectedOrders={selectedOrders}
         batchActiveOrderCount={activeOrders.length}
         batchSends={batchSends}
+        inheritedSentSends={inheritedSends}
         onDone={(message) => {
           setRescheduleOpen(false);
           clearSelection();
@@ -395,12 +486,14 @@ function BatchSection({
         open={promiseOpen}
         release={release}
         batch={batch}
+        batchLabel={batchLabel}
         onClose={() => setPromiseOpen(false)}
         onSaved={onChanged}
       />
       <AddSendModal
         open={addSendOpen}
         batch={batch}
+        batchLabel={batchLabel}
         onClose={() => setAddSendOpen(false)}
         onSaved={onChanged}
       />
@@ -412,7 +505,11 @@ function BatchSection({
       <RemoveOrderModal
         order={removingOrder}
         onClose={() => setRemovingOrder(null)}
-        onSaved={onChanged}
+        onSaved={() => {
+          // A removed order must not linger in the reschedule selection.
+          clearSelection();
+          onChanged();
+        }}
       />
       <Modal
         open={cancellingSend !== null}

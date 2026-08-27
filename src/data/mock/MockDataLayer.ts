@@ -1,8 +1,10 @@
 import type {
+  AllocationImportSummary,
   Batch,
   BatchEvent,
   BatchEventType,
   ImportSummary,
+  LastSentInfo,
   Order,
   PendingSendItem,
   Release,
@@ -19,14 +21,23 @@ import type {
   CreateReleaseInput,
   DataLayer,
   ImportOptions,
+  ReleaseEmailPatch,
+  ReleaseEmailUpdateResult,
   SendDetailView,
   SendPatch,
 } from '../DataLayer';
 import { formatDay, toDay } from '../../logic/dates';
+import { allocationOrderKey, parseEditionAllocationCsv } from '../../logic/allocation';
 import { filterItemsForRelease, orderDedupeKey, parseShopifyOrderExport } from '../../logic/importer';
 import { generateMilestonePlan } from '../../logic/plan';
-import { planReschedule } from '../../logic/reschedule';
-import { renderTemplate } from '../../logic/templates';
+import { inheritedSentStory, planReschedule, sentStoryForBatch } from '../../logic/reschedule';
+import {
+  MASTER_TEMPLATES,
+  buildNextSteps,
+  buildTemplateFields,
+  releaseSequenceFor,
+  renderReleaseTemplate,
+} from '../../logic/templates';
 
 /**
  * In-memory implementation of DataLayer for phase 1.
@@ -143,8 +154,38 @@ export class MockDataLayer implements DataLayer {
     return [...this._store.sends.values()].filter((s) => s.batchId === batchId);
   }
 
+  private releaseBatches(releaseId: string): Batch[] {
+    return [...this._store.batches.values()].filter((b) => b.releaseId === releaseId);
+  }
+
   private activeBatchOrders(batchId: string): Order[] {
     return [...this._store.orders.values()].filter((o) => o.batchId === batchId && !o.removed);
+  }
+
+  private defaultBatch(releaseId: string): Batch {
+    const batch = this.releaseBatches(releaseId).find((b) => b.isDefault);
+    if (!batch) throw new Error(`Release ${releaseId} has no default batch`);
+    return batch;
+  }
+
+  /** The last email a batch's collectors received, walking split lineage. */
+  private lastSentInfo(batchId: string): LastSentInfo | null {
+    const batch = this.mustGet(this._store.batches, batchId, 'batch');
+    const story = sentStoryForBatch(
+      batch,
+      this.releaseBatches(batch.releaseId),
+      this.releaseSends(batch.releaseId),
+    );
+    const last = story[story.length - 1];
+    if (!last || !last.sentAt) return null;
+    return {
+      sendId: last.id,
+      subject: last.subject,
+      templateRef: last.templateRef,
+      type: last.type,
+      sentAt: last.sentAt,
+      batchName: this._store.batches.get(last.batchId)?.name ?? '',
+    };
   }
 
   // --- session -----------------------------------------------------------
@@ -180,13 +221,10 @@ export class MockDataLayer implements DataLayer {
       const orders = [...this._store.orders.values()].filter(
         (o) => o.releaseId === release.id && !o.removed,
       );
-      const batches = [...this._store.batches.values()].filter(
-        (b) => b.releaseId === release.id,
-      );
       return {
         release,
         orderCount: orders.length,
-        batchCount: batches.length,
+        batchCount: this.releaseBatches(release.id).length,
         nextScheduledSend: upcoming[0] ?? null,
         pendingApprovalCount: sends.filter((s) => s.status === 'pending_approval').length,
         overdueCount: overdue.length,
@@ -198,9 +236,9 @@ export class MockDataLayer implements DataLayer {
 
   async getRelease(releaseId: string): Promise<ReleaseDetail> {
     const release = this.mustGet(this._store.releases, releaseId, 'release');
-    const batches = [...this._store.batches.values()]
-      .filter((b) => b.releaseId === releaseId)
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const batches = this.releaseBatches(releaseId).sort((a, b) =>
+      a.createdAt.localeCompare(b.createdAt),
+    );
     const orders = [...this._store.orders.values()]
       .filter((o) => o.releaseId === releaseId)
       .sort((a, b) => a.orderDate.localeCompare(b.orderDate) || a.shopifyOrderName.localeCompare(b.shopifyOrderName));
@@ -215,6 +253,11 @@ export class MockDataLayer implements DataLayer {
 
   async createRelease(input: CreateReleaseInput): Promise<Release> {
     const nowIso = this.now().toISOString();
+    // Dispatch anchors every plan and the delay notice is not a plan
+    // milestone — neither can be switched off.
+    const disabledTemplates = (input.disabledTemplates ?? []).filter(
+      (ref) => ref !== 'pp-dispatch' && ref !== 'pp-delay',
+    );
     const release: Release = {
       id: this._newId('release'),
       title: input.title.trim(),
@@ -223,6 +266,8 @@ export class MockDataLayer implements DataLayer {
       editionSize: input.editionSize,
       status: 'active',
       productKind: input.productKind,
+      disabledTemplates,
+      templateOverrides: {},
       createdAt: nowIso,
     };
     if (!release.title) throw new Error('Release title is required');
@@ -247,10 +292,7 @@ export class MockDataLayer implements DataLayer {
     options: ImportOptions = {},
   ): Promise<ImportSummary> {
     const release = this.mustGet(this._store.releases, releaseId, 'release');
-    const defaultBatch = [...this._store.batches.values()].find(
-      (b) => b.releaseId === releaseId && b.isDefault,
-    );
-    if (!defaultBatch) throw new Error(`Release ${releaseId} has no default batch`);
+    const defaultBatch = this.defaultBatch(releaseId);
 
     const parsed = parseShopifyOrderExport(csvText);
     const matchers = options.titleMatchers?.length ? options.titleMatchers : [release.title];
@@ -319,6 +361,185 @@ export class MockDataLayer implements DataLayer {
     });
   }
 
+  async importAllocations(releaseId: string, csvText: string): Promise<AllocationImportSummary> {
+    this.mustGet(this._store.releases, releaseId, 'release');
+    const defaultBatch = this.defaultBatch(releaseId);
+    const parsed = parseEditionAllocationCsv(csvText);
+
+    const releaseOrders = [...this._store.orders.values()].filter(
+      (o) => o.releaseId === releaseId,
+    );
+    const ordersByKey = new Map<string, Order[]>();
+    for (const order of releaseOrders) {
+      const key = allocationOrderKey(order.shopifyOrderName);
+      const list = ordersByKey.get(key) ?? [];
+      list.push(order);
+      ordersByKey.set(key, list);
+    }
+
+    const rowsByKey = new Map<string, typeof parsed.rows>();
+    for (const row of parsed.rows) {
+      const key = allocationOrderKey(row.orderNumber);
+      const list = rowsByKey.get(key) ?? [];
+      list.push(row);
+      rowsByKey.set(key, list);
+    }
+
+    const matchedOrderIds: string[] = [];
+    let allocationsApplied = 0;
+    const unmatchedOrderNumbers: string[] = [];
+
+    for (const [key, rows] of rowsByKey) {
+      const orders = ordersByKey.get(key);
+      if (!orders || orders.length === 0) {
+        unmatchedOrderNumbers.push(rows[0].orderNumber);
+        continue;
+      }
+      allocationsApplied += rows.length;
+      for (const order of orders) {
+        // Multi-line-item orders: prefer the sheet rows whose fulfilment
+        // matches this line item's variant (Framed ↔ Framed, everything
+        // else ↔ Print Only); fall back to the whole order's rows.
+        const wantFramed = /framed/i.test(order.variant) && !/unframed/i.test(order.variant);
+        const variantRows =
+          orders.length > 1
+            ? rows.filter((r) =>
+                wantFramed ? /framed/i.test(r.allocation.fulfilment) : !/framed/i.test(r.allocation.fulfilment),
+              )
+            : rows;
+        const chosen = variantRows.length > 0 ? variantRows : rows;
+        order.allocations = chosen.map((r) => structuredClone(r.allocation));
+        matchedOrderIds.push(order.id);
+      }
+    }
+
+    const ordersWithoutAllocation = releaseOrders.filter(
+      (o) => !o.removed && (!o.allocations || o.allocations.length === 0),
+    ).length;
+
+    if (matchedOrderIds.length > 0) {
+      this._addEvent(
+        releaseId,
+        defaultBatch.id,
+        'allocation_imported',
+        `Warehouse allocation imported — ${matchedOrderIds.length} order${matchedOrderIds.length === 1 ? '' : 's'} matched`,
+        { orderIds: matchedOrderIds },
+      );
+    }
+
+    return this.settle({
+      rowsParsed: parsed.rowsParsed,
+      matchedOrders: matchedOrderIds.length,
+      allocationsApplied,
+      unmatchedOrderNumbers,
+      ordersWithoutAllocation,
+      issues: parsed.issues,
+    });
+  }
+
+  async updateReleaseEmail(
+    releaseId: string,
+    templateRef: TemplateRef,
+    patch: ReleaseEmailPatch,
+  ): Promise<ReleaseEmailUpdateResult> {
+    const release = this.mustGet(this._store.releases, releaseId, 'release');
+    const defaultBatch = this.defaultBatch(releaseId);
+    const templateName = MASTER_TEMPLATES[templateRef].name;
+    let updatedSendCount = 0;
+    let cancelledSendCount = 0;
+
+    if (patch.enabled === false) {
+      if (templateRef === 'pp-dispatch') {
+        throw new Error('The dispatch email anchors every plan and cannot be switched off');
+      }
+      if (templateRef === 'pp-delay') {
+        throw new Error('The delay notice cannot be switched off — every reschedule sends one');
+      }
+      if (!release.disabledTemplates.includes(templateRef)) {
+        release.disabledTemplates = [...release.disabledTemplates, templateRef];
+      }
+      // The milestone leaves every batch's upcoming plan.
+      for (const send of this.releaseSends(releaseId)) {
+        if (send.templateRef === templateRef && UNSENT.includes(send.status)) {
+          send.status = 'cancelled';
+          cancelledSendCount += 1;
+        }
+      }
+      this._addEvent(
+        releaseId,
+        defaultBatch.id,
+        'release_emails_edited',
+        `“${templateName}” switched off for this release${cancelledSendCount > 0 ? ` — ${cancelledSendCount} upcoming send${cancelledSendCount === 1 ? '' : 's'} cancelled` : ''}`,
+        { templateRef },
+      );
+    } else if (patch.enabled === true) {
+      release.disabledTemplates = release.disabledTemplates.filter((r) => r !== templateRef);
+      this._addEvent(
+        releaseId,
+        defaultBatch.id,
+        'release_emails_edited',
+        `“${templateName}” switched back on for this release — future plans will include it`,
+        { templateRef },
+      );
+    }
+
+    const copyChanged =
+      patch.resetToDefault ||
+      patch.subject !== undefined ||
+      patch.headline !== undefined ||
+      patch.body !== undefined;
+    if (copyChanged) {
+      if (patch.resetToDefault) {
+        delete release.templateOverrides[templateRef];
+      } else {
+        release.templateOverrides[templateRef] = {
+          ...release.templateOverrides[templateRef],
+          ...(patch.subject !== undefined ? { subject: patch.subject } : {}),
+          ...(patch.headline !== undefined ? { headline: patch.headline } : {}),
+          ...(patch.body !== undefined ? { body: patch.body } : {}),
+        };
+      }
+
+      // Re-render every batch's upcoming sends from the new copy. Delay
+      // sends are bespoke per reschedule and individually edited sends are
+      // someone's deliberate words — both are left alone.
+      if (templateRef !== 'pp-delay') {
+        for (const send of this.releaseSends(releaseId)) {
+          if (send.templateRef !== templateRef) continue;
+          if (!UNSENT.includes(send.status)) continue;
+          if (send.copyEdited) continue;
+          const batch = this._store.batches.get(send.batchId);
+          if (!batch?.promiseDate) continue;
+          const rendered = renderReleaseTemplate(
+            release,
+            templateRef,
+            buildTemplateFields(release, batch.promiseDate),
+          );
+          send.subject = rendered.subject;
+          send.headline = rendered.headline;
+          send.body = rendered.body;
+          if (send.status === 'approved') {
+            send.status = 'pending_approval';
+            send.approvedAt = undefined;
+            send.approvedBy = undefined;
+          }
+          updatedSendCount += 1;
+        }
+      }
+      this._addEvent(
+        releaseId,
+        defaultBatch.id,
+        'release_emails_edited',
+        patch.resetToDefault
+          ? `“${templateName}” reset to the default copy${updatedSendCount > 0 ? ` — ${updatedSendCount} upcoming send${updatedSendCount === 1 ? '' : 's'} updated` : ''}`
+          : `“${templateName}” copy customised for this release${updatedSendCount > 0 ? ` — ${updatedSendCount} upcoming send${updatedSendCount === 1 ? '' : 's'} updated` : ''}`,
+        { templateRef },
+      );
+    }
+
+    return this.settle({ release, updatedSendCount, cancelledSendCount });
+  }
+
   // --- batches and plans -------------------------------------------------
 
   async setPromiseDate(batchId: string, promiseDate: string): Promise<void> {
@@ -334,13 +555,12 @@ export class MockDataLayer implements DataLayer {
 
     const nowIso = this.now().toISOString();
     const user = this.currentUser();
-    const steps = generateMilestonePlan(this.nowDay(), promiseDate, release.productKind);
-    for (const step of steps) {
-      const rendered = renderTemplate(step.templateRef, {
-        artist: release.artist,
-        release_title: release.title,
-        promise_date: formatDay(promiseDate),
-      });
+    const fields = buildTemplateFields(release, promiseDate);
+    const steps = generateMilestonePlan(this.nowDay(), promiseDate, release.productKind, {
+      sequence: releaseSequenceFor(release),
+    });
+    steps.forEach((step, idx) => {
+      const rendered = renderReleaseTemplate(release, step.templateRef, fields);
       const send: ScheduledSend = {
         id: this._newId('send'),
         releaseId: release.id,
@@ -350,12 +570,17 @@ export class MockDataLayer implements DataLayer {
         scheduledDate: step.scheduledDate,
         status: 'draft',
         subject: rendered.subject,
+        headline: rendered.headline,
         body: rendered.body,
+        nextSteps: buildNextSteps(
+          steps.slice(idx + 1).map((s) => s.templateRef),
+          fields,
+        ),
         createdAt: nowIso,
         createdBy: user.id,
       };
       this._store.sends.set(send.id, send);
-    }
+    });
     this._addEvent(
       release.id,
       batchId,
@@ -373,13 +598,17 @@ export class MockDataLayer implements DataLayer {
   ): Promise<ScheduledSend> {
     const batch = this.mustGet(this._store.batches, batchId, 'batch');
     const release = this.mustGet(this._store.releases, batch.releaseId, 'release');
-    const rendered = renderTemplate(templateRef, {
-      artist: release.artist,
-      release_title: release.title,
-      promise_date: formatDay(batch.promiseDate),
-      old_promise_date: 'the original date',
-      reason_line: 'Production is taking longer than planned.',
-    });
+    if (!batch.promiseDate) {
+      throw new Error(`${batch.name} has no promise date yet — set one before adding sends`);
+    }
+    const rendered = renderReleaseTemplate(
+      release,
+      templateRef,
+      buildTemplateFields(release, batch.promiseDate, {
+        old_promise_date: 'the original date',
+        reason_line: 'Production is taking longer than planned.',
+      }),
+    );
     const send: ScheduledSend = {
       id: this._newId('send'),
       releaseId: release.id,
@@ -389,6 +618,7 @@ export class MockDataLayer implements DataLayer {
       scheduledDate,
       status: 'draft',
       subject: rendered.subject,
+      headline: rendered.headline,
       body: rendered.body,
       createdAt: this.now().toISOString(),
       createdBy: this.currentUser().id,
@@ -405,11 +635,29 @@ export class MockDataLayer implements DataLayer {
     if (send.status === 'sent' || send.status === 'cancelled') {
       throw new Error('Sent and cancelled sends are immutable');
     }
-    if (patch.subject !== undefined) send.subject = patch.subject;
-    if (patch.body !== undefined) send.body = patch.body;
+    const wasApproved = send.status === 'approved';
+    let copyTouched = false;
+    if (patch.subject !== undefined && patch.subject !== send.subject) {
+      send.subject = patch.subject;
+      copyTouched = true;
+    }
+    if (patch.headline !== undefined && patch.headline !== send.headline) {
+      send.headline = patch.headline;
+      copyTouched = true;
+    }
+    if (patch.body !== undefined && patch.body !== send.body) {
+      send.body = patch.body;
+      copyTouched = true;
+    }
+    if (patch.nextSteps !== undefined) {
+      send.nextSteps = patch.nextSteps;
+      copyTouched = true;
+    }
     if (patch.scheduledDate !== undefined) send.scheduledDate = patch.scheduledDate;
+    // Direct edits pin this send's copy: release-level template edits skip it.
+    if (copyTouched) send.copyEdited = true;
     // Editing an approved send invalidates its approval.
-    if (send.status === 'approved') {
+    if (wasApproved) {
       send.status = 'pending_approval';
       send.approvedAt = undefined;
       send.approvedBy = undefined;
@@ -418,7 +666,7 @@ export class MockDataLayer implements DataLayer {
       send.releaseId,
       send.batchId,
       'plan_edited',
-      `“${send.subject}” edited${send.status === 'pending_approval' ? ' (approval reset)' : ''}`,
+      `“${send.subject}” edited${wasApproved ? ' (approval reset)' : ''}`,
       { sendId: send.id },
     );
     return this.settle(send);
@@ -452,14 +700,15 @@ export class MockDataLayer implements DataLayer {
   async reschedule(input: RescheduleInput): Promise<RescheduleResult> {
     const release = this.mustGet(this._store.releases, input.releaseId, 'release');
     const batch = this.mustGet(this._store.batches, input.batchId, 'batch');
+    const releaseBatches = this.releaseBatches(release.id);
+    const releaseSends = this.releaseSends(release.id);
     const changes = planReschedule(input, {
       release,
       batch,
       batchOrders: [...this._store.orders.values()].filter((o) => o.batchId === batch.id),
       batchSends: this.batchSends(batch.id),
-      allBatchNames: [...this._store.batches.values()]
-        .filter((b) => b.releaseId === release.id)
-        .map((b) => b.name),
+      inheritedSentSends: inheritedSentStory(batch, releaseBatches, releaseSends),
+      allBatchNames: releaseBatches.map((b) => b.name),
       nowDay: this.nowDay(),
       nowIso: this.now().toISOString(),
       user: this.currentUser(),
@@ -525,6 +774,8 @@ export class MockDataLayer implements DataLayer {
           release,
           batch,
           recipientCount: this.activeBatchOrders(send.batchId).length,
+          releaseBatchCount: this.releaseBatches(release.id).length,
+          lastSent: this.lastSentInfo(send.batchId),
         };
       });
     return this.settle(items);
@@ -581,6 +832,13 @@ export class MockDataLayer implements DataLayer {
     send.status = 'pending_approval';
     send.heldAt = undefined;
     send.heldBy = undefined;
+    this._addEvent(
+      send.releaseId,
+      send.batchId,
+      'send_released',
+      `“${send.subject}” released from hold — back in the pending queue`,
+      { sendId: send.id },
+    );
     return this.settle(send);
   }
 
@@ -595,6 +853,8 @@ export class MockDataLayer implements DataLayer {
       release,
       batch,
       prospectiveRecipients: this.activeBatchOrders(send.batchId),
+      releaseBatchCount: this.releaseBatches(release.id).length,
+      lastSent: this.lastSentInfo(send.batchId),
     });
   }
 }

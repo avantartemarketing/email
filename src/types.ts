@@ -23,6 +23,17 @@ export type ReleaseStatus = 'active' | 'completed';
 /** Drives which milestone sequence a plan uses. */
 export type ProductKind = 'print' | 'sculpture';
 
+/**
+ * Release-level copy override for one email. Absent fields fall back to the
+ * master template. Stored with tokens intact — patching happens when a send
+ * is generated, so overrides apply to every batch, whatever its dates.
+ */
+export interface ReleaseTemplateOverride {
+  subject?: string;
+  headline?: string;
+  body?: string;
+}
+
 export interface Release {
   id: string;
   title: string;
@@ -31,7 +42,34 @@ export interface Release {
   editionSize: number | null;
   status: ReleaseStatus;
   productKind: ProductKind;
+  /**
+   * Milestones switched off for this release (e.g. no framing email for an
+   * unframed-only release). `pp-dispatch` can never be disabled — it anchors
+   * every plan.
+   */
+  disabledTemplates: TemplateRef[];
+  /** Release-level custom copy, keyed by template. Applies to every batch. */
+  templateOverrides: Partial<Record<TemplateRef, ReleaseTemplateOverride>>;
   createdAt: string;
+}
+
+/**
+ * One warehouse allocation row for an order: what is physically being made
+ * and which edition number it received. Mirrors the warehouse edition
+ * allocation sheet (Order Number / Print Name / Fulfilment / Frame Finish /
+ * Glass / Mounting Type / Set_Size / Edition No.). An order has one entry
+ * per print — multi-print releases have several.
+ */
+export interface OrderAllocation {
+  printName: string;
+  /** "Framed" / "Print Only" — as the warehouse tracks it. */
+  fulfilment: string;
+  frameFinish: string | null;
+  glass: string | null;
+  mountingType: string | null;
+  setSize: number | null;
+  /** Kept as text: numbered editions ("34") and proofs ("AP") both occur. */
+  editionNumber: string | null;
 }
 
 export interface Order {
@@ -49,6 +87,8 @@ export interface Order {
   /** Parsed variant, e.g. "Framed" / "Unframed" / "Sculpture". */
   variant: string;
   orderDate: string;
+  /** Warehouse edition allocation rows, set by the allocation CSV import. */
+  allocations?: OrderAllocation[];
   removed: boolean;
   removedAt?: string;
   removedBy?: string;
@@ -62,6 +102,13 @@ export interface Batch {
   /** ISO date or null while unset; setting it triggers plan generation. */
   promiseDate: string | null;
   isDefault: boolean;
+  /**
+   * The batch this one was split from, when it was created by a reschedule
+   * split. Lineage matters: a split batch's collectors received everything
+   * its source batch sent before the split, and reschedules must not repeat
+   * those milestones.
+   */
+  sourceBatchId?: string;
   createdAt: string;
 }
 
@@ -82,6 +129,16 @@ export type SendStatus =
   | 'sent'
   | 'held'
   | 'cancelled';
+
+/**
+ * One row of the "What happens next?" card in the real email format —
+ * an upcoming milestone with its explanation, already patched with dates.
+ */
+export interface SendStep {
+  templateRef: TemplateRef;
+  title: string;
+  text: string;
+}
 
 export interface SendRecipient {
   orderId: string;
@@ -104,8 +161,15 @@ export interface ScheduledSend {
   scheduledDate: string;
   status: SendStatus;
   subject: string;
+  /** The email's H1, pre-filled from the master and editable. */
+  headline?: string;
   /** Editable body copy, pre-filled from the master template with fields patched. */
   body: string;
+  /** "What happens next?" rows — the milestones still ahead of this send. */
+  nextSteps?: SendStep[];
+  /** True once someone edited this send's copy directly — release-level
+   *  template edits then leave it alone. */
+  copyEdited?: boolean;
   createdAt: string;
   createdBy: string;
   approvedAt?: string;
@@ -125,10 +189,13 @@ export type BatchEventType =
   | 'reschedule'
   | 'orders_split'
   | 'orders_imported'
+  | 'allocation_imported'
   | 'order_removed'
   | 'plan_edited'
+  | 'release_emails_edited'
   | 'send_approved'
   | 'send_held'
+  | 'send_released'
   | 'send_sent';
 
 export interface BatchEvent {
@@ -170,6 +237,31 @@ export interface ImportSummary {
   issues: ImportRowIssue[];
 }
 
+/** Result of importing the warehouse edition allocation CSV. */
+export interface AllocationImportSummary {
+  rowsParsed: number;
+  /** Orders in this release that received allocation data. */
+  matchedOrders: number;
+  /** Allocation rows applied across those orders. */
+  allocationsApplied: number;
+  /** Order numbers in the CSV with no matching order in this release. */
+  unmatchedOrderNumbers: string[];
+  /** Active orders still without any allocation after the import. */
+  ordersWithoutAllocation: number;
+  issues: ImportRowIssue[];
+}
+
+/** The last email a batch's collectors actually received (lineage-aware). */
+export interface LastSentInfo {
+  sendId: string;
+  subject: string;
+  templateRef: TemplateRef;
+  type: SendType;
+  sentAt: string;
+  /** Batch the send went out on — the source batch, for splits. */
+  batchName: string;
+}
+
 /** Denormalised row for the releases index screen. */
 export interface ReleaseSummary {
   release: Release;
@@ -196,6 +288,10 @@ export interface PendingSendItem {
   release: Release;
   batch: Batch;
   recipientCount: number;
+  /** How many batches the release has — 1 means "don't talk about batches". */
+  releaseBatchCount: number;
+  /** The last email these collectors received, for reviewer context. */
+  lastSent: LastSentInfo | null;
 }
 
 export interface RescheduleInput {
