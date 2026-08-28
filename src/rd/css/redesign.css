@@ -1,0 +1,4743 @@
+/**
+ * The redesign's component vocabulary, ported from the concept's own
+ * stylesheet — `.t`, `.seam`, `.foot`, `.card`, `.warnbar` and the rest of the
+ * 116 class rules every screen in that file leans on.
+ *
+ * Ported once, here, rather than re-expressed per screen: that stylesheet IS
+ * the shared layer, and the 8,456 inline declarations sitting on top of it are
+ * per-screen specifics. Values come from `tokens.css` rather than from the
+ * concept's literals, because `TOKEN-RULINGS.md` says implement from tokens
+ * and the ruling wins where a screen disagrees. Every place that swaps a
+ * literal for a token is marked.
+ *
+ * Names carry an `rd-` prefix. `.card`, `.warnbar`, `.foot`, `.ink`, `.mut`,
+ * `.n`, `.band`, `.ok` and `.bad` all already exist in `styles.css` with
+ * Workbench's values, and that file loads second.
+ */
+
+.rd-page {
+  background: var(--rd-canvas);
+  /* 12px at the top, not 18. The owner, 24 Aug 2026, on the same screenshot
+     that took the title down a size: the head "can be a tiny bit closer to
+     top". The page head is the first thing in here, so the shell's own top
+     padding IS the title's offset — which is why the change is made once,
+     here, rather than as a margin on the head of every screen that has one.
+     `.rd-head` keeps its 2px, so the title's top edge lands at 60px against
+     the 46px top bar where it was 66. */
+  padding: 12px var(--rd-page-x) 26px;
+}
+
+/* ---------- Page head ---------- */
+
+.rd-title {
+  font: 400 var(--rd-size-title) / 1.2 var(--rd-font-display);
+  color: var(--rd-ink);
+}
+/* The area name is a grey prefix on the title rather than a crumb of its own. */
+.rd-title .rd-crumb {
+  color: var(--rd-ink-faint);
+}
+
+/* A worded state beside the page's name — "Archived" on an account. Sits on
+   the title's line because it is a fact about the thing the title names. */
+.rd-crumbtag {
+  margin-left: 10px;
+  vertical-align: middle;
+}
+
+/* ---------- Two tables, one screen ----------
+   The Log & pay page, on the owner's word of 24 Aug 2026: *"I think we can
+   combine the pay and log tabs in one tab under payments — they can all be in
+   two tables, with log at the top and Pay underneath."* Log and Pay were two
+   rail rows and are one, so the page carries the crumb and each table carries
+   its own bar: the section's name, and the controls that act on that table.
+
+   The bar is `.rd-head`'s row one level down — same flex, same gap, same
+   control height below — with the name at `--rd-size-section` rather than the
+   22px display face. Two page titles under one crumb would read as two pages
+   that had been pushed together. */
+.rd-secbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 2px 10px;
+}
+.rd-secname {
+  font: 500 var(--rd-size-section) var(--rd-font-text);
+  color: var(--rd-ink);
+}
+/* The second table stands off the first by the gap two stacked cards use
+   everywhere else, so the page reads as one screen rather than two. */
+.rd-sect + .rd-sect {
+  margin-top: var(--rd-card-gap);
+}
+/* Each table takes half the ceiling `.rd-scroll` gives a screen with one.
+   Undivided, a long Pay list would start a full viewport below a long Log
+   list and the second table would only ever be found by scrolling past the
+   first. The subtraction is this page's own furniture — the second bar and
+   both feet — taken off before the halving, and the ceiling itself is still
+   the concept's, unchanged, in the one place it is declared. */
+.rd-sect .rd-scroll {
+  max-height: calc((100vh - 210px - 76px) / 2);
+}
+
+/* ---------- Controls ---------- */
+
+.rd-select {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--rd-field-border);
+  border-radius: var(--rd-radius-control);
+  padding: 7px 12px;
+  font: 400 var(--rd-size-cell) var(--rd-font-text);
+  color: var(--rd-ink);
+  background: var(--rd-card);
+  cursor: pointer;
+}
+
+.rd-btn-pri {
+  border: 1px solid var(--rd-primary);
+  background: var(--rd-primary);
+  border-radius: var(--rd-radius-control);
+  padding: 5px 11px;
+  font: 500 var(--rd-size-head) / 1.2 var(--rd-font-text);
+  color: var(--rd-card);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.rd-btn-pri:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* A quiet inline control riding inside a sentence — the warnbar's way out. */
+.rd-inline-pill {
+  display: inline-block;
+  white-space: nowrap;
+  font: 500 var(--rd-size-label) var(--rd-font-text);
+  color: var(--rd-ink-ui);
+  background: var(--rd-card);
+  border: 1px solid var(--rd-border);
+  border-radius: var(--rd-radius-menu);
+  padding: 1px 7px;
+  margin-left: 6px;
+  cursor: pointer;
+}
+
+/* ---------- Bands ---------- */
+
+.rd-warnbar {
+  display: flex;
+  gap: 9px;
+  padding: 9px 14px;
+  background: var(--rd-warn-bg);
+  border: 1px solid var(--rd-warn-border);
+  border-radius: var(--rd-radius-inset);
+  font: 400 var(--rd-size-cell-dense) / 1.45 var(--rd-font-text);
+  color: var(--rd-warn-ink);
+}
+/* Colour never carries meaning alone: the dot indexes the sentence, it does
+   not replace it. */
+.rd-warndot {
+  color: var(--rd-warn-dot);
+  flex: none;
+}
+.rd-warnbar b {
+  font-weight: var(--rd-weight-emphasis);
+}
+
+.rd-failbar {
+  background: var(--rd-fail-bg);
+  border-color: var(--rd-fail-border);
+  color: var(--rd-red-ink);
+}
+
+/* ---------- Card and its parts ---------- */
+
+/* A card rests one step above the desk — the owner's ask of 27 Aug, matching
+   the relief every shape in the reference admin carries. The hairline STAYS:
+   that admin pairs the two, and a shadow with no border is the change that would
+   actually alter this app's character.
+
+   Sequenced with ruling 97 deliberately. That ruling puts the table header on
+   a wash, so a card holding a table now has two surfaces in it; the shadow
+   lifts the card off the desk and the wash separates the header from its rows,
+   which are different jobs at different scales. A card shadow heavy enough to
+   read INSIDE the card would be saying what the wash already says. */
+.rd-card {
+  background: var(--rd-card);
+  border: 1px solid var(--rd-border);
+  border-radius: var(--rd-radius-card);
+  box-shadow: var(--rd-shadow-rest);
+  overflow: hidden;
+}
+
+.rd-sechead {
+  padding: 13px 16px 8px;
+  font: 500 var(--rd-size-section) var(--rd-font-text);
+  color: var(--rd-ink);
+}
+
+.rd-foot {
+  padding: 8px 14px 9px;
+  font: 400 var(--rd-size-caption) / 1.5 var(--rd-font-text);
+  /* Concept literal #7a8290; the rulings name no such ink, and a panel footer
+     is a caption, which ruling 1 puts on --ink-muted. */
+  color: var(--rd-ink-muted);
+  border-top: 1px solid var(--rd-hairline-row);
+}
+
+.rd-scroll {
+  overflow-x: auto;
+  /* Ruling: the column heads hold their place while the body scrolls, on
+     EVERY table. The mechanism is the concept's own — its axis panels have
+     carried it all along (the concept file it was drawn in) — and it is
+     three parts that only work together: a port that scrolls VERTICALLY, the
+     header cells stuck to its top, and the header out-stacking the frozen
+     columns so pinned labels pass underneath it.
+
+     This is the first part, and it was the missing one: `overflow-x: auto`
+     computes `overflow-y` to `auto`, so this was already a scroll container —
+     it just had no ceiling to scroll against, and a header cannot stick inside
+     a box that is as tall as its content.
+
+     `max-height`, not `height` — the owner's decision. The ceiling only bites
+     when the table is taller than it, so a three-row card keeps its own height
+     and never grows a scroller it does not need. The value is the concept's,
+     verbatim. */
+  max-height: calc(100vh - 210px);
+}
+
+/* ---------- Table ---------- */
+
+.rd-t {
+  width: 100%;
+  border-collapse: collapse;
+  font: 400 var(--rd-size-cell-dense) / 1.25 var(--rd-font-text);
+  color: var(--rd-ink-body);
+  /* The cell's own horizontal padding, DECLARED on the table rather than typed
+     into the two rules below. `Cols.tsx` writes a column's width on a `<col>`,
+     which has no padding of its own, so it has to add this number back — and
+     the token was only ever declared on `.rd-t27` and `.rd-t.rd-boxes`. On
+     every other `.rd-t` — every wide finance table, every
+     `calc(66px + var(--rd-cell-pad-x) …)` was therefore INVALID at
+     computed-value time, each `col` fell back to `width: auto`, and
+     `table-layout: fixed` divided the card equally between the columns. That
+     is the ~6.7%-a-column grid the finance harness has been
+     failing on: a colgroup full of widths, none of which the browser could
+     parse. The same fault is recorded on `.rd-t.rd-boxes` further down, which
+     is where the pattern of DECLARING it rather than merely referencing it
+     comes from. */
+  --rd-cell-pad-x: 10px;
+}
+/* Cell widths are content-box, as the concept's are. `styles.css` sets
+   `* { box-sizing: border-box }` globally, which the concept has no equivalent
+   of — under it a declared `width: 52px` swallows the cell's own padding and
+   every fixed column comes out 26px narrower than the thing it copies. The
+   fault is invisible in every other metric: padding, type and colour all match
+   while the grid is wrong. */
+.rd-t th,
+.rd-t td {
+  box-sizing: content-box;
+}
+.rd-t th {
+  font: 500 var(--rd-size-label) / 1.2 var(--rd-font-text);
+  /* ruling 97. This reached for `--rd-ink-tertiary` while `--rd-ink-head` was
+     declared for exactly this job and used by `.rd-t27 th` — one decision at
+     two values. Both read the token now, so the ordinary table and the 34px
+     table cannot come out different again. */
+  color: var(--rd-ink-head);
+  text-align: left;
+  padding: 6px var(--rd-cell-pad-x);
+  border-bottom: 1px solid var(--rd-border);
+  white-space: nowrap;
+}
+/* The second and third parts of the sticky header, ported from the concept's
+   axis panels verbatim: `position: sticky; top: 0; z-index: 8`, and 9 on the
+   cells that also freeze sideways so the corner out-stacks both.
+
+   Two things the mock did not have to say, because its panels have neither:
+
+   - **Opaque.** A `thead th` with no ground lets the rows show THROUGH it as
+     they pass under. The card's own surface, from the token.
+   - **The rule travels as a shadow.** Under `border-collapse: collapse` the
+     header's bottom border belongs to the collapsed grid rather than to the
+     cell, and a stuck cell leaves it behind — the hairline disappears exactly
+     when the header starts to matter. Switching to `separate` would change
+     every cell metric on every table (and fail the parity harness), so the
+     line is carried as an inset shadow, which travels with the cell. */
+.rd-t thead th {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  /* ruling 97: the wash, not the card. The bulk bar needs no rule of its own —
+     it IS this row (ruling 9 replaces the header in place), so its cell is a
+     `th` in the same head and takes this ground with everything else. */
+  background: var(--rd-head-bg);
+  /* The rule stays 1px `--rd-border`, at the owner's word ("same thickness of
+     line underneath"). It does NOT become ruling 18's 1.5px group rule, so
+     "the whole page is three line weights, and a fourth means something is
+     wrong" survives. Carried as an inset shadow because a real border shifts
+     every cell metric on a content-box header and fails the parity harness. */
+  box-shadow: inset 0 -1px 0 var(--rd-border);
+}
+.rd-t td {
+  padding: 5px var(--rd-cell-pad-x);
+  border-bottom: 1px solid var(--rd-hairline-row);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.rd-t th.n,
+.rd-t td.n {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A country column says its country and, under it, the currency it INVOICES in.
+   Four of this business's currencies sign with `$`, so `TW` over `$23.00`
+   says nothing about which dollar. The head is where a single-currency
+   column's code belongs — `shared/money.ts` sets that division, and the
+   alternative is eleven columns of repeated code for one fact per column. */
+.rd-t th .rd-colmk {
+  display: block;
+}
+.rd-t th .rd-colccy {
+  display: block;
+  font-weight: var(--rd-weight-body);
+  font-size: var(--rd-size-caps);
+  color: var(--rd-ink-faint);
+}
+/* And the exception the head cannot carry, because two rows of one column can
+   now be in two currencies: a figure priced in something other than the
+   column's own trails its code. Quieter than the amount, which is why
+   `moneyParts` returns them split. */
+.rd-t .rd-ccy {
+  margin-left: 3px;
+  font-size: var(--rd-size-caps);
+  color: var(--rd-ink-faint);
+}
+/* A cell holding PROSE rather than a figure — the sentence a `colSpan` row says
+   when a table has no rows yet. `nowrap` above is load-bearing for every real
+   cell (a column's width is its content's, and a wrapped figure column stops
+   being a grid), so the exception is asked for by name: the ledger's
+   empty-state line clipped mid-word inside a 560px dialogue, and a clipped
+   cell says nothing about being clipped. Nothing lines up with this row. */
+.rd-t td.rd-prose {
+  white-space: normal;
+}
+/* A header cell spanning both rows of a two-row head sits on the LOWER one.
+   A two-row head has one baseline a reader actually uses — the row carrying
+   Gross · Net · Tax — and a rowspan centred between the two floats above
+   everything it labels. */
+.rd-t th.rd-headfoot {
+  vertical-align: bottom;
+}
+
+/* The group label on a two-row finance header (ruling 18).
+   It used to be darker and larger than the column labels beneath it, which
+   inverts the hierarchy — the group read as a heading floating above the table
+   rather than as the thing that OWNS those four columns. Demoted to 11.5px and
+   left-aligned over its first column, with a rule under it spanning exactly
+   the group's width. That rule and the vertical seams are the same weight and
+   colour on purpose: one weight across the top and down the left is what makes
+   a group read as a BRACKET. */
+.rd-t thead th.rd-group {
+  padding-bottom: 4px;
+  /* Drawn as an inset shadow rather than a border, and the seam with it.
+     Under `border-collapse: collapse` Chromium rounds a collapsed border to a
+     whole device pixel, so the ruled 1.5px came out at 1px — the same weight
+     as the column-label rule beneath it, which is exactly the mismatch ruling
+     18 warns destroys the bracket. A shadow is not collapsed and holds the
+     half pixel.
+
+     Stated at a specificity nothing later in this file can beat: the column
+     labels' own rule is `.rd-t thead tr:has(th.rd-group) ~ tr th`, which outranked a
+     plainer `.rd-t th.rd-group`. */
+  box-shadow: inset 0 calc(-1 * var(--rd-group-rule-w)) 0 var(--rd-group-rule);
+  border-bottom: none;
+  font: 500 var(--rd-size-caption) var(--rd-font-text);
+  color: var(--rd-ink);
+  text-align: left;
+}
+/* The seam, at the group rule's own weight — they are one decision and one
+   token, because styling them apart is exactly how the bracket gets broken by
+   accident. It continues down the body, which is the other half of the shape. */
+.rd-t .rd-seam {
+  box-shadow: inset var(--rd-group-rule-w) 0 0 var(--rd-group-rule);
+}
+/* A group header carries BOTH: its rule underneath and its seam down the left.
+   `box-shadow` does not merge across rules — the winning declaration replaces
+   the losing one outright — so `.rd-t thead th.rd-group` above was silently
+   erasing the seam on the very cell the bracket starts at. The line began one
+   row too low, at the column labels, and there was none at all beside "As
+   charged". Both shadows in one declaration is the only way to have both.
+
+   The harness could not see it either: it compared the group's shadow against
+   the seam cell's, normalised to "<width> <colour>" — which made a BOTTOM rule
+   and a LEFT rule compare equal. It reads the axis now. */
+/* A seam cell in the column-label row replaces the whole `box-shadow`, and
+   `box-shadow` does not merge across rules — the winning declaration replaces
+   the losing one outright. So the header's bottom rule, which is now carried
+   as a shadow so it travels with a stuck cell, was silently erased on exactly
+   the cells where a group begins: the hairline under the head had a 1.5px gap
+   at every seam. Both shadows in one declaration is the only way to have
+   both. (The same trap is documented two rules up, for the group row.) */
+.rd-t thead tr:has(th.rd-group) ~ tr th.rd-seam {
+  box-shadow:
+    inset 0 -1px 0 var(--rd-border),
+    inset var(--rd-group-rule-w) 0 0 var(--rd-group-rule);
+}
+.rd-t thead th.rd-group.rd-seam {
+  box-shadow:
+    inset 0 calc(-1 * var(--rd-group-rule-w)) 0 var(--rd-group-rule),
+    inset var(--rd-group-rule-w) 0 0 var(--rd-group-rule);
+}
+/* Column labels sit under the LIGHTER rule, so the two rows read as two
+   levels rather than as one thick header.
+
+   Scoped to a head that HAS a group row above it — `tr:last-child` alone
+   reached every `.rd-t` in the redesign, at a specificity that beat
+   `.rd-t27 th`, and quietly took every ordinary table's column labels down to
+   ruling 18's 11px. Ruling 18 is explicit about where it applies: the wide
+   finance tables, "any table whose columns are organised under a second,
+   higher header row". An ordinary table has one header row and keeps ruling
+   10's 12px. */
+.rd-t thead tr:has(th.rd-group) ~ tr th {
+  font: 500 var(--rd-size-label) var(--rd-font-text);
+  color: var(--rd-ink-tertiary);
+  border-bottom: 1px solid var(--rd-border);
+  /* A two-row head sticks in two places. Both rows stuck at `top: 0` puts the
+     column labels ON the group row rather than under it — the bracket collapses
+     into one band the moment the table is scrolled, which is precisely when the
+     bracket is what tells you which four columns you are reading.
+
+     The offset is the group row's own drawn height, held as a token and
+     ASSERTED in the parity harness rather than trusted: it is 6px + 4px of
+     padding around a 11.5px line, so a change to ruling 18's caption size
+     moves it, and a wrong offset here shows as a 2px seam of body rows
+     crawling between the two header rows. */
+  top: var(--rd-head-group-h);
+}
+.rd-t .rd-ink {
+  color: var(--rd-ink);
+  font-weight: var(--rd-weight-emphasis);
+}
+.rd-t .rd-mut {
+  color: var(--rd-ink-muted);
+  font-weight: var(--rd-weight-body);
+}
+/* The identity column sits under the section title rather than against the
+   card edge — and the last column stops the same distance from the other
+   edge. The first-child rule shipped on its own, so a table's left gutter was
+   the section head's 16px while its right was the cell's ordinary 10px. The
+   owner read it off the NZ return's transaction tables as "the padding to the
+   right looks less than it is on the right of the table", which is exactly
+   what it was: six pixels less, on every `.rd-tpad` table in the app. */
+.rd-tpad th:first-child,
+.rd-tpad td:first-child {
+  padding-left: 16px;
+}
+.rd-tpad th:last-child,
+.rd-tpad td:last-child {
+  padding-right: 16px;
+}
+/* A row the warning above names. The tint indexes the sentence; the sentence
+   is what says why. */
+/* A row the page has already named in words above it — a settlement that does
+   not match its invoice, a payment with no document. The tint is an INDEX to
+   that sentence and never the only place the fact is said.
+
+   Called `rd-flagged`, not `rd-flag`. Ruling 13's flag IMAGE took `.rd-flag`
+   and set `display: inline-block; width: 14px; height: 10px` on it — which is
+   right for a 14x10 picture and catastrophic for a `<tr>`. The finance
+   row it collided with rendered as a 14px inline-block box, drawn on top of
+   the row beneath it, and every harness passed because they all read text
+   rather than geometry. `checkRowShape` now catches the whole class of this. */
+.rd-t tr.rd-flagged td {
+  background: var(--rd-warn-bg);
+}
+
+/* ---------- Toolbar ---------- */
+
+.rd-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.rd-chips {
+  display: inline-flex;
+  gap: 6px;
+}
+/* A chip that is a FILTER, showing whether it is on. The Archived chip has
+   worn `rd-chip-on` since it was written and nothing ever defined it, so the
+   filter looked identical whether it was applied or not — the list quietly
+   showing archived rows with no sign of why. It went unseen because the
+   phantom-class test pairs quote characters across the whole file, and an
+   apostrophe upstream had been shifting that pairing past this literal. */
+.rd-chip-on {
+  border-color: var(--rd-primary);
+  color: var(--rd-primary);
+  background: var(--rd-row-sel);
+}
+
+.rd-chip {
+  display: inline-block;
+  white-space: nowrap;
+  /* A chip that happens to be an anchor — Download invoice — is still a chip.
+     Without this the document's own link rule underlines the word inside the
+     box, which reads as a link drawn on top of a button. */
+  text-decoration: none;
+  padding: 5px 11px;
+  border-radius: var(--rd-radius-control);
+  font: 500 var(--rd-size-head) / 1.2 var(--rd-font-text);
+  color: var(--rd-ink-ui);
+  background: var(--rd-card);
+  border: 1px solid var(--rd-border);
+  cursor: pointer;
+}
+.rd-chip.on {
+  background: var(--rd-ink);
+  border-color: var(--rd-ink);
+  color: var(--rd-card);
+  cursor: default;
+}
+/* Toolbar chips — the filter row on the ledger. Smaller than the base chip,
+   as the concept draws them: 11.5px on 4px of padding. */
+.rd-chip-sm {
+  padding: 4px 11px;
+  font-size: var(--rd-size-caption);
+}
+/* The chip that adds a filter rather than being one. Dashed, because there is
+   nothing there yet — the outline is the invitation. */
+.rd-chip-add {
+  border-style: dashed;
+  color: var(--rd-ink-tertiary);
+}
+/* The × that takes a filter off. Quiet: it is not the point of the chip.
+
+   The button chrome is reset HERE rather than at the call site. All payments
+   carried these five declarations inline on every × it drew, and a chip whose
+   × is a native button renders 32px against the concept's 23.8 — the button's
+   own padding props the chip open. Inline styles fixed it on one screen and
+   left the class unable to be used anywhere else.
+
+   The size is inherited as three properties rather than the `font` shorthand:
+   the shorthand carries size AND weight, and a second class on the same
+   element would then tie on specificity and lose to source order. That trap
+   has cost this codebase a stylesheet that read correctly and rendered at
+   16px. */
+.rd-chip-x {
+  border: 0;
+  padding: 0;
+  background: none;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--rd-ink-faint);
+  margin-left: 5px;
+}
+.rd-chip-x:hover {
+  color: var(--rd-ink);
+}
+/* Ruling 95's floor, bought with an overlay rather than padding: the glyph is
+   12px and the chip around it is 23.8px, so growing the button by padding
+   would grow the chip and every chip beside it. The overlay reaches
+   --rd-tap without moving anything, which is the case the ruling allows it
+   for. */
+.rd-chip-x {
+  position: relative;
+}
+.rd-chip-x::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--rd-tap);
+  height: var(--rd-tap);
+  transform: translate(-50%, -50%);
+}
+/* ---------- the view controls (item 1) ----------
+   Search · Fields · Group · Sort, then one chip per live filter, then
+   "+ Add filter", then the count. The chips are what keeps this honest: the
+   menus are the EDITOR and the chip row is the state, so a filter left on can
+   never be invisible while the count underneath it says something nobody can
+   account for.
+
+   It wraps rather than scrolls. A toolbar that scrolls sideways hides the
+   thing this shape exists to show, and `prove-narrow` already requires the
+   CARD to scroll and the page never to. */
+.rd-viewbar {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+/* A live filter reads as applied, not as an offer. The × is quiet inside it —
+   it is not the point of the chip. */
+.rd-filterchip {
+  border-color: var(--rd-border-strong);
+  color: var(--rd-ink);
+}
+/* The count sits at the right of the row, whatever the row holds. */
+.rd-viewcount {
+  margin-left: auto;
+  color: var(--rd-ink-muted);
+  font-size: var(--rd-size-caption);
+  white-space: nowrap;
+}
+/* The value step of a filter that is typed rather than picked — a date, a
+   fragment of text. It is the menu's own second step (`Menu`'s `children`), so
+   choosing the operator does not take the question away before it is
+   answered. */
+.rd-viewvalue {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid var(--rd-border);
+}
+.rd-viewvalue input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--rd-field-border);
+  border-radius: var(--rd-radius-field);
+  font: 400 var(--rd-size-cell-dense) var(--rd-font-text);
+  color: var(--rd-ink);
+}
+.rd-viewvalue input:focus {
+  outline: none;
+  border-color: var(--rd-primary);
+}
+
+/* A native select wearing the form-field shape. Ruling 5 puts form fields at
+   2px and controls at 7px, and this is a field: it holds a value the record
+   keeps, not an action. Native on purpose — an audience list runs to dozens,
+   and a browser select brings keyboard and type-ahead that a drawn menu would
+   have to reimplement badly. The cost is the browser's own chevron where the
+   concept draws its own, which is the one place this diverges. */
+.rd-fieldselect {
+  max-width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--rd-field-border);
+  border-radius: var(--rd-radius-field);
+  background: var(--rd-card);
+  font: 400 var(--rd-size-cell-dense) var(--rd-font-text);
+  color: var(--rd-ink);
+  cursor: pointer;
+}
+.rd-fieldselect:focus {
+  outline: none;
+  border-color: var(--rd-primary);
+}
+
+/* ---------- switch ----------
+   On or off for one row. A checkbox says "this one, for what I am about to
+   do"; a switch says "this row is sending", which is a state the record
+   keeps. Two different questions, so two different controls — the schedule has
+   no bulk action, and a tick column there would offer one that does not exist.
+
+   Ruling 5's 7px is for controls that are boxes. This is a track, and 999px is
+   what the drawing gives it, the same as a status pill. */
+.rd-sw {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  user-select: none;
+}
+/* The word beside the track. `20a` puts it BEFORE the switch — "Edit" then
+   the control — because the label is what you read and the track is what you
+   aim at, and a control whose name arrives after it has already been read as
+   nameless. */
+.rd-swlab {
+  font: 500 var(--rd-size-cell-dense) var(--rd-font-text);
+  color: var(--rd-ink);
+}
+
+.rd-swt {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  border-radius: var(--rd-radius-pill);
+  background: var(--rd-field-border);
+  transition: background var(--rd-dur-state) var(--rd-ease);
+}
+.rd-sw.on .rd-swt {
+  background: var(--rd-ink);
+}
+.rd-swk {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--rd-card);
+  transition: left var(--rd-dur-state) var(--rd-ease);
+}
+.rd-sw.on .rd-swk {
+  left: 16px;
+}
+
+/* ---------- the reason on hover ----------
+   A worded fact that would crowd the row if it were always shown — why a
+   a row is not ready, what a local time is in the office's time. Never the only place
+   something is said: the lozenge beside it already carries the answer, and
+   this carries the reason. */
+.rd-why {
+  position: relative;
+  display: inline-block;
+}
+/* The concept holds a hidden tip at opacity 0. That is fine in a mock, where
+   every tip sits on a page that fits; in the app the Products sheet puts one
+   in every cell of an eleven-column table that scrolls inside its card, and an
+   absolutely-positioned box still counts towards a scroll container's extent
+   whatever its opacity. Fifteen invisible tips took that card 609px past its
+   own last column — the owner found the sheet scrolling into empty space.
+
+   So a hidden tip is not laid out at all. `allow-discrete` keeps the fade the
+   concept draws by holding `display` across the transition; where that is not
+   understood the tip appears at once, which is the same tip a moment earlier. */
+.rd-tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  /* Clear of the sticky header (8/9), like the popovers. A tip hanging above a
+     first-row cell is exactly where the header now is. */
+  z-index: 11;
+  display: none;
+  padding: 6px 10px;
+  border-radius: var(--rd-radius-menu);
+  background: var(--rd-ink);
+  color: var(--rd-card);
+  font: 400 var(--rd-size-caption) / 1.4 var(--rd-font-text);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--rd-dur-state) var(--rd-ease),
+    display var(--rd-dur-state) var(--rd-ease) allow-discrete;
+}
+.rd-why:hover .rd-tip,
+.rd-tip.vis {
+  display: block;
+  opacity: 1;
+}
+@starting-style {
+  .rd-why:hover .rd-tip,
+  .rd-tip.vis {
+    opacity: 0;
+  }
+}
+/* The thing the reason hangs off, marked so it reads as askable. */
+.rd-pen {
+  border-bottom: 1px dotted var(--rd-ink-faint);
+}
+
+/* The audience picker in a row. `.rd-select` is the same control the
+   send-mode picker uses, but that one sits in a toolbar with room to grow;
+   this one is one cell of an eleven-row table, and an audience name can run
+   long, so the chip is bounded and the name gives way rather than the column. */
+.rd-select-audience {
+  /* One width for every row, not one per name. A chip that sizes to its
+     contents makes a column of thirteen pickers ragged — the owner sent a
+     screenshot where the one row with an audience sat narrower than the
+     twelve saying "— select audience —", so the filled row read as a
+     different kind of control. Fixed, and the name gives way (the span
+     below ellipses) rather than the column. */
+  width: 280px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.rd-select-audience > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- the wide screens stop at 1600 ----------
+   The owner's call: a calendar table and its ruler stretched across a very
+   wide monitor put the date column a head-turn away from the name it belongs
+   to. The cap is on the CARD and the ruler, not on `.rd-page`, so the head
+   and the flow above them still run the shell's full width. This is a
+   deliberate divergence from the concept, which has no max-width — recorded
+   in PORT-NOTES. */
+.rd-widecap {
+  max-width: 1600px;
+}
+
+/* ---------- a field's own footnote ----------
+   A "?" beside a label, for a rule the field obeys silently — the CTA link
+   trimming a pasted address to its path. `.rd-tip` is the system's answer for
+   "why"; a sentence needs to wrap, where a table cell's reason never did. */
+.rd-ask {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 1px solid var(--rd-field-border);
+  border-radius: var(--rd-radius-pill);
+  background: none;
+  font: 500 var(--rd-size-float) / 1 var(--rd-font-text);
+  color: var(--rd-ink-muted);
+  cursor: help;
+}
+.rd-ask:hover {
+  border-color: var(--rd-ink-muted);
+  color: var(--rd-ink);
+}
+.rd-tip-wrap {
+  right: 0;
+  left: auto;
+  width: 260px;
+  white-space: normal;
+}
+
+/* ---------- segmented toggle ----------
+   Two or three choices where exactly one holds. The chosen one is filled ink,
+   which is the same "this is the answer" the chip's `on` state uses; unlike a
+   chip row, one of these is always chosen, so there is no resting state where
+   none is. Ruling 5 gives controls 7px — this one is square on purpose in the
+   drawing, being a pair of halves rather than two controls. */
+.rd-seg {
+  display: inline-flex;
+  margin-left: auto;
+  overflow: hidden;
+  border: 1px solid var(--rd-border);
+  font: 500 var(--rd-size-caption) var(--rd-font-text);
+}
+.rd-seg button {
+  padding: 4px 11px;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--rd-ink-tertiary);
+  cursor: pointer;
+}
+.rd-seg button.on {
+  background: var(--rd-ink);
+  color: var(--rd-card);
+  cursor: default;
+}
+
+/* The desk a rendered artifact sits on — an email preview, an invoice. The
+   grey is the page canvas, so the thing on it reads as a sheet rather than as
+   more of the card it is inside. */
+.rd-desk {
+  margin: 16px 20px 20px;
+  padding: 20px 18px;
+  background: var(--rd-canvas);
+}
+
+/* One desk, not two. `.pvcanvas` is the Workbench preview's own ground and
+   keeps its padding for the shell that still uses it; inside `.rd-desk` it was
+   a second grey within the first, and the pair of paddings between the desk
+   and the email cost the column 44px for nothing. `45a` draws desk → sheet →
+   email, and now so does this. */
+.rd-desk .pvcanvas {
+  padding: 0;
+  background: none;
+  border-radius: 0;
+}
+
+/* The sheet as `45a` draws it: white, lifted, no border — the desk behind it
+   is what holds it off the panel. (Workbench's own preview keeps the border
+   and 12px radius its shell is drawn with.) */
+.rd-desk .pvsheet {
+  border: 0;
+  border-radius: var(--rd-radius-card);
+  box-shadow: var(--rd-shadow-rest);
+}
+
+/* ---------- tabs (ruling 96) ----------
+   The open tab is an object; the tabs beside it are text.
+
+   **Every tab wears the lozenge's box** — its padding and a 1px TRANSPARENT
+   border — and only the ground and the edge's colour change on `on`. Ruling 96
+   requires no width change between states, and a border that appears on
+   selection is 2px of width arriving under the pointer at the moment of the
+   click. The same reason the bulk bar replaces the header row in place
+   (ruling 9) rather than stacking above it.
+
+   The relief is `--rd-shadow-control`, not `--rd-shadow-rest`: a tab holding a
+   state is a control, and lifting it like a card would put a page-level
+   elevation on a 30px button. The two are separate decisions and this is the
+   control one. */
+.rd-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+/* The one role the underline keeps: where the strip is the top edge of the
+   surface it switches, it says "the content starts here". It runs the WHOLE
+   strip rather than the open tab, which is what stops it being a second mark
+   on a tab the lozenge has already marked. */
+.rd-tabs-capped {
+  border-bottom: 1px solid var(--rd-border);
+  padding-bottom: 6px;
+}
+.rd-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: var(--rd-tab-h);
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--rd-radius-control);
+  background: none;
+  font: var(--rd-weight-emphasis) var(--rd-size-cell-dense) var(--rd-font-text);
+  color: var(--rd-ink-tertiary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rd-tab:hover:not(.on) {
+  color: var(--rd-ink);
+}
+.rd-tab.on {
+  background: var(--rd-card);
+  border-color: var(--rd-border);
+  box-shadow: var(--rd-shadow-control);
+  color: var(--rd-ink);
+  cursor: default;
+}
+/* A strip on the card's own white needs the lozenge to be something other than
+   the ground it sits on, so there it takes the desk instead. Without this the
+   open tab is a white box on white and only its hairline says anything. */
+.rd-card .rd-tab.on,
+.rd-fcard .rd-tab.on,
+.rd-modal .rd-tab.on {
+  background: var(--rd-head-bg);
+}
+
+/* ---------- record cards ----------
+   A form card and its title. `35a`/`35b` override the radius to 2px inline;
+   the vocabulary's own is 10px, which is what every other card in the system
+   uses, so that override is not ported — a record's cards are cards. */
+.rd-fcard {
+  background: var(--rd-card);
+  border: 1px solid var(--rd-border);
+  border-radius: var(--rd-radius-card);
+}
+/* A card's title, at the HERO step rather than the section one — the scale
+   already calls 16px "document headers", and a card on a record is a document
+   header rather than a section of a dense sheet. The owner, on the built
+   order screen: the titles want to be bigger, and the gap under them wider.
+   Changed here rather than on the order screen, because a card title that is
+   one size on one screen and another elsewhere is two vocabularies. */
+.rd-fhd {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 15px 16px 3px;
+  font: 500 var(--rd-size-hero) var(--rd-font-text);
+  color: var(--rd-ink);
+}
+/* A note that rides the card title's line — a scope, a count. */
+.rd-fhd .rd-sc {
+  margin-left: auto;
+  font: 400 var(--rd-size-caption) var(--rd-font-text);
+  color: var(--rd-ink-faint);
+}
+/* The record's two columns: the work on the left, the facts about it on the
+   right. The aside is fixed because its fields are one column wide by design;
+   the main column takes what is left. */
+/* The record's column, and everything that belongs to it.
+   `35a` wraps the head AND the two card columns in one
+   `max-width:1000px;margin:0 auto`, so the title, the status, More actions and
+   Invoice line up with the edges of the cards below them. The width used to
+   sit on `.rd-record` alone, which left the head spanning the whole window —
+   the title against the far left, the buttons against the far right, and the
+   cards floating in the middle of them. `.rd-doc` is that wrapper. */
+/* 935, not 1000. The owner took the wider column in about 10% on the
+   draft-order canvas: the money column earned its width when it held boxes,
+   and a quiet row needs less of it. The aside keeps its 340 — it was already
+   the right width for what is in it — so the change lands entirely on the
+   main column, 646 to 581. */
+.rd-doc {
+  max-width: 935px;
+  margin: 0 auto;
+}
+.rd-record {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.rd-record > .rd-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.rd-record > .rd-side {
+  /* 340, up from 300 at the owner's word: the address select and the tax
+     names were truncating, and the lines card had room it was not using. */
+  width: 340px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+/* ---------- naming a group of fields inside a card ----------
+   Settled by the owner on the Group Headings canvas, against five spellings
+   the admin had grown: a group as its own card, a group wearing
+   the field's shape (the email editor), three near-identical caps labels, and
+   a ruled sentence label in a record dialogue. This is the sixth and
+   the last: the card title's own lockup, one rank down.
+
+   A NAME, and nothing else. The scope note the first draft hung on the right
+   was cut — a group heading says what the group is; anything about when or
+   why it matters belongs to the field it qualifies, not to the heading. A
+   qualifier never joins the name with a dash either: that is what made
+   "Shipping address — needed by Book shipment, fine to leave for later" wrap
+   to three lines and start this.
+
+   The margins assume the flex `gap` its container carries (10px in the
+   dialogue and the record forms): 12 above and -2 below turn that into 22
+   above and 8 below, so the heading sits with what it names rather than
+   floating between two groups. */
+.rd-grouphd {
+  margin: 12px 0 -2px;
+  font: var(--rd-weight-emphasis) var(--rd-size-cell) var(--rd-font-text);
+  color: var(--rd-ink);
+}
+/* An informational band — the undo window, and anything else that is a fact
+   rather than a warning. Worded, like every other band in the system. */
+.rd-infobar {
+  display: flex;
+  gap: 9px;
+  margin-bottom: 12px;
+  padding: 9px 14px;
+  background: var(--rd-blue-bg);
+  border: 1px solid var(--rd-blue-border);
+  border-radius: var(--rd-radius-inset);
+  font: 400 var(--rd-size-cell-dense) / 1.45 var(--rd-font-text);
+  color: var(--rd-blue-ink);
+}
+.rd-infobar b {
+  font-weight: var(--rd-weight-emphasis);
+}
+.rd-infodot {
+  color: var(--rd-primary);
+}
+
+/* ---------- activity ----------
+   One rail down the left, a dot per entry, days as headings. */
+.rd-log {
+  position: relative;
+  padding: 10px 20px 18px 46px;
+}
+.rd-lograil {
+  position: absolute;
+  left: 24px;
+  top: 16px;
+  bottom: 26px;
+  width: 1.5px;
+  background: var(--rd-spine);
+}
+.rd-logday {
+  padding: 12px 0 4px;
+  font: 400 var(--rd-size-head) var(--rd-font-text);
+  color: var(--rd-ink-muted);
+}
+.rd-logday:first-child {
+  padding-top: 2px;
+}
+.rd-logrow {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding: 5px 0;
+  font: 400 var(--rd-size-cell-dense) / 1.5 var(--rd-font-text);
+  color: var(--rd-ink-body);
+}
+.rd-logrow b {
+  font-weight: var(--rd-weight-emphasis);
+}
+.rd-logdot {
+  position: absolute;
+  left: -26px;
+  top: 9px;
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  background: var(--rd-ink-tertiary);
+  border: 2px solid var(--rd-card);
+}
+.rd-logwhen {
+  margin-left: auto;
+  color: var(--rd-ink-faint);
+  white-space: nowrap;
+}
+
+/* ---------- form fields ----------
+   The floating-label vocabulary (`44b`, demonstrated at scale in `45a`/`45b`).
+   HANDOFF.md is explicit that every form takes this, including the screens
+   drawn before the decision — `34a`, `34b`, `35a`, `35b`, `33d` and `42c`'s
+   earlier siblings still show capped external labels in the reference, and
+   those are not to be ported.
+
+   The metrics are `45a`'s, not `44b`'s. The two differ by a pixel of padding,
+   and the difference matters: at `45a`'s the field is 48px empty and 49.6px
+   filled, so typing into it barely moves the form, where `44b`'s specimen is
+   54.6px filled against the same 48px empty and jumps 6.6px on the first
+   keystroke. `45a` is where the vocabulary is worked out at scale. */
+.rd-field {
+  position: relative;
+  display: block;
+  border: 1px solid var(--rd-field-border);
+  border-radius: var(--rd-radius-field);
+  background: var(--rd-card);
+  padding: 8px 13px 9px;
+  cursor: text;
+}
+/* Empty: the label IS the placeholder, at full size. One line, so the box is
+   the same height it will be once there is something in it. */
+.rd-field.rd-field-empty {
+  /* 16, not 15 or 14: this padding exists to make the empty box the height it
+     will be once it holds something, and 15 left it 2px short — enough that a
+     filled field beside an empty one read as two different boxes (the owner
+     sent a screenshot of the CTA pair), and enough that clicking into an
+     empty field nudged it. At 16 the two are the same height and focus moves
+     nothing. Checked in prove-fields, not by eye. */
+  padding: 16px 13px;
+}
+.rd-fieldlab {
+  display: flex;
+  font: 400 var(--rd-size-float) / 1.2 var(--rd-font-text);
+  color: var(--rd-ink-faint);
+}
+.rd-field-empty .rd-fieldlab {
+  font-size: var(--rd-size-field);
+  line-height: 1.35;
+}
+.rd-field:focus-within {
+  border-color: var(--rd-primary);
+  border-width: 1.5px;
+  /* The border grows by half a pixel on each side; the padding gives it back,
+     so the field does not nudge its neighbours when you click into it. */
+  padding: 7.5px 12.5px 8.5px;
+}
+.rd-field-empty:focus-within {
+  padding: 13.5px 12.5px;
+}
+.rd-field:focus-within .rd-fieldlab {
+  color: var(--rd-primary);
+}
+/* No min-height. `44b`'s specimen carries one and it makes the field 3px
+   taller than `45a`'s, which is the version being implemented; the natural
+   line box of 13.5px type is the 15px the concept's own filled field has. The
+   caret needs no reservation of its own — an input always makes a line box. */
+.rd-fieldval {
+  display: flex;
+  align-items: baseline;
+  /* 5px, not the drawing's 3 — the owner's call, from the label-gap artboard
+     on the "Email Form Review" canvas: at 3 the label and the typing read as
+     one slightly stacked lockup; at 5 the typing gets clear of the label
+     without the label coming loose. `.rd-secgroup-title` is the same
+     vocabulary and carries the same 5. */
+  margin-top: 5px;
+  font: 400 var(--rd-size-field) var(--rd-font-text);
+  color: var(--rd-ink);
+}
+/* Collapsed, not hidden. `display: none` would take the input out of the
+   document and there would be no way to type into an empty field at all —
+   which is what the first version did. Clicking the label still focuses it,
+   and focus expands the box. */
+.rd-field-empty .rd-fieldval {
+  height: 0;
+  margin-top: 0;
+  overflow: hidden;
+}
+.rd-fieldval input,
+.rd-fieldval select,
+.rd-fieldval textarea {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  outline: none;
+}
+/*
+ * …and it stays off under keyboard focus, which the rule above does not
+ * achieve on its own.
+ *
+ * `styles.css` has a global `input:focus-visible { outline: 2px solid }` — the
+ * house rule that focus is never removed without being replaced, which is
+ * right — and it ties with `.rd-fieldval input` on specificity, so source
+ * order decides and the global wins. The result is a 2px ring drawn INSIDE the
+ * field's own focus border: a box inside a box, which is what the owner
+ * reported.
+ *
+ * Focus is still shown, and shown better: the FIELD is what takes it — its
+ * edge goes 1.5px primary and its floated label turns blue — so the input's
+ * own ring is a second announcement of one event. Specific enough to win
+ * outright rather than by loading order, because loading order is not
+ * something a stylesheet should have to rely on.
+ */
+.rd-field .rd-fieldval input:focus-visible,
+.rd-field .rd-fieldval select:focus-visible,
+.rd-field .rd-fieldval textarea:focus-visible {
+  outline: none;
+}
+/* A prefix the value is read through — a currency, a domain. Grey, inline, and
+   never part of what gets typed. */
+.rd-fieldpre {
+  margin-right: 2px;
+  color: var(--rd-ink-faint);
+}
+/* Counters and scope notes ride the floated label's line. */
+.rd-fieldnote {
+  margin-left: auto;
+  color: var(--rd-ink-faint);
+}
+/* A picker wearing a link. It sits on the label's line as the way into a
+   field whose VALUE is too big to be a control — five lines of address cannot
+   live in a box that has to show its chevron beside them. Native, because this
+   card scrolls and a menu drawn in it would clip at its edge; stripped of the
+   furniture, because what it has to look like is the word it offers. */
+.rd-fieldnote > .rd-fieldlink {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: var(--rd-weight-emphasis) var(--rd-size-label) var(--rd-font-text);
+  color: var(--rd-primary);
+  text-transform: none;
+  letter-spacing: normal;
+  cursor: pointer;
+}
+.rd-fieldnote > .rd-fieldlink:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.rd-fieldnote > .rd-fieldlink:disabled {
+  color: var(--rd-ink-disabled);
+  cursor: default;
+}
+.rd-fieldnote.rd-near {
+  color: var(--rd-amber-ink);
+}
+/* Read-only: a grey-washed box with the lighter edge, because a value nobody
+   can change should not wear the edge that means "editable". */
+.rd-field.rd-field-read {
+  background: var(--rd-inset);
+  border-color: var(--rd-border);
+  cursor: default;
+}
+/* An address arrives with its newlines in it and is four lines on the page,
+   not one run.
+
+   The leading is 1.35, not the 1.55 it was. A field has to be ONE HEIGHT
+   whichever control it holds, and it was not: 1.55 puts a single line of read
+   text at 20.9px where a picker's line is 18, so every read field in the rail
+   stood 3px above every select beside it — its neighbours taller than
+   Address and Source, on the same card, for a reason that only exists when a
+   value wraps. At 1.35 a single line matches the picker's strut to within a
+   rounded pixel, and a four-line address still has leading between its lines,
+   which is what the rule was for. */
+.rd-field-read .rd-fieldval {
+  display: block;
+  white-space: pre-line;
+  line-height: 1.35;
+}
+/* A figure in a field reads as a figure. */
+/* A form box reads from the left, whatever is in it.
+   The owner: *"Across the app we need to be left aligning form boxes, even
+   when they are numbers."* A field is a label with a value under it, and a
+   column of fields is read down that left edge — a figure pushed to the right
+   of a 340px box floats away from the label naming it, and the eye has to
+   travel the width of the box for every row.
+
+   Right-alignment is for a COLUMN of figures, where the point is that the
+   units line up under each other: a table's `.n` cells, the order's line
+   cells, and the totals box at the foot of them. None of those is a form box
+   and none of them changes.
+
+   The tabular figures stay. That is a different thing from the alignment —
+   it stops a digit changing width as a value is typed, which is what makes a
+   figure jitter while somebody edits it.
+
+   `rd-figs`, not the `rd-n` it was called. `n` in this app has meant "a
+   number, so right-aligned" since the first table — `.rd-t td.n` still means
+   exactly that — and a class that keeps the name while losing the alignment
+   is a trap for whoever reads it next. What it does now is figures, so that
+   is what it is called. */
+.rd-field.rd-figs .rd-fieldval,
+.rd-field.rd-figs .rd-fieldval input {
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Suggested: a value the reader proposed and nobody has confirmed.
+   `45b` gives it a 1.5px amber dash on cream and puts the word "suggested" on
+   the label's line. The dash is the point — it is the same "there is nothing
+   here yet" the dashed add-row uses, said about a value that IS there but has
+   not been agreed. Half a pixel of border comes off the padding so a suggested
+   field is exactly the height of a settled one beside it. */
+.rd-field.rd-field-sug {
+  border: 1.5px dashed var(--rd-suggest-border);
+  background: var(--rd-suggest-bg);
+  padding: 7.5px 12.5px 8.5px;
+}
+.rd-field-sug.rd-field-empty {
+  padding: 13.5px 12.5px;
+}
+/* Colour never carries meaning alone: the word says it, the dash indexes it. */
+.rd-field-sug .rd-fieldnote {
+  font-weight: var(--rd-weight-emphasis);
+  color: var(--rd-amber-ink);
+}
+
+/* ---------- expandable counts ----------
+   A count that can be opened. The pill is drawn by the row's hover rather than
+   sitting there permanently, because a column of pills reads as a column of
+   buttons — and the chevron only appears with it, so a resting table is a
+   table. `un` reserves the room the chevron needs, so nothing shifts when it
+   arrives: a count that moves when you point at it is a count you cannot aim
+   at. The column after an `un` gives its own left padding back, so the pair
+   still reads as one gutter. */
+.rd-t27 th.rd-un,
+.rd-t27 td.rd-un {
+  padding-right: var(--rd-cell-pad-un);
+}
+.rd-t27 th.rd-un + th,
+.rd-t27 td.rd-un + td {
+  padding-right: var(--rd-cell-pad-after-un);
+}
+.rd-uc {
+  position: relative;
+  display: inline-block;
+  padding: 4px 30px 4px 10px;
+  margin: -4px -30px -4px -10px;
+  border-radius: var(--rd-radius-menu);
+  cursor: pointer;
+}
+.rd-uc:hover,
+.rd-uc.on {
+  background: var(--rd-chip-menu);
+}
+/* The agreements count, which sits at the end of a sentence rather than in a
+   column of its own. `.rd-uc` draws its pill on hover and pulls its box in
+   with negative margins — right for a column of counts, where a standing row
+   of pills would read as a row of buttons. After prose it is wrong twice
+   over: the count butts against the date it follows, so a person with one
+   agreement read "signed 14 Aug 26 1", and there is nothing to say the digit
+   can be pressed. So here the pill stands, and the box is its own. */
+.inf-agcount .rd-uc {
+  margin: -3px 0 -3px 4px;
+  padding: 3px 22px 3px 8px;
+  background: var(--rd-chip-menu);
+  font-variant-numeric: tabular-nums;
+}
+.inf-agcount .rd-xarr {
+  right: 7px;
+  opacity: 1;
+}
+.rd-xarr {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid var(--rd-ink-tertiary);
+  border-bottom: 1.5px solid var(--rd-ink-tertiary);
+  transform: rotate(45deg);
+  margin-top: -4px;
+  opacity: 0;
+  transition: opacity var(--rd-dur-state) var(--rd-ease);
+}
+.rd-uc:hover .rd-xarr {
+  opacity: 1;
+}
+.rd-uc.on .rd-xarr {
+  opacity: 1;
+  transform: rotate(-135deg);
+  margin-top: -2px;
+}
+/* The popover a count opens: white, floating, with the inner panel headed by
+   the fact the lines are grouped under. Anchored to the count's right edge so
+   a rightmost column cannot push it off the card. */
+.rd-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  /* Flipped above when there is no room below. The card clips (`overflow:
+     hidden`) and so does the scrollport (`overflow-x: auto` computes
+     overflow-y to auto), so a popover that only ever opened downwards lost its
+     bottom half on the last row — which is exactly where a long list is read.
+     The table vocabulary asks for it anchored so it never bleeds off the card;
+     this is that. */
+  /* Above the sticky header (8/9). A popover opens from inside a CELL, and on
+     the first visible row that cell is directly under the header — at 5 the
+     readout was drawn and then covered by the very row of labels it belongs
+     to. The float menus at 20 and the dialogues at 40 were already clear. */
+  z-index: 10;
+  width: 308px;
+  padding: 12px;
+  background: var(--rd-card);
+  border-radius: var(--rd-radius-float);
+  box-shadow: var(--rd-shadow-float);
+  text-align: left;
+  white-space: normal;
+  cursor: default;
+}
+.rd-pop.rd-pop-up {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+/* Two stock points is two panels, each headed by its own. */
+.rd-popinner + .rd-popinner {
+  margin-top: 8px;
+}
+.rd-popinner {
+  background: var(--rd-inset);
+  border-radius: var(--rd-radius-card);
+  overflow: hidden;
+}
+.rd-pophd {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--rd-hairline-row);
+  font: 500 var(--rd-size-cell) var(--rd-font-text);
+  color: var(--rd-ink);
+}
+.rd-popline {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--rd-hairline-row);
+}
+.rd-popline:last-child {
+  border-bottom: 0;
+}
+.rd-popline > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+/* A line that opens something is a button, and a button brings its own
+   ground, border, font and centring with it — the same reset `.rd-chip-x`
+   needed. Everything here is undoing that, so the line looks identical to
+   the ones that only sit there; what marks it is the pointer and the wash
+   under it. */
+.rd-popline-go {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--rd-hairline-row);
+  border-radius: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.rd-popline-go:last-child {
+  border-bottom: 0;
+}
+.rd-popline-go:hover,
+.rd-popline-go:focus-visible {
+  background: var(--rd-hover-square);
+}
+.rd-popname {
+  font: 400 var(--rd-size-cell) var(--rd-font-text);
+  color: var(--rd-ink);
+}
+.rd-popsub {
+  margin-top: 1px;
+  font: 400 var(--rd-size-head) var(--rd-font-text);
+  color: var(--rd-ink-faint);
+}
+.rd-popqty {
+  font: 400 var(--rd-size-cell) var(--rd-font-text);
+  color: var(--rd-ink-ui);
+  white-space: nowrap;
+}
+
+/* Ruling 23: the popover's foot totals what it just listed. It sits above the
+   panel's padding rather than inside the last line's rule, so the total reads
+   as the sum of the lines and not as another one of them. */
+.rd-poptot {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  height: 30px;
+  padding: 0 14px;
+  border-top: 1px solid var(--rd-border);
+  font: var(--rd-weight-emphasis) var(--rd-size-cell) / 30px var(--rd-font-text);
+  color: var(--rd-ink);
+}
+.rd-poptot > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.rd-poptot .rd-popqty {
+  font-weight: var(--rd-weight-emphasis);
+  color: var(--rd-ink);
+}
+
+/* A value that is copied rather than read — an address, an email. The ground
+   arrives on hover and the confirmation is a word, above the cell so it cannot
+   be mistaken for the value itself. */
+.rd-cpy {
+  position: relative;
+  /* `pointer`, not `copy`. The owner: *"the hover cursor on copy fields e.g
+     contact email is a green plus sign, which feels weird."* It is: `copy` is
+     the DRAG-AND-DROP cursor — an arrow with a green plus, which the operating
+     system draws to mean "let go here and it will be copied". This cell is
+     clicked, not dropped on, and it already says so three other ways: a
+     `role="button"`, a `title` reading "Click to copy", and a clipboard glyph
+     in its gutter. The cursor was the one channel disagreeing with the rest. */
+  cursor: pointer;
+  padding: 3px 7px;
+  margin: -3px -7px;
+  border-radius: var(--rd-radius-menu);
+  /* Copyable AT REST, not only under the pointer. The hover tint was the only
+     signal, which meant the one way to find out a cell could be copied was to
+     point at it — and nobody points at a cell they have no reason to touch.
+     The dotted underline is the same mark `.rd-pen` uses for "there is more
+     here than the words", in the faint ink so a column of them is not a
+     column of rules. */
+  text-decoration: underline dotted var(--rd-ink-disabled);
+  text-underline-offset: 3px;
+}
+.rd-cpy:hover {
+  background: var(--rd-chip-menu);
+}
+/* Ruling 27 (84d): the flash the cell takes when it is copied. Named for what
+   it does here rather than borrowed from the status ramp — see the token. */
+.rd-cpy.did {
+  background: var(--rd-copied-wash);
+}
+.rd-cpy.did::after {
+  content: 'Copied';
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  /* "Copied" is drawn ABOVE the cell, so on the first row it lands under the
+     sticky header unless it clears it. */
+  z-index: 11;
+  padding: 2px 8px;
+  border-radius: 5px;
+  background: var(--rd-ink);
+  color: var(--rd-card);
+  font: 500 var(--rd-size-float) var(--rd-font-text);
+  white-space: nowrap;
+}
+
+/* ---------- floating menu ----------
+   Ruling 8's "standard floating menu": 12px radius and the dialogue shadow,
+   which is the only shadow in the system. Items are 6px, per ruling 5. */
+.rd-menuwrap {
+  position: relative;
+  display: inline-block;
+}
+.rd-float {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  min-width: 190px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 6px;
+  background: var(--rd-card);
+  border: 1px solid var(--rd-border);
+  border-radius: var(--rd-radius-float);
+  box-shadow: var(--rd-shadow-float);
+}
+/* The shared Menu's panel rides a portal on `document.body`, placed from the
+   chip's rectangle — a child panel is clipped the moment its chip sits in a
+   scrollport (the audience picker in Schedule's table was: full height, every
+   item behind the clip). Fixed, and above the sticky heads and the toolbar
+   floats, but below the dialogue layer — a menu must never outrank a scrim. */
+.rd-float.rd-float-fixed {
+  position: fixed;
+  z-index: 30;
+}
+
+/* What the menu is for, when the items alone would not say. */
+.rd-floathd {
+  padding: 6px 10px 4px;
+  font: var(--rd-weight-caps) var(--rd-size-caps) var(--rd-font-text);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rd-ink-muted);
+}
+.rd-float button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  border: 0;
+  background: none;
+  border-radius: var(--rd-radius-menu);
+  font: 400 var(--rd-size-cell-dense) var(--rd-font-text);
+  color: var(--rd-ink-ui);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.rd-float button:hover {
+  background: var(--rd-inset);
+}
+/* The item that is already the answer. Ticked as well as filled, because
+   colour never carries meaning alone. */
+.rd-float button.on {
+  color: var(--rd-ink);
+  font-weight: var(--rd-weight-emphasis);
+}
+
+/* A rule between two groups of controls that do different jobs. */
+.rd-vrule {
+  width: 1px;
+  align-self: stretch;
+  background: var(--rd-border-strong);
+}
+.rd-aside {
+  font: 400 var(--rd-size-caption) var(--rd-font-text);
+  color: var(--rd-ink-faint);
+}
+
+/* ---------- KPI band ---------- */
+
+.rd-kband {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.rd-kpi {
+  background: var(--rd-card);
+  border: 1px solid var(--rd-border);
+  border-radius: var(--rd-radius-card);
+  padding: 12px 16px 13px;
+}
+/* The label names the currency — never a symbol welded to the figure. Four of
+   six currencies here use $, so a glyph cannot tell them apart anyway. */
+.rd-kpi .rd-l {
+  font: 500 var(--rd-size-label) / 1.2 var(--rd-font-text);
+  color: var(--rd-ink-muted);
+}
+.rd-kpi .rd-v {
+  font: 500 var(--rd-size-kpi) / 1.15 var(--rd-font-display);
+  color: var(--rd-ink);
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* One line carrying everything the period wants said, rather than a stack of
+   captioned boxes. A caption earns its place by changing what somebody does
+   next; three of them in a column do not. */
+.rd-notes {
+  font: 400 var(--rd-size-head) / 1.6 var(--rd-font-text);
+  color: var(--rd-ink-muted);
+  margin: 0 2px 12px;
+}
+
+/* ---------- Section head with a qualifier ---------- */
+
+.rd-sechead .rd-sub {
+  font: 400 var(--rd-size-caption) var(--rd-font-text);
+  color: var(--rd-ink-faint);
+  margin-left: 10px;
+}
+
+/* ---------- Status lozenge ---------- */
+
+/* The status lozenge, at the three sizes the concept actually draws it.
+   It was built at one — 10px on 1px 8px — which is smaller than all of them,
+   and the tables read airier than the drawing because of it. Measured across
+   the concept: 45 row tags at 11px/2px 9px, 22 band lozenges at 11.5px/3px
+   11px, 7 small inline ones at 10.5px/1px 8px. */
+.rd-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: var(--rd-radius-pill);
+  font: 500 var(--rd-size-label) var(--rd-font-text);
+  margin-left: 5px;
+  white-space: nowrap;
+}
+/* ---------- the category tag ----------
+   Ruling 12: the admin has TWO lozenge shapes, and the SHAPE carries the
+   distinction. A pill (999px) is a status — a state that changes over time. A
+   tag (6px, soft fill, no border) is a category — a fixed taxonomy value that
+   does not change because time passed.
+
+   Nothing here picks a colour: each value's tint is a token in `tokens.css`,
+   which is what stops a new category being tinted at a call site out of
+   whatever was nearby. The word is always inside the tag, so a tint carries
+   no meaning on its own and a colour-blind reader loses nothing. */
+.rd-ctag {
+  display: inline-block;
+  height: 19px;
+  padding: 0 9px;
+  border-radius: var(--rd-radius-menu);
+  font: 500 var(--rd-size-label) / 19px var(--rd-font-text);
+  white-space: nowrap;
+  /* No border, deliberately: the fill IS the shape. An outline would put it
+     back in the pill's register, which is the distinction being made. */
+  border: 0;
+}
+.rd-ctag-slate { background: var(--rd-tag-slate-bg); color: var(--rd-tag-slate-ink); }
+.rd-ctag-violet { background: var(--rd-tag-violet-bg); color: var(--rd-tag-violet-ink); }
+.rd-ctag-moss { background: var(--rd-tag-moss-bg); color: var(--rd-tag-moss-ink); }
+.rd-ctag-clay { background: var(--rd-tag-clay-bg); color: var(--rd-tag-clay-ink); }
+.rd-ctag-stone { background: var(--rd-tag-stone-bg); color: var(--rd-tag-stone-ink); }
+.rd-ctag-teal { background: var(--rd-tag-teal-bg); color: var(--rd-tag-teal-ink); }
+.rd-ctag-sand { background: var(--rd-tag-sand-bg); color: var(--rd-tag-sand-ink); }
+.rd-ctag-plum { background: var(--rd-tag-plum-bg); color: var(--rd-tag-plum-ink); }
+.rd-ctag-steel { background: var(--rd-tag-steel-bg); color: var(--rd-tag-steel-ink); }
+.rd-ctag-amber { background: var(--rd-tag-amber-bg); color: var(--rd-tag-amber-ink); }
+/* Nothing chosen yet — the dashed invitation the calendar's Phase cell uses.
+   A dash would say "there is none"; this says "there could be one". */
+.rd-ctag-none {
+  border: 1px dashed var(--rd-field-border);
+  background: none;
+  color: var(--rd-ink-faint);
+  line-height: 17px;
+  cursor: pointer;
+}
+
+/* Capped inside a table cell (ruling 11, amended 21 Aug on the owner's word:
+   "a little bigger", 17px → 20px).
+
+   The cap itself is the point and has not changed. A pill at its NATURAL size
+   is about 21px — taller than a 13px line box — so left alone it props every
+   cell open and the row lands near 36px whatever the row rule says. That is
+   the bug that made Design's own first draft render 46px rows while labelled
+   40. What moved is where the cap sits: 20px still leaves 7px of air either
+   side of a 34px row, so the row height is untouched, and the pill reads at a
+   size worth reading. The line-height carries the height, so the cap holds
+   whatever the pill is wrapped in.
+
+   Amended again 21 Aug on the owner's word: *"the pills are too small, make
+   them a touch bigger by reducing the padding above/below."* So the BOX does
+   not grow — 20px stands, and the row height with it — and the type inside it
+   takes the room the air was using: 11.5px → 12.5px, one step up the reading
+   scale and the same size the band lozenge already wears. The pill family is
+   now one type at two heights rather than two types at two heights, which is
+   the smaller thing to remember. */
+.rd-t27 td .rd-tag {
+  height: 20px;
+  padding: 0 11px;
+  font: 500 var(--rd-size-cell-dense) / 20px var(--rd-font-text);
+}
+
+/* The band lozenge is the largest of the three — 24px at 12.5px, ruled by
+   ruling 14 and set with the band itself under `.rd-bandval`, which is now the
+   one shape every band on every screen wears. The old `.rd-gcap + .rd-tag`
+   selector lived here and is gone with the header it reached. */
+/* The small one: a state riding beside a name rather than filling a cell —
+   "Linked", "Not all linked", "Default".
+
+   It is NOT the status column's pill, and using it there is how a status cell
+   ends up smaller than the sentence next to it. Where a pill IS the cell, it
+   wears the in-cell size above; the check in `prove-pills.mjs` is what stops
+   the two swapping back. Inside a cell the size cap above still wins on
+   specificity, so a mistake here is a wrong PADDING rather than a wrong size —
+   which reads as a pill that is merely a bit tight, and is why it survived. */
+.rd-tag-sm {
+  padding: 1px 8px;
+  font-size: var(--rd-size-float);
+}
+/* The tones, together rather than added one at a time beside the screen that
+   first needed them. They are mutually exclusive classes at equal specificity,
+   so nothing depends on the order — only on being findable. Each is a word
+   first: the colour never carries the meaning. */
+.rd-tag-red { background: var(--rd-red-bg); color: var(--rd-red-ink); }
+.rd-tag-amber { background: var(--rd-amber-bg); color: var(--rd-amber-ink); }
+.rd-tag-green { background: var(--rd-green-bg); color: var(--rd-green-ink); }
+.rd-tag-blue { background: var(--rd-blue-bg); color: var(--rd-blue-ink); }
+.rd-tag-violet { background: var(--rd-violet-bg); color: var(--rd-violet-ink); }
+/* The one tone that needs an edge. Grey's fill is #eef0f3 and the record
+   screen's ground is #eef2f7 — three values apart, so on that page the
+   lozenge vanished and the state read as loose text beside the title. It did
+   not matter while Cancelled was the only grey state; a second one is the
+   ordinary end of every Japanese order, so it does now. The other tones tint
+   far enough off the ground to stand on their own. */
+.rd-tag-grey {
+  background: var(--rd-grey-bg);
+  color: var(--rd-grey-ink);
+  box-shadow: inset 0 0 0 1px var(--rd-border-strong);
+}
+
+/* A cell whose word is the warning — the row tint indexes it. */
+.rd-t td.rd-wn {
+  color: var(--rd-amber-ink);
+  font-weight: var(--rd-weight-emphasis);
+}
+/* The price sheet's worse disagreement: variants of one family priced in
+   two CURRENCIES in one place, which means one of them sits in the wrong
+   upstream system and no amount of typing corrects it. It takes the warning
+   ink where the figure disagreement beside it stays plain, because the two
+   are not the same fault — and both are words either way, so the colour is
+   never carrying the meaning on its own. */
+.rd-t .rd-mixccy {
+  color: var(--rd-amber-ink);
+  font-weight: var(--rd-weight-emphasis);
+}
+
+/* ---------- Failure band, inside a panel ---------- */
+
+.rd-failpanel {
+  margin: 12px 16px 16px;
+  display: flex;
+  gap: 9px;
+  padding: 12px 14px;
+  background: var(--rd-fail-bg);
+  border: 1px solid var(--rd-fail-border);
+  border-radius: var(--rd-radius-inset);
+  font: 400 var(--rd-size-cell-dense) / 1.5 var(--rd-font-text);
+  color: var(--rd-fail-ink);
+}
+.rd-faildot {
+  color: var(--rd-red-ink);
+  flex: none;
+}
+.rd-failpanel b {
+  font-weight: var(--rd-weight-emphasis);
+}
+
+/* ---------- The wide analysis table (`t27`) ---------- */
+
+/* ---- Item 3: columns sized by their contents ----
+   ~~A fixed grid rather than auto layout.~~ **Superseded by the owner, 27 Aug**:
+   column widths like the Shopify admin's — each column as wide as its contents
+   plus a gutter, and the room left over going to the right of them.
+
+   That is `table-layout: auto`, and it is the browser's own algorithm rather
+   than anything of ours. `docs/spikes/column-autolayout.mjs` measured what it
+   does, because the CSS spec is under-specified on exactly this point:
+
+   - **Below the columns' natural total the table does not shrink.** It keeps
+     that width and `.rd-scroll` carries it. Horizontal scrolling is not a
+     feature to add here; it is what happens when nothing squeezes.
+   - **Above it the surplus divides in PROPORTION to each column's own width**,
+     not equally. That is the unevenness the owner noticed between Product type
+     and Vendor: a column holding 17% of the natural total takes 17% of every
+     new pixel.
+
+   What this replaces, and why the replacement is smaller: ruling 19's drag
+   grips, its remembered widths, and 19b's filler column all existed to hand
+   the surplus somewhere sensible. Auto layout puts it to the right of the last
+   column on its own, which is what the filler was invented to fake.
+
+   The one thing it does NOT do on its own is hold still while ruling 9's bulk
+   bar replaces the header row — see `useGridPin.ts`, and the owner's answer:
+   pin the grid during a selection. */
+.rd-t27 {
+  /* Still fixed on a table that has not been converted yet. Item 3 changes
+     what every column measures, so it lands screen by screen — `.rd-fit`
+     below is the opt-in, and it is removed from this rule (leaving auto as
+     the only behaviour) when the last table is across. Flipping all
+     twenty-seven at once would put sixteen unrendered screens in front of the
+     owner, which is the fault CLAUDE.md names: an unseen screen is a divergent
+     screen. */
+  table-layout: fixed;
+  width: 100%;
+  /* Clipping stops text drawing over text, but a clipped column still hides
+     what it holds. Below this the CARD scrolls instead — `.rd-scroll` is
+     already around every one of these — so a narrow window costs a sideways
+     drag rather than a row of ellipses. The number is the sum of the widths a
+     colgroup declares plus room for the one column that takes the surplus; any
+     table needing more says so with its own `min-width`. */
+  min-width: 720px;
+}
+/* Item 3's opt-in. A table wearing this is sized by its CONTENTS: no declared
+   widths, no drag grips, no filler. `useGridPin` holds its grid still while a
+   selection is live, which is the one thing auto layout cannot do on its own.
+
+   Converted so far: All payments. */
+.rd-t27.rd-fit {
+  table-layout: auto;
+  /* The concept's `min-width` was the sum of its declared columns; with the
+     columns deriving their own widths the table already refuses to go below
+     what its contents need, and `.rd-scroll` carries it. Stated so a leftover
+     min-width cannot squeeze a content-sized table and start the row heights
+     growing. */
+  min-width: 0;
+}
+
+/* The cell's own horizontal padding, named because the colgroup needs it too:
+   the concept declares a column's width on a content-box cell, where the
+   padding sits outside the number, and a `col` has no padding to sit outside
+   of. See `Cols.tsx`. */
+.rd-t27 {
+  --rd-cell-pad-x: 12px;
+  /* The two gutters an expandable count needs: room on its own right for the
+     chevron, and room on the next column's right so the pair still reads as
+     one gutter. Named because `Cols.tsx` has to add the same numbers back when
+     it declares the grid. */
+  --rd-cell-pad-un: 34px;
+  --rd-cell-pad-after-un: 24px;
+}
+/* The owner's 27-character cap. A cell may grow to its contents and no
+   further; past that it wraps inside the cap.
+
+   Measured rather than assumed: with the table never squeezing below its
+   natural total (above), every row stays one line and the cap only ever bites
+   on a cell that really is over 27 characters. Let the table squeeze instead
+   and rows go 36 → 56 → 76px, which is what a fixed `--rd-row-h` and ruling
+   89h's height-measuring sticky bands cannot take.
+
+   On the CONTENT, not the cell: a `max-width` on a `td` under auto layout is a
+   suggestion the algorithm may overrule, where an inline-block inside it is a
+   hard box the algorithm has to size around. */
+.rd-t27 td > .rd-cap,
+.rd-t27 th > .rd-cap {
+  display: inline-block;
+  max-width: 27ch;
+  /* THE KIT'S ONE DELTA FROM THE APP IT CAME FROM — see README §6.
+     Without it the two lines below are dead: `.rd-t td` sets
+     `white-space: nowrap`, a `.rd-cap` is one of its descendants, and nowrap
+     beats `overflow-wrap` outright. So the cap capped and then CLIPPED, which
+     is the one thing the comment above says it does not do. It went unseen
+     because nothing in the app wears `.rd-cap` yet: a rule with no callers
+     renders correctly everywhere it is never used. Found by rendering
+     `example/index.html` at 900px and measuring, 28 Aug 2026. */
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Numbers right, text left — and the HEADER matches its column, because a
+   heading that disagrees with the figures under it is a heading nobody can
+   use to find them. `.n` already carries both, on the `th` and the `td`
+   alike; this is the rule stated where it can be checked. */
+
+/* Ruling 11: the row is 34px and the CELL says so. Horizontal padding only —
+   a height inferred from padding is what let a status pill prop every row
+   open, which is the bug that rendered 46px rows under a stylesheet labelled
+   40. `--rd-row-h` carries the arithmetic and the reason. */
+.rd-t27 td {
+  height: calc(var(--rd-row-h) - var(--rd-row-rule));
+  padding: 0 var(--rd-cell-pad-x);
+  vertical-align: middle;
+  font: 400 var(--rd-size-cell) / 1.2 var(--rd-font-text);
+  color: var(--rd-ink-cell);
+}
+.rd-t27 th {
+  /* Half a rule, not a whole one. Under `border-collapse: collapse` the rule
+     between two cells is SHARED, so a body row — sitting between two of them —
+     gives up a whole pixel, while a header with nothing above it gives up
+     half. Taking the same pixel off both would leave the header measuring
+     33.5px against the 34 it is ruled at. */
+  height: calc(var(--rd-head-h) - var(--rd-row-rule) / 2);
+  padding: 0 var(--rd-cell-pad-x);
+  vertical-align: middle;
+  font: 500 var(--rd-size-head) / 1.2 var(--rd-font-text);
+  color: var(--rd-ink-head);
+}
+/* A table whose rows can be ticked keeps its header row tall enough to hold a
+   control, and that is the whole of ruling 9's mechanism. On selection the bulk
+   bar takes the header row's place rather than arriving above it, so that
+   ticking a box moves nothing and the row stays under the pointer; the bar
+   carries pills, so the row it stands in has to have room for one. The concept
+   draws the bar above the table and never has to reconcile the two heights.
+
+   Both rows are this one rule, so they cannot come out different: the bar's
+   cell is a `th` in the same head. Sizing them apart — matching two numbers by
+   arithmetic — is what the harness caught, and it was out by 1.2px.
+
+   The cost is a header row taller than the drawing on checkbox tables, and the
+   column headings while a selection is live. Workbench made the same trade for
+   the same reason and landed within a pixel of the same number. */
+/* Ruling 11 gives the header row 34px, which is room enough for the bar's
+   pills — so the two rulings agree and this no longer needs a height of its
+   own. The mechanism is unchanged and is the part that matters: the bar's
+   cell is a `th` in the same head, sized by the same rule, so the two rows
+   cannot come out different. */
+.rd-tsel thead th {
+  height: calc(var(--rd-head-h) - var(--rd-row-rule) / 2);
+}
+
+/* A rollup line above the detail: the answer before the breakdown.
+   Size and padding are deliberately NOT set here. In the concept `.band>td`
+   asks for 12px and 6px/10px, and `.t27 td`'s `font` shorthand — same
+   specificity, declared later — overrides both, so the band actually renders
+   at the table's own 13px and 12px padding. That is what was drawn and
+   approved. Forcing the band's nominal size back on would make this table
+   disagree with its own reference over a rule nobody applied. */
+.rd-t27 tr.rd-bandrow > td {
+  background: var(--rd-band);
+  color: var(--rd-ink);
+  font-weight: var(--rd-weight-emphasis);
+}
+
+/* On a plain table — the analysis table carries both classes, so this has to
+   exclude it explicitly — the band keeps the smaller size its own class asks
+   for. */
+.rd-t:not(.rd-t27) tr.rd-bandrow > td {
+  background: var(--rd-band);
+  color: var(--rd-ink);
+  font-weight: var(--rd-weight-emphasis);
+  font-size: var(--rd-size-head);
+  padding: 6px 10px;
+}
+
+/* ---------- Meter ---------- */
+
+.rd-meterwrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.rd-meter {
+  position: relative;
+  height: 8px;
+  background: var(--rd-track);
+  border-radius: var(--rd-radius-meter);
+  flex: 1;
+  max-width: 260px;
+}
+.rd-meter-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: var(--rd-radius-meter);
+}
+/* Where the plan curve says this series should be by now. Ink, not a ramp
+   colour: it is a reference mark, not a grade. */
+.rd-meter-tick {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--rd-ink);
+}
+/* The printed percentage the ruling requires beside every fill, so the meter
+   never carries the reading on colour alone. */
+.rd-meter-pct {
+  font-size: var(--rd-size-head);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--rd-weight-emphasis);
+}
+
+/* ---------- Figures that carry a grade ---------- */
+
+.rd-good { color: var(--rd-green-ink); font-weight: var(--rd-weight-emphasis); }
+.rd-warn { color: var(--rd-amber-ink); font-weight: var(--rd-weight-emphasis); }
+.rd-bad { color: var(--rd-red-ink); font-weight: var(--rd-weight-emphasis); }
+
+/* A section inside a sheet — Consumer, Retail, Total, Stock. Not the card's
+   own `.rd-sechead`: this one is a row in the grid, and it hands its bottom
+   rule to the first row beneath so the heading and its figures read as one
+   block rather than two. */
+.rd-t tr.rd-secrow > td {
+  padding: 9px 10px 3px 20px;
+  font: 400 var(--rd-size-cell-dense) var(--rd-font-text);
+  color: var(--rd-ink);
+  border-bottom: none;
+}
+
+/* The answer column — the one a row is read for. A ground rather than a rule,
+   because it runs the height of a long sheet and eleven rules would be a
+   fence. */
+.rd-t td.rd-ans,
+.rd-t th.rd-ans {
+  background: var(--rd-answer-bg);
+}
+/* A cell that can be typed into while Edit is live. The tint is the whole
+   affordance: there is no border to add without moving the grid, and a sheet
+   this dense cannot afford a control in every cell. */
+.rd-t td.rd-live {
+  background: var(--rd-live-bg);
+}
+/* The input inside such a cell, which has to disappear into it. This reset
+   existed three times already — `.rd-linecell input`, `.rd-fieldval input`,
+   `.rd-search input` — each scoped to a parent a sheet cell cannot wear, which
+   is how the price sheet ended up carrying it as an inline constant. Every
+   value is inherited or a zero: nothing about how a figure looks is decided
+   here, only that the box around it is not visible. */
+.rd-cellinput {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  font-variant-numeric: inherit;
+  outline: none;
+}
+
+/* A chip that opens a menu, as against one that toggles a state. */
+.rd-chip.rd-menu {
+  background: var(--rd-chip-menu);
+  border-color: var(--rd-chip-menu);
+}
+/* A menu chip HOLDING a value rather than offering one — "Group · Country".
+   `.on` cannot serve, and the reason is worth keeping: `.rd-chip.on` fills
+   with ink and sets white text, and `.rd-chip.rd-menu` above — same
+   specificity, declared later — takes the fill back while the white text
+   survives. White on #e9edf2, which is how the Vendors group chip has been
+   effectively invisible since it was written. Measured, not spotted: at a
+   glance it reads as a chip that is simply pale.
+
+   Three classes, so it beats both. */
+.rd-chip.rd-menu.rd-chip-on {
+  background: var(--rd-row-sel);
+  border-color: var(--rd-primary);
+  color: var(--rd-primary);
+}
+
+/* KPI sub-line — present only where it says something operative. */
+/* The funnel's footnote: what the row's figures are, said once under them
+   rather than on every tile. Sits tight to the band it explains. */
+.rd-kbandnote {
+  margin: -6px 0 12px;
+  font: 400 var(--rd-size-caption) / 1.4 var(--rd-font-text);
+  color: var(--rd-ink-faint);
+}
+.rd-kpi .rd-u {
+  font: 400 var(--rd-size-caption) var(--rd-font-text);
+  color: var(--rd-ink-faint);
+  letter-spacing: 0.02em;
+}
+.rd-kpi .rd-s {
+  font: 400 var(--rd-size-caption) / 1.35 var(--rd-font-text);
+  color: var(--rd-ink-muted);
+  margin-top: 3px;
+}
+.rd-kpi .rd-s.rd-good,
+.rd-kpi .rd-s.rd-bad { font-weight: var(--rd-weight-body); }
+
+.rd-kband.rd-cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+/* ---------- Grouped list ---------- */
+
+/* Cells clip rather than wrap, on EVERY fixed-grid table.
+   Two failures this prevents, and the second is the one the owner found. A
+   ledger row is scanned across, so one long description must not push every
+   figure down a line — that is what it was written for. But under
+   `table-layout: fixed` a cell whose content is wider than its column does not
+   wrap OR clip by default: it draws straight over its neighbour. Narrow the
+   window and one column's heading printed on top of the next, and every name
+   printed on top of its country's flag.
+
+   It lived on `.rd-t32`, which only some of these tables carry. Text that
+   overlaps other text is never right on any of them, so it is `.rd-t27` now —
+   which is every fixed-grid table in the redesign. `.rd-t32` keeps its name as
+   a marker and adds nothing. */
+.rd-t27 td,
+.rd-t27 th {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* …except the cell whose whole job is to open something bigger than itself.
+   An expandable count draws its popover as an absolutely-positioned child of
+   the cell, so the clip above swallows it whole — and silently: the popover
+   still lays out, still measures, still reports a sensible
+   `getBoundingClientRect`, and paints nothing. Every check that asked where it
+   was passed while nobody could see it.
+
+   Letting this one cell overflow costs nothing the clip was protecting
+   against: it is right-aligned, it holds a number, and `--rd-cell-pad-un`
+   already reserves the room its chevron needs. `prove-shipments.mjs` hit-tests
+   the popover's own middle with `elementFromPoint` rather than trusting a
+   rectangle, because a rectangle is exactly what lied here. */
+.rd-t27 td:has(.rd-uc) {
+  overflow: visible;
+}
+
+/* The chip's own mark — the little chevron on a "Group by" or a period chip.
+   Ruling 14 replaced the group header's rotated-border chevron with a drawn
+   SVG path (`.rd-bandchev` in GroupBand); this one is the chip's, drawn the
+   old way at a size where it does not read chunky, so it stands on its own
+   feet rather than overriding a rule that no longer exists. */
+.rd-chev-chip {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  flex: none;
+  margin: 0 0 2px 3px;
+}
+
+/* The mark is DRAWN (ruling 27, 88b), so the box centres a 16px drawing rather
+   than a line of type. It carries no `font` of its own any more: the character
+   `✓` it used to hold needed one, which put a type value in a control's
+   drawing — the same objection ruling 24 made to the text chevron.
+
+   The mark is always `--rd-card`, ticked or not. Undrawn it is invisible
+   because its dash offset hides it; part-drawn, mid-fill, it is white over a
+   box that is on its way to ink. Colouring it only in `.on` would flash a dark
+   half-tick for the 120ms of an untick. */
+.rd-cbx {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--rd-checkbox-border);
+  border-radius: var(--rd-radius-meter);
+  background: var(--rd-card);
+  color: var(--rd-card);
+  vertical-align: middle;
+  box-sizing: border-box;
+}
+.rd-cbx.on {
+  background: var(--rd-ink);
+  border-color: var(--rd-ink);
+}
+
+/* An empty cell on an operational screen prints a muted dash — "we looked and
+   there is none". The finance screens leave theirs blank instead, because
+   there the same cell means "not known yet". */
+.rd-t .rd-none {
+  color: var(--rd-ink-disabled);
+}
+
+/* A cell holding text that may truncate plus a marker that must not.
+   Without this the marker is inside the ellipsised run and simply disappears —
+   present in the DOM, absent on the screen. */
+.rd-cellflex {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.rd-cellflex .rd-ellip {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.rd-cellflex .rd-tag {
+  flex: none;
+  margin-left: 0;
+}
+
+/* ---------- Search ---------- */
+
+.rd-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--rd-border);
+  border-radius: var(--rd-radius-inset);
+  font: 400 var(--rd-size-head) var(--rd-font-text);
+  width: 240px;
+  background: var(--rd-card);
+}
+.rd-search > span {
+  font-size: var(--rd-size-wordmark);
+  line-height: 1;
+  color: var(--rd-ink-faint);
+  flex: none;
+}
+.rd-search input {
+  border: 0;
+  outline: 0;
+  padding: 0;
+  width: 100%;
+  min-width: 0;
+  background: none;
+  font: inherit;
+  color: var(--rd-ink);
+}
+.rd-search input::placeholder {
+  color: var(--rd-ink-faint);
+}
+
+/* ---------- Bulk action bar ---------- */
+
+/* Offers what the selection can have done to it, never where it already is.
+   
+   It REPLACES the column-header row rather than stacking above it (ruling 9).
+   The concept draws it above the table, but that was a drawing artifact:
+   stacking pushes every row down the moment a box is ticked, so the row you
+   just clicked slides out from under the pointer. Replacing in place at the
+   header's own height costs the column headings while a selection is live,
+   which is the trade, and it was made on purpose.
+
+   The height is not set here — it comes from the header row's own padding and
+   type, applied to this row, so the two cannot drift apart. The harness proves
+   it by ticking a box and checking the first data row has not moved. */
+.rd-bulkbar > th {
+  /* …except the clip. `.rd-t27 th` hides overflow so a column heading
+     ellipsises rather than drawing over its neighbour, and the bar's cell
+     spans every column, so there is no neighbour to protect — while the
+     "Change status" menu is an absolutely-positioned child of this cell and
+     the clip would swallow it whole. Silently, too: the menu still lays out
+     and still measures, and paints nothing. The same trap `.rd-uc` carries a
+     note about further up. */
+  overflow: visible;
+  /* Nothing else about the box is set here. The bar's cell is a `th` inside the
+     head, so its padding, edge and ground are the column-header row's own — the
+     bar is that row, not a copy of it dressed to match. All it adds is the
+     flex. */
+  font-weight: var(--rd-weight-body);
+  text-align: left;
+}
+.rd-bulkinner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.rd-bulkcount {
+  font: 500 var(--rd-size-cell-dense) var(--rd-font-text);
+  color: var(--rd-ink);
+}
+.rd-btn-grey {
+  padding: 4px 12px;
+  font: 500 var(--rd-size-head) / 1.2 var(--rd-font-text);
+  border-radius: var(--rd-radius-control);
+  background: var(--rd-grey-bg);
+  border: 1px solid var(--rd-grey-bg);
+  color: var(--rd-ink);
+  white-space: nowrap;
+  cursor: pointer;
+}
+/* Destructive is red in the word, which is the thing that carries it. */
+.rd-btn-danger {
+  color: var(--rd-red-ink);
+}
+
+/* ---------- dialogue ----------
+   `42c`, and the shape `33d` and `34b` share: a floating panel over a scrim,
+   12px, carrying the system's only shadow. The scrim is what makes it a
+   dialogue rather than a popover — a popover is dismissed by looking away,
+   a dialogue holds a decision that has to be made or abandoned. */
+.rd-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: var(--rd-scrim);
+}
+.rd-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 41;
+  transform: translate(-50%, -50%);
+  max-height: calc(100vh - 64px);
+  overflow: auto;
+  background: var(--rd-card);
+  border: 1px solid var(--rd-border);
+  border-radius: var(--rd-radius-float);
+  box-shadow: var(--rd-shadow-float);
+}
+.rd-dialogfoot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 14px 20px 18px;
+  border-top: 1px solid var(--rd-hairline-row);
+}
+/* A word that acts. Not a chip — `42c` gives Delete card and Replace image no
+   box at all, because a box among three boxed buttons would read as a fourth
+   of the same weight. */
+.rd-linkbtn {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: 500 var(--rd-size-cell-dense) var(--rd-font-text);
+  color: var(--rd-primary);
+  cursor: pointer;
+}
+.rd-linkbtn-mut {
+  color: var(--rd-ink-tertiary);
+}
+/* Destructive is red in the word, which is the thing that carries it. */
+.rd-linkbtn-danger {
+  color: var(--rd-red-ink);
+}
+
+/* ---------- Sections: one bounded group per section ----------
+   The owner-approved "Email Sections" canvas (option A) supersedes the chip
+   row this replaces. Three levels were flattened into one form-field box —
+   field, section, card all at chip size, the two adds wearing the same dashed
+   chip. Now each section is its own field-shaped group: the floated label
+   names it, the TITLE sits on the value line so it reads as typeable (and on
+   a translation tab carries the English title as its placeholder — the thing
+   to translate, where it is typed), and the cards are rows with a thumbnail,
+   the library's own "N of 8" translation words, and a quiet ×. The two adds
+   live at two visibly different levels: a row inside the group for a card, a
+   full-width dashed line for a section. */
+
+.rd-seclist {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+.rd-secs-hd {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font: 500 var(--rd-size-section) var(--rd-font-text);
+  color: var(--rd-ink);
+}
+.rd-secs-note {
+  margin-left: auto;
+  font: 400 var(--rd-size-caption) var(--rd-font-text);
+  color: var(--rd-ink-muted);
+}
+
+/* The group wears the form field's own shape — border, radius, focus — since
+   a section is something typed into, not a card of its own. */
+.rd-secgroup {
+  border: 1px solid var(--rd-field-border);
+  border-radius: var(--rd-radius-field);
+  background: var(--rd-card);
+}
+.rd-secgroup:focus-within {
+  border-color: var(--rd-primary);
+}
+.rd-secgroup-hd {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 13px 9px;
+  cursor: text;
+}
+.rd-secgroup-field {
+  flex: 1;
+  min-width: 0;
+  display: block;
+}
+.rd-secgroup-lab {
+  display: block;
+  font: 400 var(--rd-size-float) / 1.2 var(--rd-font-text);
+  color: var(--rd-ink-faint);
+}
+.rd-secgroup:focus-within .rd-secgroup-lab {
+  color: var(--rd-primary);
+}
+.rd-secgroup-title {
+  display: block;
+  width: 100%;
+  /* The field vocabulary's label gap — 5px with `.rd-fieldval`, one ruling. */
+  margin-top: 5px;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: 400 var(--rd-size-field) var(--rd-font-text);
+  color: var(--rd-ink);
+  outline: none;
+}
+.rd-secgroup-title::placeholder {
+  color: var(--rd-ink-faint);
+  opacity: 1;
+}
+.rd-secgroup-hd .rd-linkbtn {
+  font-size: var(--rd-size-caption);
+}
+
+/* One card in the section: a row, not a chip — the thumbnail and the
+   translation words are what a chip had no room to say.
+
+   `rd-seccard`, NOT `rd-secrow`, and the difference is a screen: `.rd-secrow`
+   is the Targets sheet's level-two section row (`tr.rd-secrow`, ruling 20).
+   An unqualified class selector matches any element, so a bare `.rd-secrow`
+   with `display: flex` and a 34px height here took every section row on the
+   Targets sheet out of table layout — Consumer, Retail, Total and Stock
+   rendered as little floating pills with the figures beside them. Never name a
+   layout class after a row without saying which table it belongs to. */
+.rd-seccard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 13px;
+  border-top: 1px solid var(--rd-hairline-row);
+}
+.rd-seccard-thumb {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 3px;
+  border: 1px solid var(--rd-border);
+  background-size: cover;
+  background-position: center;
+}
+.rd-seccard-thumb.none {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--rd-hatch-a),
+    var(--rd-hatch-a) 6px,
+    var(--rd-hatch-b) 6px,
+    var(--rd-hatch-b) 12px
+  );
+}
+/* The name is the door to the card's dialogue, as the chip's words were. */
+.rd-seccard-name {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: 400 var(--rd-size-field) var(--rd-font-text);
+  color: var(--rd-ink);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.rd-seccard-langs {
+  font: 400 var(--rd-size-caption) var(--rd-font-text);
+  color: var(--rd-ink-muted);
+  white-space: nowrap;
+}
+/* Languages still owed are work the send will block on — amber, beside the
+   words that carry it. */
+.rd-seccard-langs.togo {
+  color: var(--rd-amber-ink);
+}
+.rd-seccard-x {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: 400 var(--rd-size-head) var(--rd-font-text);
+  color: var(--rd-ink-faint);
+  cursor: pointer;
+}
+.rd-seccard-x:hover {
+  color: var(--rd-red-ink);
+}
+/* A card the library no longer has — worded by resolveCard, edged red too. */
+.rd-seccard.rd-gone .rd-seccard-name {
+  color: var(--rd-red-ink);
+}
+.rd-seccard-add {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 32px;
+  padding: 0 13px;
+  border: 0;
+  border-top: 1px solid var(--rd-hairline-row);
+  background: none;
+  font: 500 var(--rd-size-caption) var(--rd-font-text);
+  color: var(--rd-ink-tertiary);
+  cursor: pointer;
+}
+.rd-seccard-add:hover {
+  color: var(--rd-ink);
+}
+
+/* A row that is a door. The cursor is the only resting signal — a hover tint
+   on every table would make the ones you cannot open look broken. */
+.rd-rowlink {
+  cursor: pointer;
+}
+.rd-rowlink:hover td {
+  background: var(--rd-inset);
+}
+.rd-rowlink:focus-visible {
+  outline: 2px solid var(--rd-primary);
+  outline-offset: -2px;
+}
+
+/* ---------- the flag on a country column (ruling 13) ----------
+   The hairline shadow is the load-bearing part: JP, FI and DK are mostly
+   white, and without an edge they dissolve into a white row and read as a
+   missing image rather than a flag. */
+.rd-flag {
+  display: inline-block;
+  width: 14px;
+  height: 10px;
+  /* No margin: the flag is the whole cell now (ruling 13 as amended), so a
+     right margin would only push it off its own column's centre. */
+  vertical-align: -1px;
+  border-radius: var(--rd-radius-flag);
+  box-shadow: var(--rd-flag-hairline);
+  /* The sources are 20px wide at each flag's own ratio — 20x10, 20x13, 20x11 —
+     and the column wants one shape. `cover` normalises them without squashing
+     a 3:2 flag into a 7:5 box. */
+  object-fit: cover;
+}
+/* No flag, but the column still lines up. ROW is what is left over rather than
+   a place, so there is nothing to draw and everything to keep aligned. */
+.rd-flag-none {
+  box-shadow: none;
+  background: none;
+}
+/* And ROW keeps its word, since — unlike a country — it cannot be named by a
+   picture. It is the one cell in the column carrying text. */
+.rd-flagword {
+  color: var(--rd-ink-cell);
+}
+
+/* A cell that crops. `.rd-t27` clips every cell so text can never draw over
+   text, but a cell that is meant to be LONG says so — the whole of it is in
+   the title, and the column is sized for a hint rather than for the contents.
+   A description that ran to six invoice references end to end is the case
+   this exists for. */
+.rd-crop {
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The rail's own switch, in the bar. It takes the bar's muted ink and comes
+   up to full ink under the pointer — the same two states the search field
+   beside it has. */
+.rd-railtoggle {
+  display: flex;
+  align-items: center;
+  flex: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--rd-ink-on-shell);
+  cursor: pointer;
+}
+.rd-railtoggle:hover,
+.rd-railtoggle:focus-visible {
+  color: var(--rd-ink);
+}
+
+/* A count that is a fact about the whole relationship rather than about this
+   period — how many of them an account has been active in. Squarish and quiet: it is
+   neither a status (999px) nor a taxonomy value (a tinted 6px tag), and giving
+   it either shape would put it in a register it does not belong to. */
+.rd-count {
+  display: inline-block;
+  min-width: 20px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: var(--rd-radius-meter);
+  background: var(--rd-inset);
+  border: 1px solid var(--rd-hairline-row);
+  font: 500 var(--rd-size-label) / 17px var(--rd-font-text);
+  color: var(--rd-ink-tertiary);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- group bands (ruling 14) ----------
+   Airtable's shape. 50px on the band ground, hairlined top and bottom — the
+   bottom rule is what separates one group from the next, so there is no gap
+   between groups. Two lines inside: a tracked-caps caption naming what the
+   grouping IS, over the value it took. */
+/* Ruling 14's 50px, MEASURED. Same arithmetic as an ordinary row: the cells
+   are content-box and `border-collapse: collapse` shares the rule between two
+   rows, so a declared 50 renders 51 with the hairline on it. The band is 50px
+   on the screen, which is the number the ruling is about. */
+.rd-t27 tr.rd-band > td {
+  height: calc(50px - var(--rd-row-rule));
+  padding: 0 var(--rd-cell-pad-x);
+  background: var(--rd-band);
+  border-top: 1px solid var(--rd-border);
+  border-bottom: 1px solid var(--rd-border);
+}
+.rd-bandwrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.rd-bandwrap[role='button'] {
+  cursor: pointer;
+}
+.rd-bandwrap:focus-visible {
+  outline: 2px solid var(--rd-primary);
+  outline-offset: 2px;
+}
+.rd-bandlines {
+  min-width: 0;
+}
+/* Tracked micro-caps: the one role weight 600 is legitimate in (ruling 6). */
+.rd-bandcap {
+  margin-bottom: 3px;
+  font: var(--rd-weight-caps) var(--rd-size-caps-micro) var(--rd-font-text);
+  letter-spacing: 0.08em;
+  color: var(--rd-ink-faint);
+  text-transform: uppercase;
+}
+/* A band's lozenge is BIGGER than a row's — 24px at 12.5px against 17/11 —
+   because a band is a heading. A heading at body size is a row that happens to
+   be grey. Both shapes take it: a status pill and a category tag.
+
+   Selected through `.rd-t27 td` deliberately: ruling 11's cap on a cell's pill
+   is `.rd-t27 td .rd-tag`, and a band's lozenge IS in a cell, so a two-class
+   selector loses to it and every band came out at the row's 17px. */
+.rd-t27 td .rd-bandval .rd-tag,
+.rd-t27 td .rd-bandval .rd-ctag,
+.rd-bandval .rd-tag,
+.rd-bandval .rd-ctag {
+  height: 24px;
+  padding: 0 11px;
+  margin-left: 0;
+  font: 500 var(--rd-size-cell-dense) / 24px var(--rd-font-text);
+}
+/* A band grouped by country names itself in words as well as by its flag. The
+   country COLUMN is glanced at, so ruling 13 lets the flag stand alone there; a
+   band is a heading and gets read, and a heading that is only a picture is one
+   nobody can quote. */
+.rd-bandval .rd-flag {
+  margin-right: 7px;
+}
+
+/* A month, or anything else with no lozenge of its own. */
+.rd-bandval {
+  font: 500 var(--rd-size-cell-dense) var(--rd-font-text);
+  color: var(--rd-ink);
+}
+/* Drawn, never rotated and never a glyph — both read chunky at every size. */
+.rd-bandchev {
+  flex: none;
+  color: var(--rd-ink-faint);
+  transition: transform var(--rd-dur-state) var(--rd-ease);
+}
+.rd-bandchev-shut {
+  transform: rotate(-90deg);
+}
+
+/* The row that ends a group and makes a record inside it. The whole row washes
+   on hover, because the plus alone is a 12px target. */
+.rd-t27 tr.rd-addrow > td {
+  height: calc(var(--rd-row-h) - var(--rd-row-rule));
+  padding: 0 var(--rd-cell-pad-x);
+}
+.rd-addrow:hover > td {
+  background: var(--rd-band);
+}
+.rd-addrow button {
+  display: flex;
+  align-items: center;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--rd-ink-disabled);
+  cursor: pointer;
+}
+.rd-addrow:hover button,
+.rd-addrow button:focus-visible {
+  color: var(--rd-ink-tertiary);
+}
+
+/* ---------- a record that is one column of cards ----------
+   `34a`. The order record puts a summary beside its lines; an account has no
+   second thing to say, so its four cards stack. Same 1000px column and the
+   same 14px between cards. */
+.rd-onecol {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+/* A card's fields, at the drawing's own inset. */
+.rd-cardfields {
+  padding: 0 20px 20px;
+}
+.rd-cardfields > .rd-field,
+.rd-cardfields > .rd-fieldrow {
+  margin-top: 14px;
+}
+.rd-cardfields > .rd-fieldrow > .rd-field {
+  margin-top: 0;
+}
+/* ---------- The one chart shape (ruling 15) ---------- */
+
+.rd-chart {
+  margin-top: 12px;
+  /* The positioning context for the hover readout. Without it the readout's
+     `left: 42%` is 42% of the PAGE and its `top` is the page's — it rendered
+     up in the header, outside the card entirely, while every check that asked
+     the DOM for its text found it and said the feature worked. */
+  position: relative;
+}
+/* Sized in pixels by the component, from the card it was measured in — so one
+   user unit is one pixel and an 11px label is 11px. */
+.rd-chartsvg {
+  display: block;
+}
+/* Stale: the WHOLE chart at half, under a warnbar naming the age. Halving the
+   line alone would leave the frame reading as current. */
+.rd-chart-stale svg {
+  opacity: 0.5;
+}
+/* Gridlines belong to the LINE's ladder and stop at its baseline — ruling 15
+   is explicit that nothing touches the band. */
+.rd-chartgrid line {
+  stroke: var(--rd-hairline-row);
+  stroke-width: 1;
+}
+.rd-chartrung text {
+  font: 500 var(--rd-size-label) var(--rd-font-text);
+  fill: var(--rd-ink-faint);
+}
+.rd-chartaxis {
+  stroke: var(--rd-border);
+  stroke-width: 1;
+}
+.rd-charttick text {
+  font: 500 var(--rd-size-label) var(--rd-font-text);
+  fill: var(--rd-ink-faint);
+}
+/* The band, pale and behind. It has no axis anywhere on the frame, which is
+   why `.rd-chartsays` beneath the plot is not optional. */
+.rd-chartband rect {
+  fill: var(--rd-band-up);
+}
+/* Down, on a signed band — signups above, unsubscribes below. */
+.rd-chartband rect.rd-chartband-down {
+  fill: var(--rd-band-down);
+}
+.rd-chartzero {
+  stroke: var(--rd-border);
+  stroke-width: 1;
+}
+.rd-chartline {
+  fill: none;
+  stroke: var(--rd-primary);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.rd-chartlone {
+  fill: var(--rd-primary);
+}
+/* The two numbers anyone acts on, at the line's end. Painted over a halo of
+   the card's own ground: a gridline running behind the digits read as a
+   strikethrough, which on a figure is not a cosmetic problem. */
+.rd-chartend {
+  font: 500 var(--rd-size-cell-dense) var(--rd-font-text);
+  fill: var(--rd-ink);
+  paint-order: stroke;
+  stroke: var(--rd-card);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+/* The plan, beside the actual — quieter, because the actual is the answer. */
+.rd-chartend-plan {
+  fill: var(--rd-ink-faint);
+}
+/* The band's axis, in a sentence, once. */
+.rd-chartsays {
+  margin-top: 8px;
+  font: 400 var(--rd-size-caption) var(--rd-font-text);
+  color: var(--rd-ink-faint);
+}
+/* Nothing recorded — said over the frame, never drawn as a flat zero line. */
+.rd-chartempty {
+  margin-top: -110px;
+  margin-bottom: 90px;
+  text-align: center;
+  font: 400 var(--rd-size-cell) var(--rd-font-text);
+  color: var(--rd-ink-muted);
+}
+/* Unreadable: no frame at all. Loud, worded, and never zeros.
+
+   The ARMED reds, not the failure reds. Ruling 4 draws the distinction and it
+   applies here: this is a band saying "the numbers behind this cannot be
+   drawn", which is a state of the data — not an error somebody just caused.
+   The louder red belongs to the second. */
+.rd-chartfail {
+  margin-top: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--rd-armed-border);
+  border-radius: var(--rd-radius-card);
+  background: var(--rd-armed-bg);
+  font: 500 var(--rd-size-cell) var(--rd-font-text);
+  color: var(--rd-red-ink);
+}
+
+/* The chart card: the plot needs breathing room the table cards do not. */
+.rd-chartcard {
+  padding: 14px 16px 12px;
+}
+
+/* A post is identified by its picture — captions run to paragraphs and several
+   start the same way, so the thumbnail is the row's identity and the caption
+   sits beside it on one line. */
+.rd-socid {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.rd-socthumb {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--rd-radius-meter);
+  object-fit: cover;
+  background: var(--rd-inset);
+}
+/* No picture, and the space kept: a run of rows where some are indented and
+   some are not reads as two lists. */
+.rd-socthumb-none {
+  background: var(--rd-inset);
+}
+.rd-soccap {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rd-soccap a {
+  color: inherit;
+  text-decoration: none;
+}
+.rd-soccap a:hover {
+  text-decoration: underline;
+}
+
+/* ---------- A cell that OPENS rather than takes a figure ---------- */
+
+/* `20a`'s "click a cell to manage". It reads as the figure it is — this is a
+   sheet, and a boxed control in every Produced cell would be eleven controls
+   saying the same thing — and it says it opens by underlining on hover, which
+   is what the copyable cells do too. */
+.rd-cellopen {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-underline-offset: 3px;
+}
+.rd-cellopen:hover {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+.rd-cellopen:focus-visible {
+  outline: 2px solid var(--rd-primary);
+  outline-offset: 2px;
+}
+
+.rd-prodialog {
+  /* Same trade as the ledger's: a fixed width wider than a phone forces a
+     pinch to read, and everything drawn at a hairline goes with it. */
+  width: min(560px, calc(100vw - 24px));
+}
+
+/*
+ * A whole record in a dialogue, which needs the room.
+ *
+ * Three classes, not one: the 560px above is set on `.rd-prodialog`, which
+ * this dialogue also carries, so a single-class rule TIES on specificity and
+ * source order decides. It lost, and a seven-product table was squeezed into a
+ * form's width — the product columns did not truncate, they scrolled out of
+ * sight inside the table's own scrollport, which is worse: readable to the
+ * DOM, invisible to the person who opened it.
+ */
+.rd-dialog.rd-prodialog.rd-shipdialog {
+  width: min(1040px, calc(100vw - 64px));
+}
+.rd-shipdialog .rd-scroll {
+  max-height: 52vh;
+}
+
+/* The add row, once pressed: which destination is this for? The screen
+   crosses every one of them and the dialogue that takes quantities is per
+   destination,
+   so the plus asks rather than guessing from the row above it. */
+.rd-askrow > td {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  background: var(--rd-band);
+}
+.rd-asklead {
+  font: var(--rd-weight-emphasis) var(--rd-size-head) var(--rd-font-text);
+  color: var(--rd-ink-tertiary);
+}
+
+/* The rail's own collapse, at its TOP RIGHT — the owner's word.
+
+   It carried the word "Collapse" at the foot before this, on the argument that
+   a control about the rail should not be the first thing read on the rail. A
+   chevron is not read; it is aimed at, and the top-right corner of a panel is
+   where the gesture that folds it lives everywhere else. Quiet at rest — it is
+   a preference, not a destination — and no box until the pointer is on it, so
+   the rail's head is the area rows and nothing else.
+
+   The row exists to hold it against the right edge; at 56px there is no right
+   edge worth the name, so it centres over the icon column instead. */
+/* The collapse chevron takes no row of its own.
+   The owner: *"I don't like the way the collapse chevron creates a gap above
+   home."* It sat in a 30px band at the top of the rail holding nothing else,
+   so the rail opened on a strip of empty white and Home began below it.
+
+   30px is exactly one nav row, which is what makes the fix clean rather than a
+   nudge: lifted out of the flow, the chevron lands ON the first row, at the
+   rail's right edge where nothing is drawn, and Home moves up to the top of
+   the rail. The chevron keeps the corner ruling 91 gave it — it is the same
+   corner, one row further up.
+
+   `top` is the rail's own 12px padding plus the 2px that centres a 26px
+   control in a 30px row. Both numbers are the rail's, not this control's; a
+   third number here is how a control drifts off the row it is meant to sit
+   on. */
+.rd-railhead {
+  position: absolute;
+  /* Centred in the WORDMARK's row — the rail's head row is the bar's height
+     now, and the chevron shares it with the wordmark rather than hanging under
+     a padding that no longer exists. */
+  top: calc((var(--rd-bar-h) - 26px) / 2);
+  right: 11px;
+  display: flex;
+  align-items: center;
+  padding: 0;
+}
+/* Collapsed there is no right-hand edge to sit in — 56px of rail is one
+   centred icon and about eleven pixels either side, and a chevron laid over
+   that is a chevron over the Home icon. So the narrow rail keeps the row, and
+   it costs nothing there: every row is an icon, so an empty one at the top
+   reads as spacing rather than as a gap under a heading. */
+.rd-railhead-tight {
+  position: static;
+  justify-content: center;
+  /* It takes the wordmark's row rather than adding one under it: at 56px the
+     badge and the chevron cannot share a line, and stacking them would put two
+     rows above Home — the gap the owner reported on 26 Aug. The badge is the
+     thing that gives way, because a collapsed rail still needs its way back
+     out and does not need to say which app it is. */
+  height: var(--rd-bar-h);
+  padding: 0;
+}
+.rd-railtight {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--rd-radius-menu);
+  background: none;
+  color: var(--rd-ink-faint);
+  cursor: pointer;
+}
+.rd-railtight:hover,
+.rd-railtight:focus-visible {
+  background: var(--rd-hover-square);
+  color: var(--rd-ink-ui);
+}
+
+/* The anchor a record row opens through. It is the cell's text and nothing
+   more — the row already says it is clickable by being one, and a column of
+   underlined blue names is a column nobody can read down. What it adds is the
+   browser's own menu, which needs an href and does not care how it looks. */
+.rd-reclink {
+  color: inherit;
+  text-decoration: none;
+}
+.rd-reclink:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* A column header that ranks the table.
+   
+   The mark sits AFTER the label and takes no room from it: a header that grew
+   an arrow when pressed would shift every heading beside it, and a column set
+   that moves as you sort is one you cannot aim at. It is a drawn triangle
+   rather than a glyph — ▼ renders at a different size in every font on the
+   machine, which is the same reason ruling 14 replaced the band's chevron. */
+.rd-t th.rd-sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.rd-t th.rd-sortable:hover {
+  color: var(--rd-ink);
+}
+.rd-sortmark {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-left: 5px;
+  vertical-align: 1px;
+  border-left: 3.5px solid transparent;
+  border-right: 3.5px solid transparent;
+  border-top: 4px solid currentColor;
+}
+
+/* A movement that reverses another — a refund against a sale.
+   
+   The WORD is the fact and the tone only indexes it, which is why this is ink
+   rather than a lozenge: a pill's shape is a claim about the kind of thing a
+   value is, and Sale and Refund are two values of one taxonomy. Drawing one of
+   them as a pill made them read as different kinds of thing, which is what the
+   owner reported.
+   
+   Not bold, either. Bold marks the answer, and on a filing the answer is the
+   amount — which already says it, in parentheses. */
+.rd-reverse {
+  color: var(--rd-red-ink);
+}
+
+/* ---------- Ruling 19: the column seam ---------- */
+
+/* Absent at rest, and the whole row appears at once on approach — a single
+   seam fading in under the pointer is a hint about one column; the row
+   appearing together says the table resizes. The ruling's own values: 1px
+   transparent, #dfe5ec on header-row hover (--rd-border, the same ink the
+   column labels sit under), 3px --rd-primary under the pointer.
+
+   Named --seamgrip and --seamline, NOT --seam: `.rd-seam` is already the
+   column-GROUP rule on a two-row finance head. One class naming two
+   things is how a 14px flag box came to be drawn over a row of figures. */
+.rd-t th .rd-seamgrip {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  /* The ruling puts the strip at `right: -1px` so it straddles the boundary.
+     `.rd-t th` here is `overflow: hidden` — the header's own ellipsis clip —
+     which cuts the overhanging half off AND takes it out of the hit test, so
+     a pointer aimed at the strip's centre lands on the NEXT header cell and
+     the drag never starts. Nothing about that is visible: the seam draws, it
+     highlights on hover, and it does not move. The strip therefore sits wholly
+     inside the cell, and the 1px line is pushed flush to the column's right
+     edge, which is where the ruling draws it. Full 3px hit target either way. */
+  right: 0;
+  width: 3px;
+  display: flex;
+  justify-content: flex-end;
+  cursor: col-resize;
+  /* The label is nowrap and can run under the strip; the strip must still take
+     the pointer, and must never take a text selection with it. */
+  user-select: none;
+}
+.rd-t th .rd-seamline {
+  width: 1px;
+  height: 100%;
+  background: transparent;
+  transition: background var(--rd-dur-state) var(--rd-ease);
+}
+.rd-t thead tr:hover th .rd-seamline {
+  background: var(--rd-border);
+}
+.rd-t th .rd-seamgrip:hover .rd-seamline {
+  width: 3px;
+  background: var(--rd-primary);
+}
+
+/* `th` is the strip's containing block. Without this the strip is positioned
+   against the page and every seam draws in the same place — which reads as
+   one stray blue line at the left of the screen, not as a missing feature. */
+.rd-t th {
+  position: relative;
+}
+
+/* For the duration of the drag, so the cursor does not flicker back to a
+   text caret the moment the pointer leaves the 3px strip. */
+body.rd-resizing,
+body.rd-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+/* ---------- Loading ---------- */
+
+/* Skeleton rows at the table's REAL row height, never a spinner. The shape
+   arriving before the data is the message: the table does not move when the
+   figures land, so nothing jumps under a pointer already on its way.
+
+   Static bars. Motion in this system is a 120ms hover and nothing else, and a
+   shimmer would be the only animation on the screen — which reads as the app
+   working hard rather than as content on its way. */
+.rd-skelrow,
+.rd-skelhead {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  height: var(--rd-row-h);
+  padding: 0 var(--rd-cell-pad-x);
+  border-bottom: var(--rd-row-rule) solid var(--rd-hairline-row);
+}
+.rd-skelhead {
+  height: var(--rd-head-h, 34px);
+  border-bottom: 1px solid var(--rd-border);
+}
+/* A dense sheet's skeleton. The height is the whole contract — a skeleton at
+   the wrong one is a table that resizes itself the moment it becomes useful,
+   which is what a 34px block in front of a 26px export row did. */
+.rd-skel-dense .rd-skelrow {
+  height: var(--rd-row-h-dense);
+}
+.rd-skel-dense .rd-skelhead {
+  height: var(--rd-band-h);
+}
+.rd-skelbar {
+  height: 8px;
+  flex: 1;
+  border-radius: 2px;
+  background: var(--rd-track);
+}
+/* The first column is a name and the rest are figures, so the lead bar varies
+   in width down the block and the others do not. A rectangle of identical
+   bars reads as a loading GRAPHIC; rows of unequal names read as a table. */
+.rd-skelbar-lead {
+  /* Width comes from the cycle, in the markup — no cap here, because a cap is
+     what flattened the cycle into nine identical bars. */
+  flex: 0 0 auto;
+}
+.rd-skelbar-head {
+  height: 7px;
+  /* A shade lighter than the rows: a column label is quieter than its data,
+     and the skeleton should not invert the hierarchy it is standing in for. */
+  background: var(--rd-hairline-row);
+}
+
+/* ---------- The chart's hover readout ---------- */
+
+/* The pointer's week, marked down the whole plot. One marker for the line and
+   the band together: they share an x, and a reader hovering the bars is asking
+   about the same week as a reader hovering the line. */
+.rd-chartover line {
+  stroke: var(--rd-border-strong);
+  stroke-width: 1;
+}
+.rd-chartover circle {
+  fill: var(--rd-card);
+  stroke: var(--rd-series-1);
+  stroke-width: 2;
+}
+/* Transparent, and the only thing taking the pointer: one strip rather than a
+   hit target per point, because at 31 weeks the gaps are wider than the points
+   and a reader between two of them would get nothing back. */
+.rd-charthit {
+  fill: transparent;
+  cursor: crosshair;
+}
+.rd-chartread {
+  position: absolute;
+  top: 8px;
+  transform: translateX(10px);
+  pointer-events: none;
+  z-index: 2;
+  padding: 7px 10px 8px;
+  background: var(--rd-card);
+  border: 1px solid var(--rd-border);
+  border-radius: var(--rd-radius-card);
+  box-shadow: var(--rd-shadow-sheet);
+  font: 400 var(--rd-size-caption) / 1.5 var(--rd-font-text);
+  color: var(--rd-ink-body);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+/* Past the middle it flips, rather than running off the card's right edge —
+   the same rule the calendar's today-cap follows. It is pinned by its RIGHT
+   edge there (see `Chart.tsx`), so the offset is a plain 10px away from the
+   marker rather than its own width plus ten. */
+.rd-chartread-left {
+  transform: translateX(-10px);
+}
+.rd-chartread-h {
+  font-weight: var(--rd-weight-emphasis);
+  color: var(--rd-ink);
+}
+
+/* What happened in the period under the pointer, under the figures for it.
+
+   The owner's report: hovering a bar said how many were published and would
+   not say what. It is the same week and the same question, so it is the same
+   box — a second popover would be a second answer.
+
+   The box is `nowrap` because its figures must never break; a description is
+   the one thing here that can be long, so it gets a column that ends rather
+   than a box that grows. 360px is what five clipped words need beside a date
+   and a format — measured, because at 300 the column ended before the clip
+   did and captions came back with two ellipses in a row. */
+.rd-chartread-list {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--rd-hairline-row);
+  display: grid;
+  gap: 2px;
+}
+.rd-chartread-item {
+  display: grid;
+  /* Picture, when, what. Centred rather than on a baseline: an image's
+     baseline is its bottom edge, so a baseline row hangs the date off the
+     foot of the thumbnail. */
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  max-width: 300px;
+}
+.rd-chartread-when {
+  color: var(--rd-ink-faint);
+}
+.rd-chartread-what {
+  color: var(--rd-ink-faint);
+}
+/* The picture the row is about — the same object the table's rows are
+   identified by, at the same size, so the two read as one screen. */
+.rd-chartread-thumb {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--rd-radius-meter);
+  object-fit: cover;
+  background: var(--rd-inset);
+}
+/* No picture, and the space kept. */
+.rd-chartread-thumb-none {
+  background: var(--rd-inset);
+}
+/* The taxonomy word is the only part that can overrun, so it is the only
+   part allowed to clip. */
+.rd-chartread-what {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rd-chartread-more {
+  color: var(--rd-ink-faint);
+}
+
+/* The chart card and the table under it. 6px read as the two touching — the
+   owner's report — where every other pair of cards in the redesign is 14
+   apart. One gap, one token, so a third caller cannot invent a fourth value. */
+.rd-chartcard {
+  margin-bottom: var(--rd-card-gap);
+}
+
+/* ---------- The date-range calendar ---------- */
+
+/* Presets as chips plus a Custom chip that opens ONE MONTH at a time. Never
+   two `input[type=date]`s: a pair of fields makes somebody type a date they
+   have to know in advance, in a format they have to guess, with no indication
+   of which days have data behind them. */
+.rd-daterange {
+  position: relative;
+}
+.rd-dpick {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  width: 250px;
+  padding: 10px 12px 10px;
+  background: var(--rd-card);
+  border: 1px solid var(--rd-border);
+  border-radius: var(--rd-radius-card);
+  box-shadow: var(--rd-shadow-float);
+}
+.rd-dpick-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font: var(--rd-weight-emphasis) var(--rd-size-cell) / 1.2 var(--rd-font-text);
+  color: var(--rd-ink);
+}
+.rd-dpick-arrow {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--rd-border);
+  border-radius: 4px;
+  background: var(--rd-card);
+  color: var(--rd-ink-body);
+  cursor: pointer;
+}
+.rd-dpick-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+}
+.rd-dpick-dow {
+  height: 20px;
+  font: 400 var(--rd-size-label) / 20px var(--rd-font-text);
+  color: var(--rd-ink-tertiary);
+  text-align: center;
+}
+.rd-dpick-day {
+  height: 28px;
+  border: 0;
+  background: none;
+  border-radius: 3px;
+  font: 400 var(--rd-size-caption) / 1 var(--rd-font-text);
+  color: var(--rd-ink-body);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.rd-dpick-day:hover:not(:disabled) {
+  background: var(--rd-band);
+}
+/* Outside the data. Dimmed AND refused, so a range that would come back empty
+   cannot be chosen by accident — the dimming is the reason, the disabling is
+   the guarantee. */
+.rd-dpick-out {
+  color: var(--rd-ink-faint);
+  cursor: default;
+}
+/* The span filled between its ends, so a range reads as one thing rather than
+   as two dates that happen to be selected. */
+.rd-dpick-in {
+  background: var(--rd-band);
+  border-radius: 0;
+}
+.rd-dpick-end {
+  background: var(--rd-primary);
+  color: var(--rd-card);
+}
+/* The state of the pick on its own line, above the buttons. Beside them it
+   wrapped to two lines inside a 250px popover and squeezed Cancel and Apply
+   into the corner — and this line is the one that says what a second click
+   will do, so it is the last thing that should be crowded. */
+.rd-dpick-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--rd-hairline-row);
+}
+.rd-dpick-foot > .rd-aside {
+  flex: 1 0 100%;
+  margin-bottom: 6px;
+}
+
+/* ---------- A dialogue's facts, and its consequence ---------- */
+
+/* Read-only context: where something stands before anything is typed, so the
+   figures being changed have something to be changed AGAINST. Boxes rather
+   than a sentence, in the same vocabulary as the form below them — ruling 20
+   is explicit that the consequence should read like the form that caused it,
+   never as prose and never as a bulleted diff. */
+.rd-facts {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+.rd-fact {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 11px 8px;
+  background: var(--rd-band);
+  border-radius: var(--rd-radius-card);
+}
+.rd-fact span {
+  display: block;
+  font: 400 var(--rd-size-label) / 1.2 var(--rd-font-text);
+  color: var(--rd-ink-tertiary);
+}
+.rd-fact b {
+  display: block;
+  margin-top: 3px;
+  font: var(--rd-weight-emphasis) var(--rd-size-cell) / 1.2 var(--rd-font-text);
+  color: var(--rd-ink);
+  font-variant-numeric: tabular-nums;
+}
+/* Under a hairline, because it is the same three facts at a LATER time rather
+   than three more facts. */
+.rd-after {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rd-hairline-row);
+}
+.rd-after-t {
+  font: var(--rd-weight-emphasis) var(--rd-size-cell) / 1.2 var(--rd-font-text);
+  color: var(--rd-ink);
+}
+
+/* ---- leaving a record with typing on it ----
+   Narrower than the mark-paid dialogue: it carries one sentence and three
+   answers, and a 560px box around a sentence reads as a bigger event than it
+   is. The destructive answer is worded as what it costs and toned as well,
+   because colour never carries meaning alone. */
+.rd-leavedlg {
+  width: min(440px, calc(100vw - 48px));
+}
+.rd-leavebody {
+  padding: 12px 20px 4px;
+}
+.rd-chip-bad {
+  color: var(--rd-red-ink);
+  border-color: color-mix(in srgb, var(--rd-red-ink) 34%, var(--rd-border));
+}
+.rd-chip-bad:hover {
+  border-color: var(--rd-red-ink);
+  background: color-mix(in srgb, var(--rd-red-ink) 7%, var(--rd-card));
+}
+
+.rd-paidbody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 20px 4px;
+}
+/* What is about to be marked, per currency, in the dialogue's own fact boxes.
+   Wrapping is the one thing this adds to them: a payment run can span four
+   currencies, and four boxes on one line would each be too narrow to hold a
+   figure — where `.rd-facts` elsewhere is always the same three. */
+.rd-paidbody .rd-facts {
+  flex-wrap: wrap;
+  margin: 0;
+}
+.rd-paidbody .rd-fact {
+  flex: 1 1 40%;
+}
+/* The report a finished write leaves above the thing it changed — a batch
+   marked paid here, a document logged on the Log queue, a payment record
+   saved. `.rd-notes` carries its own rhythm; the red bar is a `.rd-warnbar`,
+   which has none. */
+.rd-paidsaid,
+.rd-logsaid,
+.rd-savesaid {
+  margin: 0 2px 12px;
+}
+
+/* ---------- A picker inside a table cell ---------- */
+
+/* A cell that opens its own picker. The row's click is the way IN to the
+   record, so a cell with a job of its own has to stop it — and has to look
+   like it will do something, or it is a control nobody finds. */
+.rd-t td.rd-cellpick {
+  position: relative;
+  cursor: pointer;
+}
+
+.rd-t td.rd-cellpick:hover {
+  background: var(--rd-band);
+}
+
+/*
+ * The cell whose popover is open, lifted over its neighbours.
+ *
+ * `.rd-pop` carries a z-index, but z-index is per STACKING CONTEXT: same-level
+ * cells paint in document order and a form control in a sibling cell lands on
+ * top of a menu hanging out of this one. On the shipments ledger the Pickup
+ * date input sat over the stage menu and swallowed every click on it — visible,
+ * enabled, and impossible to press.
+ *
+ * Lifted only while the menu is open, so nothing else in the row changes.
+ */
+.rd-t td.rd-cellpick-over {
+  /* Lifted with the popover it carries, which now clears the sticky header at
+     8/9 — a cell left at 6 would hold its own menu underneath it. */
+  z-index: 11;
+}
+/* Wide enough for a country picker's eleven chips; the default is sized for a
+   short list of choices. */
+.rd-pop-wide {
+  width: 320px;
+}
+/* A popover's own heading — what the choices below are ABOUT. Small, because
+   it names a record somebody just clicked and already knows. */
+.rd-menulab {
+  margin: 0 0 6px;
+  font: 400 var(--rd-size-label) / 1.2 var(--rd-font-text);
+  color: var(--rd-ink-tertiary);
+}
+.rd-menurow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  text-align: left;
+  font: 400 var(--rd-size-cell) / 1.3 var(--rd-font-text);
+  color: var(--rd-ink-body);
+  cursor: pointer;
+}
+.rd-menurow:hover {
+  background: var(--rd-band);
+}
+/* The current answer reads heavier and darker, not just tinted — colour never
+   carries the state alone. */
+.rd-menurow.on {
+  font-weight: var(--rd-weight-emphasis);
+  color: var(--rd-ink);
+}
+/* What the choices above cannot say themselves. A note that changes what
+   somebody does next earns its place; one that only restates them does not. */
+.rd-menunote {
+  margin: 8px 0 0;
+  padding-top: 7px;
+  border-top: 1px solid var(--rd-hairline-row);
+  font: 400 var(--rd-size-caption) / 1.5 var(--rd-font-text);
+  color: var(--rd-ink-muted);
+}
+
+/* ---------- ruling 25: the Orders dot tally ----------
+
+   One filled dot per period, 6px on a 4px pitch, in the UI ink — quiet enough
+   that Status stays the row's answer, which is the ruling's own test for it.
+   The ink is `--rd-ink-ui`, which IS the ruling's #41454d; it is named here
+   rather than typed, like everything else in this file.
+
+   Past ten the numeral takes over: a run stops being countable at a glance
+   well before it stops fitting, and the figure is tabular so a column of them
+   lines up. */
+.rd-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.rd-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--rd-ink-ui);
+  /* The cell is `nowrap`, but a run of eight in a squeezed column would still
+     compress its gaps; a dot that is not round is not a dot. */
+  flex: none;
+}
+.rd-dotnum {
+  font: var(--rd-weight-body) var(--rd-size-cell) var(--rd-font-text);
+  color: var(--rd-ink-ui);
+  font-variant-numeric: tabular-nums;
+}
+/* Said for anything that cannot see the run. Six identical spans say nothing
+   to a screen reader, so the sentence in the title is the accessible text —
+   present in the document, drawn nowhere. */
+.rd-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ==========================================================================
+   Ruling 27 — interaction and motion
+   ==========================================================================
+
+   Everything below reads its duration and its curve from `tokens.css` (§0's
+   budget) and nothing below types one. §7's reduced-motion block lives beside
+   the tokens rather than here, because it has to outrank every rule in this
+   file and a media query at the foot of the same stylesheet only outranks what
+   precedes it — which would leave a rule added under this one un-zeroed.
+
+   Kept as one block on purpose: three sessions are editing this stylesheet at
+   once, and a diff that is one contiguous addition merges where a dozen
+   scattered ones do not.
+
+   Trap 5, first, because it applies to all of it. A card that animates and is
+   not contained makes every 120ms transition compete with a full-document
+   reflow, and the motion visibly stutters — on a table of sixty rows that is
+   the difference between a fill sliding and a fill flickering. `layout style`
+   and not `paint`: `paint` would clip popovers to the card, which is the
+   defect ruling 23 already had to dig out of `.rd-t27 td`. */
+.rd-card,
+.rd-dialog {
+  contain: layout style;
+}
+
+/* ---------- 88b · The tick draws, the box fills ----------
+   The most-clicked control in the admin. An instant tick gives no confirmation
+   the click landed on the row you aimed at — which on a fifty-row list is the
+   difference between trusting a bulk action and counting the ticks again.
+
+   The tick is an SVG path stroked on via `stroke-dashoffset`, so it DRAWS in
+   the direction a hand draws it rather than fading in as a finished mark. The
+   path length is stated in the dash array rather than measured with
+   `getTotalLength()`: it is a fixed two-segment path, its length does not
+   change, and a measured one would need a layout read on every mount.
+
+   The box fills over the same duration, so the two land together. */
+.rd-cbx {
+  transition:
+    background var(--rd-dur-state) var(--rd-ease),
+    border-color var(--rd-dur-state) var(--rd-ease);
+}
+.rd-cbxmark {
+  display: block;
+  overflow: visible;
+}
+.rd-cbxmark path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* 13 is the path's own length rounded up: 4.24 units down-right plus 8.64
+     up-right is 12.88. Offset by its whole length the mark is not drawn at
+     all; at 0 it is complete. */
+  stroke-dasharray: 13;
+  stroke-dashoffset: 13;
+  transition: stroke-dashoffset var(--rd-dur-state) var(--rd-ease);
+}
+.rd-cbx.on .rd-cbxmark path {
+  stroke-dashoffset: 0;
+}
+/* Indeterminate — some of the list, not all of it. A bar, and it grows from
+   its centre rather than drawing from one end, because it is not a stroke
+   anybody makes with a pen and a drawn one would read as a wrong tick. */
+.rd-cbxmark rect {
+  fill: currentColor;
+  transform-origin: center;
+  transform: scaleX(0);
+  transition: transform var(--rd-dur-state) var(--rd-ease);
+}
+.rd-cbx.on .rd-cbxmark rect {
+  transform: scaleX(1);
+}
+
+/* ---------- 86b · Segmented fills slide and resize ----------
+   Two states swapping instantly is genuinely ambiguous: you cannot tell
+   whether your press took effect or the control redrew. So the fill TRAVELS to
+   the option pressed and RESIZES to it, and the travel is the answer.
+
+   The fill is one element behind the buttons rather than a background on the
+   chosen one — a background cannot move between two elements. Its offset and
+   width are written from JS (`Segmented.tsx`) into custom properties, because
+   they are measured; trap 1 is why they are custom properties and not an
+   inline `left`/`width`, which a class could then never animate.
+
+   `.rd-seg` already carries `overflow: hidden`, so the fill is clipped to the
+   control's own box and needs no radius of its own. */
+.rd-seg {
+  position: relative;
+}
+.rd-segfill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  background: var(--rd-ink);
+  transform: translateX(var(--rd-seg-x, 0px));
+  width: var(--rd-seg-w, 0px);
+  transition:
+    transform var(--rd-dur-state) var(--rd-ease),
+    width var(--rd-dur-state) var(--rd-ease);
+}
+/* Before the first measurement there is no fill to draw, and a zero-width bar
+   at the left edge would flash on every mount. */
+.rd-segfill.rd-segfill-cold {
+  opacity: 0;
+  transition: none;
+}
+/* The buttons ride over it. The chosen one keeps its reversed ink; it no
+   longer paints its own background, because the fill IS the background. */
+.rd-seg button {
+  position: relative;
+  z-index: 1;
+  transition: color var(--rd-dur-state) var(--rd-ease);
+}
+.rd-seg:has(.rd-segfill) button.on {
+  background: none;
+}
+
+/* ---------- 88d · Menu items arrive in order ----------
+   The panel grows from its button and the items fade up 14ms apart, so the
+   whole thing reads as one gesture rather than as a list appearing. The
+   ordering does a second job the ruling names: a destructive item is last, so
+   it lands after the eye has started reading rather than before.
+
+   85b is the same motion at the same duration — an overlay grows from what
+   opened it, and its `transform-origin` is what states the connection, which
+   is why none of these carry an arrow or a tail. A menu hangs below its chip
+   and left-aligned to it, so `top left` IS the pressed element. */
+@keyframes rd-grow {
+  from {
+    opacity: 0;
+    transform: scale(var(--rd-scale-pop));
+  }
+}
+@keyframes rd-rise {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
+.rd-float {
+  transform-origin: top left;
+  animation: rd-grow var(--rd-dur-overlay) var(--rd-ease) both;
+}
+.rd-float > * {
+  animation: rd-rise var(--rd-dur-state) var(--rd-ease) both;
+  animation-delay: var(--rd-stagger, 0ms);
+}
+
+/* ---------- 85b · Overlays grow from what opened them ----------
+   A popover anchored to the right of the count it belongs to grows from that
+   corner; flipped above the row, it grows from the bottom instead, so the
+   origin follows the anchor rather than staying where the unflipped case put
+   it. A dialogue has no anchor on the page — it IS the page's whole attention
+   — so it grows from its own centre at the smaller of the two scales, because
+   the same ratio moves a 560px panel a visible distance and a 190px menu
+   almost none.
+
+   The dialogue's `transform` already carries its centring translate, so the
+   keyframe has to restate it: an animation on `transform` replaces the
+   property outright, and a scale alone would drop the translate and throw the
+   panel a quarter-screen down and right. */
+.rd-pop {
+  transform-origin: top right;
+  animation: rd-grow var(--rd-dur-overlay) var(--rd-ease) both;
+}
+.rd-pop.rd-pop-up {
+  transform-origin: bottom right;
+}
+/* A CENTRED dialogue grows from the middle. The `translate(-50%, -50%)` is
+   not decoration — it is the same offset `.rd-dialog` uses to sit in the
+   centre, restated because a keyframe's transform replaces the element's
+   whole transform rather than composing with it. */
+@keyframes rd-dialog-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(var(--rd-scale-dialog));
+  }
+}
+.rd-dialog {
+  animation: rd-dialog-in var(--rd-dur-overlay) var(--rd-ease) both;
+}
+
+/* A FULL-SCREEN sheet rises. It has to be its own keyframe, and the reason is
+   the trap above: on a phone `.inf-dialog` drops to `top: 0; left: 0;
+   transform: none` and fills the screen, but it was still running the centred
+   keyframe — whose first frame therefore shifted a full-screen box up and left
+   by half its own size. Measured on a 390x780 phone, it started at x -187,
+   y -374 and slid down-right into place, which is what the owner reported as
+   "it comes in from the top left".
+
+   A sheet that covers the screen has no centre to grow from, so it rises a
+   little and fades, which is what a sheet does. `both` holds the last frame,
+   and the element's own `transform: none` is what it lands on. */
+@keyframes rd-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+@keyframes rd-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+.rd-scrim {
+  animation: rd-fade-in var(--rd-dur-overlay) var(--rd-ease) both;
+}
+
+/* ---------- 88a · The floating label rises ----------
+   The label travels up and shrinks over 120ms, turning `--rd-primary` while
+   focused. The motion is what makes a label doing two jobs legible: without it
+   the placeholder does not BECOME the label, it is simply replaced by a
+   smaller one, and the field reads as having swapped its contents.
+
+   **Only the ink. The label's rise and shrink are NOT implemented**, and the
+   reason is a measurement rather than a preference — it is written out here
+   because the obvious implementation looks right and is not.
+
+   The label sits in flow, and its position comes from the box's own padding:
+   empty, 14px top and bottom with the value row collapsed to zero height;
+   filled, 8/9px with the value row open. Animate the padding and the label
+   travels — and the field reaches **58px** in the middle of a 48.2 → 49.6px
+   change, because `height: 0` → `height: auto` on the value row cannot be
+   interpolated and arrives whole in the first frame while the padding is still
+   on its way down. Animate only the label's `font-size` and the swell is
+   **55.2px**: a font-size change moves the line box the label is sitting in,
+   so the box grows and settles even with the padding left alone.
+
+   Either way the field swells past its final height and comes back, which is
+   an OVERSHOOT — the one thing §0 of this same ruling rejects by name, and it
+   rejects it at 300ms in a demo where it was drawn on purpose. A 7px bounce on
+   the control you have just clicked into is worse than no animation at all.
+
+   Making the label actually rise means taking it out of flow and driving the
+   field's height explicitly — the classic absolutely-positioned floating
+   label. That is a rewrite of a component that is already shipped, already
+   drawn to `45a`'s metrics and already has its own harness, so it is left
+   rather than half-done. Recorded in `PORT-NOTES.md`.
+
+   What ships is the half that costs no layout at all: the ink easing to
+   `--rd-primary` over 120ms, which is what says the field has the focus. The
+   size still switches in one frame, and the box still moves the 1.4px it
+   always moved. */
+.rd-field,
+.rd-fieldlab {
+  transition:
+    color var(--rd-dur-state) var(--rd-ease),
+    border-color var(--rd-dur-state) var(--rd-ease);
+}
+
+/* ---------- 84d · Copy flashes where the value is ----------
+   Click copies and the cell flashes for 900ms. The flash is the confirmation,
+   at the value rather than in a corner — there are no corner toasts anywhere
+   in this admin, because nobody looks there (89e says so about undo, and it is
+   the same argument about the same corner).
+
+   The wash goes on in one state change and comes off over the same, so the
+   900ms is the time the flash is HELD rather than the time it takes; a
+   duration long enough to notice would be motion, and the budget has no entry
+   for it. `CopyCell` owns the 900ms, because `CopyCell` owns the timer. */
+/* The wash and its 900ms are stated where the cell is drawn, above; what is
+   new here is that it eases rather than switching, so the flash reads as the
+   cell acknowledging the click and not as a repaint. The radius is left where
+   it was — this rule adds motion and takes no shape decision. */
+.rd-cpy {
+  transition: background var(--rd-dur-state) var(--rd-ease);
+}
+
+/* ---------- 85e · The bulk bar cross-fades in place ----------
+   Ruling 9 already puts the bar in the header row's own box, so nothing
+   shifts. What was missing is that the replacement reads AS a replacement:
+   hard-cut, the header row is simply gone and a different row is there, and
+   the tick just clicked has to be re-found. Cross-faded, the ticked row stays
+   under the pointer and the swap is visibly a swap.
+
+   Only the incoming half is animated: the outgoing row is unmounted by React
+   in the same frame, and holding it for a fade would mean the bar owning both
+   rows. That is a fair trade at this size — the bar arriving over the place
+   the headings were is what carries the meaning; the headings leaving carries
+   none. */
+.rd-bulkbar {
+  animation: rd-fade-in var(--rd-dur-state) var(--rd-ease) both;
+}
+
+/* ---------- 86a · The active dot travels ----------
+   One dot in the rail, moving to the page you opened, rather than a dot per
+   row switching off in one place and on in another. Both say the same thing —
+   you moved WITHIN one structure — and only one of them says it in a way that
+   can be followed.
+
+   Its offset is measured and written by the shell (trap 3: from `offsetTop`,
+   never a client rect, which on a zoomed canvas is in scaled pixels). Trap 4
+   is why it hangs in `.rd-dotrail`, a wrapper with no padding of its own:
+   absolute positioning resolves against the padding box while `offsetTop` is
+   measured from the border box, so a dot placed inside the padded section
+   lands off by exactly that padding — which reads as "the dot is slightly
+   wrong" rather than as a units bug, and gets chased as a design tweak. */
+.rd-dotrail {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  pointer-events: none;
+}
+.rd-navdot {
+  position: absolute;
+  left: -6.5px;
+  top: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--rd-radius-pill);
+  background: var(--rd-ink);
+  border: 2px solid var(--rd-card);
+  box-sizing: content-box;
+  transform: translateY(var(--rd-dot-y, 0px));
+  transition: transform var(--rd-dur-state) var(--rd-ease);
+}
+/* Arriving, or moving between two areas that are not both open: there is no
+   path to travel along, so it appears where it belongs rather than sliding in
+   from the top of the rail. */
+.rd-navdot.rd-navdot-cold {
+  transition: none;
+}
+
+/* ---------- §0 · The pointer exception ----------
+   The chart's crosshair and its readout snap between whole weeks, because a
+   week is what the chart answers for. Snapping is right, and gliding between
+   the snaps is what makes it read as tracking rather than as flicking. 80ms
+   and no more: this is the case the budget's exception exists for, and a
+   crosshair on the 120ms state curve reads as lag behind your own hand.
+
+   The line and circle move on their SVG geometry properties, which are real
+   animatable CSS properties in the browser this admin runs in; the readout is
+   an absolutely positioned box moving on `left` or `right`. It carries both,
+   since which one anchors it flips at the plot's midpoint — and the flip
+   itself is a jump, correctly: it is a change of side, not a movement. */
+.rd-chartover line {
+  transition:
+    x1 var(--rd-dur-pointer) var(--rd-ease),
+    x2 var(--rd-dur-pointer) var(--rd-ease);
+}
+.rd-chartover circle {
+  transition:
+    cx var(--rd-dur-pointer) var(--rd-ease),
+    cy var(--rd-dur-pointer) var(--rd-ease);
+}
+.rd-chartread {
+  transition:
+    left var(--rd-dur-pointer) var(--rd-ease),
+    right var(--rd-dur-pointer) var(--rd-ease);
+}
+
+/* ---------- the filler column ----------
+
+   The room left over, drawn as a column so the table's own furniture reaches
+   the card's edge: the header's rule and ground, the row hairlines, a band's
+   fill. It inherits all of that from `.rd-t th` / `.rd-t td` and adds nothing
+   — no padding, because there is nothing in it to inset, and no minimum,
+   because its whole job is to be whatever width is left (including none at
+   all, when the columns overrun and `.rd-scroll` takes over). */
+.rd-t th.rd-fill,
+.rd-t td.rd-fill {
+  padding: 0;
+}
+
+/* ---------- 89h · A group band pins under the header and hands over ----------
+   The owner: *"Groupings on tables should be sticky like headers."* Design
+   asked for the same thing and it was deferred as a second session's work:
+   "position:sticky under the header; the next band pushes the current one out.
+   The group you are inside is always named, fifty rows down."
+
+   The offset is `--rd-head-h`, the header's own token, so the two cannot drift
+   apart. It holds when rows are ticked as well: the bulk bar deliberately
+   takes the column-header row's height rather than setting one, which is
+   already asserted by ticking a box and checking the first data row has not
+   moved.
+
+   z-index 6 sits under the header's 8 and over an ordinary cell, so a band
+   slides beneath the headings rather than over them. It does NOT need to
+   out-stack a sideways-frozen column: a band spans the whole grid, so there is
+   no pinned cell beside it to pass.
+
+   **The rules travel as a shadow**, for the reason the header's does. Under
+   `border-collapse: collapse` a cell's borders belong to the collapsed grid,
+   not to the cell, so a stuck cell leaves them behind — the band would lose
+   the two hairlines that separate one group from the next at exactly the
+   moment it starts standing over other rows. Ruling 14's shape is 50px on the
+   band ground hairlined top AND bottom; both are drawn here as inset shadows,
+   which travel with the cell.
+
+   **The hand-over is the `<tbody>`, not this rule.** A sticky cell is
+   constrained by its row group, so one tbody per group is what makes band two
+   push band one out instead of painting over it. Every grouped screen wraps
+   its band and rows in a tbody for that reason, and `prove-sticky.mjs` fails
+   if one goes back to a Fragment — with a single tbody the bands stack up
+   silently and the first one never leaves. */
+/* The head becomes a stacking context of its own, ABOVE the bands.
+   z-index 8 on the header cell against 6 on the band is not enough, and this
+   was measured rather than reasoned about: with only the cell numbers set, a
+   band painted straight over the "Change status" menu — the menu hangs from
+   the bulk bar's `th` at z-index 20 INSIDE a cell at 8, and a band at 6, 3 or
+   even 1 still covered its first two items. Lowering the band does nothing
+   because the two are not being compared: a thead and a tbody do not order
+   their positioned cells against each other by z-index alone. Lifting the
+   whole head does, and it puts everything that hangs from the head — menus,
+   popovers, the bulk bar — above the bands with one declaration.
+
+   9 rather than a large number on purpose: the pinned-column corner inside
+   the head is already 9 against the header's 8, and those two are now sorted
+   INSIDE this context, so their relationship is untouched. */
+.rd-t thead {
+  position: relative;
+  z-index: 9;
+}
+/* Products groups by family rather than by ruling 14's status band, and a
+   family is as much a grouping as a status is. The chart screen's `.rd-bandrow` is
+   NOT one — it is a single rollup line, the answer above the breakdown — which
+   is why this is scoped to a cell that asked for it (`StickyBandCell`) rather
+   than to the class. */
+.rd-t tr.rd-band > td,
+.rd-t tr.rd-bandrow > td.rd-stickyband,
+.rd-t tr.rd-famrow > td.rd-stickyband {
+  position: sticky;
+  top: var(--rd-head-h);
+  z-index: 6;
+  border-top-color: transparent;
+  border-bottom-color: transparent;
+  box-shadow:
+    inset 0 1px 0 var(--rd-border),
+    inset 0 -1px 0 var(--rd-border);
+}
+
+
+/* ---------- A header's action row is one height, and reads as one ----------
+   The owner, 24 Aug 2026, with a picture of the order record's header: *"I
+   think More actions is not as high as Invoice. Align them on all layouts like
+   this."*
+
+   Measured first, and the measurement is the interesting part: they were
+   ALREADY the same height. `.rd-chip` and `.rd-btn-pri` both come out 26.39px
+   from the same padding, font and border — including the chip with the chevron
+   inside it. What differs is contrast. The chip is white with a 1px
+   `--rd-border` edge, sitting on a near-white page; its top and bottom edges
+   are barely there, so the eye takes the text block for the control and reads
+   it as shorter than the solid blue beside it.
+
+   The concept settled this and the app had drifted from it. `#s-*`'s `.btn` is
+   `height:32px; min-height:32px; max-height:32px` with `.btn.sec` on a grey
+   fill — a declared height so no two controls can differ, and a secondary that
+   is a BLOCK. The app had turned the header's secondary into `.chip`, which in
+   the concept is a different component: a 28px bordered pill for TOOLBAR
+   FILTERS. One class was doing two jobs and took the wrong one's clothes.
+
+   So: in a header, a chip is the concept's secondary button. Filter chips are
+   untouched — they live in `.rd-toolbar`, never here.
+
+   `.rd-select` is in the list because measuring every header found a worse
+   case than the one reported: a finance screen's period picker is a `.rd-select`,
+   which carries a FIELD's padding (7px) rather than a control's, and stood
+   34px beside a 26px Download button. Canada's picker, one screen over, is a
+   `.rd-chip` and always matched. Two classes for the same control in the same
+   position is the whole fault, said twice. */
+.rd-head .rd-chip,
+.rd-head .rd-select,
+.rd-head .rd-btn-pri,
+.rd-secbar .rd-chip,
+.rd-secbar .rd-select,
+.rd-secbar .rd-btn-pri {
+  box-sizing: border-box;
+  height: var(--rd-head-control-h);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.rd-head .rd-chip,
+.rd-head .rd-select,
+.rd-secbar .rd-chip,
+.rd-secbar .rd-select {
+  background: var(--rd-btn-sec);
+  border-color: var(--rd-btn-sec);
+  color: var(--rd-ink);
+}
+.rd-head .rd-chip:hover,
+.rd-head .rd-select:hover,
+.rd-secbar .rd-chip:hover,
+.rd-secbar .rd-select:hover {
+  background: var(--rd-btn-sec-hover);
+  border-color: var(--rd-btn-sec-hover);
+}
+/* A chip in a header that is already carrying the ink fill — an `on` state —
+   keeps it. Grey is what a secondary ACTION looks like, not an override of a
+   control that is saying something. */
+.rd-head .rd-chip.on,
+.rd-secbar .rd-chip.on {
+  background: var(--rd-ink);
+  border-color: var(--rd-ink);
+  /* And the reversed text with it — the header rule above outranks
+     `.rd-chip.on` by source order, and without this line it painted the
+     ink's own colour onto the ink fill: a filled chip with no word. */
+  color: var(--rd-card);
+}
+
+/* ---------- picking, rather than typing ----------
+   A `Field` with a control in its value slot: the box, the floating label and
+   the focus ring are the field's own, so a picked answer and a typed one are
+   plainly the same kind of thing. Only what sits inside differs. */
+.rd-pickselect,
+.rd-pickinput {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  outline: none;
+}
+/* Native selects reserve room for their own arrow; ours is drawn, so that
+   reservation would sit as a gap before the caret. */
+.rd-pickselect {
+  appearance: none;
+  cursor: pointer;
+}
+.rd-pickcaret {
+  flex: none;
+  align-self: center;
+  margin-left: 8px;
+  color: var(--rd-ink-tertiary);
+}
+/* The wrap exists to hang the list off, and must not disturb the field: the
+   field IS the box, and a second positioned box around it would take the
+   focus ring's place in the flow. */
+.rd-pickwrap {
+  position: relative;
+  min-width: 0;
+}
+.rd-picklist {
+  position: absolute;
+  z-index: 42;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--rd-card);
+  border: 1px solid var(--rd-border);
+  border-radius: var(--rd-radius-float);
+  box-shadow: var(--rd-shadow-float);
+}
+/* A list that drops upward, because downward is where the scrolling box
+   stops painting.
+   
+   Named against BOTH panels it can land on rather than left as a bare
+   `.rd-pickup`. It unsets `top`, and a one-class rule that unsets another
+   one-class rule only wins where it happens to be declared later: written
+   plainly it beat `.rd-picklist` (declared above it) and lost to `.rd-float`
+   (declared below), so one shape flipped and the other kept both edges
+   pinned and collapsed to its own padding. Two classes deep, order stops
+   mattering. `max-height` is set on the element from the room measured
+   there, so it is not repeated here. */
+.rd-picklist.rd-pickup,
+.rd-float.rd-pickup {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.rd-pickrow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  /* 44px on a touch screen: a list of countries is a list of tap targets. */
+  min-height: 34px;
+  padding: 7px 10px;
+  border-radius: var(--rd-radius-control);
+  font-size: var(--rd-size-cell);
+  color: var(--rd-ink-body);
+  cursor: pointer;
+}
+.rd-pickrow-on {
+  background: var(--rd-row-sel);
+  color: var(--rd-ink);
+}
+.rd-pickcode {
+  margin-left: auto;
+  font-size: var(--rd-size-caption);
+  color: var(--rd-ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 700px) {
+  .rd-pickrow {
+    min-height: 44px;
+  }
+}
+
+/* A group of terms inside the agreement dialogue. The dialogue IS the card,
+   so a card around each group would be a second frame around the same fields
+   — the same reason the places dialogue drops its list's box. A heading, a
+   rule above it, and the terms. */
+.inf-group {
+  border-top: 1px solid var(--rd-hairline-row);
+  padding-top: 12px;
+}
+.inf-group:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+.inf-group .rd-grouphd {
+  margin-top: 0;
+}
+
+/* ---------- every dialogue is a sheet on a phone ----------
+   Under 700px a centred box with margins is wasted frame: the dialogue takes
+   the screen, its body scrolls, and the foot stays put so the way out is
+   always under the thumb. The owner works this section from the phone the DM
+   conversation is on, so this is the ordinary case, not the exception. */
+@media (max-width: 700px) {
+  .rd-dialog.inf-dialog {
+    /* The sheet's own entrance, not the centred dialogue's — see
+       `rd-sheet-in`. Any dialogue that drops its centring transform here must
+       take this with it, or it flies in from the corner. */
+    animation-name: rd-sheet-in;
+    top: 0;
+    left: 0;
+    transform: none;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+    border: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .inf-dlgbody {
+    flex: 1;
+    max-height: none;
+  }
+  /* Narrow enough and the columns wrap, still equal. */
+  .inf-row {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  }
+  /* A field squeezed to a third of 390px holds nothing; let them wrap to
+     full width rather than shrink below their own labels. */
+
+  .inf-dlgfoot {
+    flex: none;
+  }
+  /* Every child, by position rather than by name. This was written as
+     `.rd-btn, .rd-btn-pri` and no such foot has ever held an `.rd-btn` —
+     its secondary is an `.rd-chip`, and on the agreement it is an `<a>`. So
+     half of each foot took the rule and half kept its natural width, which is
+     the uneven pair the owner reported. A foot holds nothing but the things
+     it can do, so the grid is the right thing to key on. */
+  .inf-dlgfoot > * {
+    flex: 1;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* ---------- the shell on a phone ----------
+   The rail is a column on a desktop and an overlay on a phone: 224px out of
+   390 is not a sidebar, it is most of the screen. Opened, it floats over the
+   work with a scrim, the way every other overlay here behaves; shut — which
+   is how a narrow screen starts — the work has the whole width. */
+.rd-railscrim {
+  display: none;
+}
+@media (max-width: 700px) {
+  .rd-railscrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: var(--rd-scrim);
+  }
+  /* The rail carries its width and layout as INLINE style, which beats a
+     class — so the phone rule takes the id and says !important rather than
+     losing quietly to the attribute it is trying to override. */
+  #rd-rail {
+    position: fixed !important;
+    z-index: 31;
+    /* From the very top: the rail runs the full height of the window now, so
+       there is no bar above it to clear. */
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 224px !important;
+    overflow-y: auto;
+    box-shadow: var(--rd-shadow-float);
+  }
+  /* A screen's own padding is desk padding; a phone needs the edge back. */
+  .rd-page {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+/* The translations importer — a storefront export, read into a version. */
+.rd-importdialog {
+  width: 480px;
+}
+.rd-importdialog .rd-fhd {
+  padding: 18px 20px 0;
+}
+.rd-importbody {
+  padding: 10px 20px 4px;
+}
+/* Choosing files: the dashed edge this system uses for "nothing here yet",
+   with the input itself covering the box so the whole block is the target. */
+.rd-importdrop {
+  position: relative;
+  display: block;
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px dashed var(--rd-field-border);
+  border-radius: var(--rd-radius-control);
+  background: var(--rd-inset);
+  font: var(--rd-weight-emphasis) var(--rd-size-head) var(--rd-font-text);
+  color: var(--rd-ink-tertiary);
+  text-align: center;
+  cursor: pointer;
+}
+.rd-importdrop input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+/* What each file holds, one row per file — the table's own vocabulary, so a
+   report of six files reads like every other list in the admin. */
+.rd-importlist {
+  margin-top: 12px;
+}
+.rd-importlist td:first-child {
+  width: 40%;
+}
+
+/* ---------- The shell, 27 Aug 2026: the rail goes to the top ----------
+   ElevenLabs' shape, on the owner's ruling. Three moves, and they only work
+   together:
+
+   - The sidebar runs the full height of the window and carries the wordmark,
+     so the top-left corner of the app belongs to the rail.
+   - The bar is 44px, belongs to the WORK AREA, and starts where the rail
+     ends. Its hairline stops there too, which is what leaves the rail one
+     uninterrupted field rather than a column cut across at the top.
+   - The bar says where you are; the screen's name is said once, at full size,
+     below the hairline. Ruling 24's icon-and-chevron title is superseded —
+     the path is up here now, and drawing it twice is what made the old title
+     heavy.
+*/
+.rd-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  /* 44, not 46: the bar gave up the wordmark and the page title, so it is
+     carrying one 12px line and two controls. */
+  height: var(--rd-bar-h);
+  padding: 0 var(--rd-page-x);
+  background: var(--rd-shell);
+  border-bottom: 1px solid var(--rd-border);
+  flex: none;
+}
+
+/* The path. Small, muted, and the only thing on the bar's left. */
+.rd-barpath {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font: var(--rd-weight-body) var(--rd-size-head) / 1 var(--rd-font-text);
+}
+.rd-barseg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.rd-barsep {
+  color: var(--rd-crumb-chev);
+}
+/* A hop is a link that looks like text until it is approached. `font: inherit`
+   would take the SIZE off with the chrome — the shorthand carries font-size —
+   so the family and weight are stated and the size comes from the nav. */
+.rd-barhop {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: var(--rd-weight-body) var(--rd-size-head) / 1 var(--rd-font-text);
+  color: var(--rd-ink-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rd-barhop:hover,
+.rd-barhop:focus-visible {
+  color: var(--rd-ink);
+}
+/* A hop with nowhere to go is not a button and must not offer to be one. */
+.rd-barhop-flat {
+  cursor: default;
+  color: var(--rd-ink-muted);
+}
+.rd-barhop-flat:hover {
+  color: var(--rd-ink-muted);
+}
+/* The page you are on. Never a link, and the one segment in UI ink — the path
+   should answer "where am I" without being read left to right. */
+.rd-barhere {
+  color: var(--rd-ink-ui);
+  font-weight: var(--rd-weight-emphasis);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The bar's search well. It was a navy field on a navy bar; it is an inset on
+   a white one, which is the same relationship at a different brightness. */
+.rd-barsearch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 220px;
+  height: var(--rd-head-control-h);
+  padding: 0 10px;
+  border: 1px solid var(--rd-shell-field-border);
+  border-radius: var(--rd-radius-inset);
+  color: var(--rd-ink-faint);
+  font: var(--rd-weight-body) var(--rd-size-head) / 1 var(--rd-font-text);
+  background: var(--rd-shell-field);
+  cursor: pointer;
+  text-align: left;
+  flex: none;
+}
+.rd-barsearch:hover {
+  border-color: var(--rd-field-border);
+}
+
+/* The wordmark, at the head of the rail. Its row is exactly the bar's height,
+   which is what puts the rail's first nav item and the work area's first pixel
+   on one line. Collapsed, the word goes and the badge stays centred — the
+   badge is the thing that says which app this is at 56px. */
+.rd-wordmark {
+  height: var(--rd-bar-h);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 16px;
+  font: var(--rd-weight-emphasis) var(--rd-size-wordmark) / 1 var(--rd-font-display);
+  letter-spacing: 0.01em;
+  color: var(--rd-ink);
+}
+/* Collapsed, the head row is the chevron's — see `.rd-railhead-tight`. This
+   MUST sit after `.rd-wordmark`: both are one class, so at equal specificity
+   the later rule wins, and stated before it the `display: none` lost silently
+   and the badge came back under the chevron as a second row above Home. */
+.rd-wordmark-tight {
+  display: none;
+}
+
+.rd-wordmark-badge {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 5px;
+  background: var(--rd-ink);
+  color: var(--rd-rail);
+  display: grid;
+  place-items: center;
+  font: var(--rd-weight-caps) var(--rd-size-label) / 1 var(--rd-font-text);
+}
+
+/* ---------- Ruling 95: if it acts, it says so ----------
+   The owner's standing rule: always make it tappable.
+
+   Two halves, and the first is embarrassing. A `<button>` defaults to
+   `cursor: default`, so every control that never named one looked exactly like
+   text — including the SIDEBAR'S OWN ROWS, the most-used control in the admin,
+   which had gone the whole redesign without a pointer. An audit across twelve
+   screens found 34 such controls out of 286.
+
+   So the shell states it once, for everything enabled inside it. Anything
+   deliberately NOT pressable — a hop with nowhere to go, the row for the area
+   you are already in — says `cursor: default` in its own rule, and those rules
+   come later in this file and win. Stating it here rather than per component
+   is the point: the next control somebody adds is tappable without having to
+   remember. */
+.rd-shell button:not(:disabled),
+.rd-shell [role='button']:not([aria-disabled='true']),
+.rd-shell a[href],
+.rd-shell summary,
+.rd-shell label[for] {
+  cursor: pointer;
+}
+
+/* The second half is the hit area. A control drawn small is still a control
+   aimed at, and several here were 8–18px tall — the bar's own path hops were
+   12px, which is a line of text and not a target.
+
+   `--rd-tap` is the floor, and it is bought with PADDING where padding costs
+   nothing, and with a transparent `::after` overlay where it would move a
+   neighbour. Neither grows what is DRAWN: the drawing decides the size of the
+   mark, this decides the size of the target. */
+.rd-barhop,
+.rd-barhere {
+  /* (24 - 12) / 2 = 6 either side, inside a 44px bar that centres it — the
+     text stays exactly where the drawing has it. */
+  padding: calc((var(--rd-tap) - 12px) / 2) 0;
+}
+
+/* AN OVERLAY CANNOT ESCAPE A CLIP.
+   `::after` is a child, so an `overflow: hidden` ancestor cuts it off — and a
+   table cell clips, which is exactly where the smallest controls in this app
+   live. The overlay silently did nothing for them: the pointer still landed on
+   the cell. Inside a clipped cell the room has to come from the control's own
+   box, so these take padding. It fits — a caption link is 16px in a 34px row.
+
+   Reached through the ROW rather than a class of their own: `.rd-addrow` is
+   already the `<tr>` these buttons sit in, in four screens, and putting that
+   name on the button too would be one class doing two jobs — the fault
+   `.rd-secrow` caused when it put `display: flex` on a table row and broke the
+   deployed Targets sheet. */
+.rd-soccap a,
+.rd-addrow button {
+  display: inline-block;
+  padding-block: calc((var(--rd-tap) - 16px) / 2);
+}
+
+/* And the overlay, for controls whose neighbours padding would move.
+
+   These three need `position: relative` and it must stay ON ITS OWN. An
+   earlier pass deleted this declaration from the middle of a selector list and
+   the list simply ran on into the next rule: the toggle lost its containing
+   block — so its overlay anchored to the shell and laid a full-width band
+   across the middle of the page, swallowing clicks meant for the rail — and
+   picked up an `inline-block` over its own `display: flex`. Deleting a
+   declaration block from between two selector lists MERGES them, silently. */
+.rd-setdate,
+.rd-inline-pill,
+.rd-railtoggle {
+  position: relative;
+}
+
+/* `.rd-rulerdot` is deliberately absent: it is already `position: absolute` —
+   placed on the ruler by date — so it is already a containing block, and a
+   `position: relative` stated after that rule would win on source order and
+   drop every dot into flow. */
+.rd-setdate::after,
+.rd-inline-pill::after,
+.rd-railtoggle::after,
+.rd-rulerdot::after {
+  content: '';
+  position: absolute;
+  /* The control's own width only. Vertical room is free; horizontal room would
+     have a ruler dot stealing the click meant for the next day's. */
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: var(--rd-tap);
+  transform: translateY(-50%);
+  /* The target and nothing else — no ink, and never over the control's own. */
+  pointer-events: auto;
+}
+
+
+/* A screen head is one row: the name, and the one thing the screen does,
+   on the title's line. Its own rule sat inside a section built for
+   one product's areas and went out with it; the head is not that section's. */
+.rd-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 2px 12px;
+}
+
+/* ---------- vocabulary that outlived the screens it was drawn for ----------
+   Each rule below sat inside a section built for one screen, and each is
+   worn by a component in `components/`. The screens went; these did not.
+   Lifted verbatim rather than retyped, comments and all. */
+/* What SHOULD have happened. Dashed and quiet: drawing it like the actuals
+   would make the plan a fourth series rather than the reference the others are
+   read against. */
+.rd-chartplan {
+  stroke: var(--rd-ink-tertiary);
+  stroke-width: 1.6;
+  stroke-dasharray: 5 5;
+}
+
+/* The clipboard, drawn on hover. It sits in the padding the cell already
+   reserves, so nothing shifts when it appears — a target that moves when you
+   point at it is a target you cannot aim at. */
+.rd-cpymark {
+  margin-left: 5px;
+  vertical-align: -1px;
+  color: var(--rd-ink-disabled);
+  opacity: 0;
+  transition: opacity var(--rd-dur-state) var(--rd-ease);
+}
+
+.rd-cpy:hover .rd-cpymark,
+.rd-cpy:focus-visible .rd-cpymark {
+  opacity: 1;
+}
+
+
+/* Copied: the mark goes with the wash rather than lingering as a hint to do
+   the thing that has just been done. */
+.rd-cpy.did .rd-cpymark {
+  opacity: 0;
+}
+
+/* The tick on the chosen chip. Its own element rather than a string beside
+   the label, so an unselected chip does not carry a trailing space — the
+   ternary's empty branch still rendered one, and a chip's width changed by a
+   space nobody could see. */
+.rd-tick {
+  margin-left: 5px;
+}
+
+/* A description runs to a sentence. Two lines of room whether or not they are
+   used, so the form does not jump as one is typed. */
+.rd-field-multi .rd-fieldval {
+  align-items: stretch;
+}
+
+.rd-field-multi .rd-fieldval textarea {
+  /* Three lines rather than one-and-a-bit. 38px kept room for two lines of
+     text and gave the box the height of a single-line field, so a description
+     long enough to need the textarea still opened showing one line of it. The
+     owner asked for a deeper box; this is the depth a sentence reads at.
+     Above the floor the component grows the box to its measured content
+     (Field.tsx) — a paragraph never crops behind its own scrollbar. */
+  min-height: 62px;
+  line-height: 1.5;
+  resize: vertical;
+  overflow: hidden;
+}
+
+/* A paragraphs field — body copy — opens at reading depth before a word is
+   typed, so the writer is invited to write at the length the email runs to. */
+.rd-field-deep .rd-fieldval textarea {
+  min-height: 170px;
+}
+
+/* The field's own mark, on the floated label's line.
+
+   `translateY` rather than a vertical-align: the label is 10.5px and the flag
+   is 10px tall, so aligning the two BOXES puts the flag's centre on the
+   label's centre and its top a hair above the cap. Nudged down half a pixel,
+   the flag's cap and the label's cap sit on one line, which is what "level
+   with" means to the eye. */
+.rd-fieldmark {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  transform: translateY(0.5px);
+}
+
+/* A menu's own filter, above its items — for a list longer than a glance
+   (the audiences a row can send to). The box is the field's edge at the
+   menu's size; it is not a `.rd-field`, because a floating label inside a
+   floating menu is two boxes deep for one word. */
+.rd-floatfind {
+  padding: 2px 4px 6px;
+}
+
+.rd-floatfind input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  border: 1px solid var(--rd-field-border);
+  border-radius: var(--rd-radius-field);
+  background: var(--rd-card);
+  font: 400 var(--rd-size-cell-dense) var(--rd-font-text);
+  color: var(--rd-ink);
+}
+
+.rd-floatfind input:focus {
+  outline: none;
+  border-color: var(--rd-primary);
+}
+
+.rd-floatnone {
+  padding: 6px 9px 8px;
+  font: 400 var(--rd-size-caption) var(--rd-font-text);
+  color: var(--rd-ink-faint);
+}
+
+/* The short picker's trigger: the field IS the button, so the press lands
+   anywhere across it and the value wears the field's own type. */
+.rd-pickbtn {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Its list is the admin's floating menu, never the operating system's — at
+   least as wide as the field it came out of, so the answer does not move
+   sideways as it opens. */
+.rd-pickmenu {
+  min-width: 100%;
+}
+
+/* Where the keyboard is. The same wash the pointer leaves, because they are
+   the same thing said two ways. */
+.rd-float button.rd-floatcursor {
+  background: var(--rd-inset);
+}

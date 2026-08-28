@@ -1,32 +1,30 @@
-import {
-  Badge,
-  Banner,
-  BlockStack,
-  Button,
-  Card,
-  IndexTable,
-  InlineStack,
-  Layout,
-  Modal,
-  Page,
-  SkeletonBodyText,
-  SkeletonPage,
-  Text,
-} from '@shopify/polaris';
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { formatDateTime, formatDay } from '../logic/dates';
 import { TEMPLATE_LABELS, plural, sendStatusBadge } from '../ui/format';
-import { useApp } from '../ui/AppContext';
+import { useApp, useCrumb } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
+import {
+  Bar,
+  Btn,
+  Cap,
+  Card,
+  CardHead,
+  CellLink,
+  Dialog,
+  KV,
+  Page,
+  Pill,
+  Skeleton,
+} from '../ui/rd';
 import { EmailPreview } from '../components/EmailPreview';
 import { EditSendModal } from '../components/EditSendModal';
 
 /**
- * Send detail / history: the email exactly as sent (or as it will send),
- * every recipient with their HubSpot send ID, and delivery failures surfaced
- * rather than buried. Sent sends are immutable log.
+ * Send detail / history: the email exactly as sent (or as it will send), every
+ * recipient with their HubSpot send ID, and delivery failures surfaced rather
+ * than buried. A sent send is immutable log.
  */
 export function SendDetail(): ReactElement {
   const { sendId } = useParams<{ sendId: string }>();
@@ -35,19 +33,22 @@ export function SendDetail(): ReactElement {
   const detail = useAsync(() => data.getSendDetail(sendId!), [sendId]);
   const [editing, setEditing] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
+  useCrumb(detail.data ? TEMPLATE_LABELS[detail.data.send.templateRef] : null);
 
   if (detail.error) {
     return (
-      <Page title="Send not found" backAction={{ content: 'Releases', onAction: () => navigate('/') }}>
-        <Banner tone="critical" title={detail.error.message} />
+      <Page title="Send not found">
+        <Bar tone="fail">{detail.error.message}</Bar>
       </Page>
     );
   }
   if (detail.data === null) {
     return (
-      <SkeletonPage fullWidth title="Send">
-        <SkeletonBodyText lines={8} />
-      </SkeletonPage>
+      <Page title="Send">
+        <Card>
+          <Skeleton rows={8} />
+        </Card>
+      </Page>
     );
   }
 
@@ -98,188 +99,162 @@ export function SendDetail(): ReactElement {
             : undefined,
       }));
 
+  const lastSentLabel = lastSent
+    ? `${TEMPLATE_LABELS[lastSent.templateRef]}${
+        lastSent.type === 'delay' ? ' (delay)' : ''
+      } — ${formatDay(lastSent.sentAt.slice(0, 10))}`
+    : null;
+
+  const facts: { k: string; v: ReactElement | string }[] = [
+    { k: 'Template', v: `${send.templateRef} — cloned and patched per send` },
+    { k: 'Type', v: send.type === 'delay' ? 'Delay notice' : 'Milestone' },
+    { k: 'Scheduled', v: formatDay(send.scheduledDate) },
+  ];
+  if (send.approvedBy)
+    facts.push({
+      k: 'Approved',
+      v: `${userName(send.approvedBy)}${send.approvedAt ? ` · ${formatDateTime(send.approvedAt)}` : ''}`,
+    });
+  if (send.heldBy) facts.push({ k: 'Held by', v: userName(send.heldBy) });
+  if (sent && send.sentAt) facts.push({ k: 'Sent', v: formatDateTime(send.sentAt) });
+  if (send.hubspotEmailId) facts.push({ k: 'HubSpot email', v: send.hubspotEmailId });
+  facts.push({ k: 'Created by', v: userName(send.createdBy) });
+  if (!sent)
+    facts.push({
+      k: 'They last received',
+      v: lastSentLabel ? (
+        <CellLink onClick={() => navigate(`/sends/${lastSent!.sendId}`)}>{lastSentLabel}</CellLink>
+      ) : (
+        'Nothing yet — this will be their first email'
+      ),
+    });
+
   return (
     <Page
-      fullWidth
       title={TEMPLATE_LABELS[send.templateRef]}
-      subtitle={releaseBatchCount > 1 ? `${release.title} · ${batch.name}` : release.title}
-      titleMetadata={sendStatusBadge(send)}
-      backAction={{
-        content: release.title,
-        onAction: () => navigate(`/releases/${release.id}`),
-      }}
-      secondaryActions={[
-        ...(!sent && send.status !== 'cancelled'
-          ? [{ content: 'Edit', onAction: () => setEditing(true) }]
-          : []),
-        ...(send.status === 'pending_approval' && isAdmin
-          ? [
-              { content: 'Approve', onAction: () => void act('approve') },
-              { content: 'Hold', onAction: () => void act('hold') },
-            ]
-          : []),
-        ...(!sent && send.status !== 'cancelled'
-          ? [{ content: 'Cancel send', destructive: true, onAction: () => setConfirmingCancel(true) }]
-          : []),
-      ]}
+      tag={sendStatusBadge(send)}
+      facts={
+        <>
+          <CellLink onClick={() => navigate(`/releases/${release.id}`)}>{release.title}</CellLink>
+          {releaseBatchCount > 1 ? <span>· {batch.name}</span> : null}
+        </>
+      }
+      actions={
+        <>
+          {!sent && send.status !== 'cancelled' ? (
+            <Btn onClick={() => setEditing(true)}>Edit</Btn>
+          ) : null}
+          {send.status === 'pending_approval' && isAdmin ? (
+            <>
+              <Btn kind="pri" onClick={() => void act('approve')}>
+                Approve
+              </Btn>
+              <Btn onClick={() => void act('hold')}>Hold</Btn>
+            </>
+          ) : null}
+          {!sent && send.status !== 'cancelled' ? (
+            <Btn kind="link-danger" onClick={() => setConfirmingCancel(true)}>
+              Cancel send
+            </Btn>
+          ) : null}
+        </>
+      }
     >
-      <Layout>
-        <Layout.Section>
-          <BlockStack gap="400">
-            {failures.length > 0 ? (
-              <Banner tone="critical" title={`${plural(failures.length, 'recipient')} could not be delivered`}>
-                <p>
-                  Failed recipients are listed below with the reason. Fix the underlying issue
-                  (missing email / HubSpot contact) and retry from here once sending is live
-                  (phase 3).
-                </p>
-              </Banner>
-            ) : null}
-            <Card>
-              <BlockStack gap="300">
-                <Text as="h2" variant="headingSm">
-                  {sent ? 'Email as sent' : 'Email as it will send'}
-                </Text>
-                <EmailPreview
-                  subject={send.subject}
-                  headline={send.headline}
-                  body={send.body}
-                  nextSteps={send.nextSteps}
-                  imageName={send.imageName}
-                  sampleRecipientName={recipientRows[0]?.name}
-                />
-              </BlockStack>
-            </Card>
-            <Card padding="0">
-              <div style={{ padding: 'var(--p-space-400) var(--p-space-400) 0' }}>
-                <Text as="h2" variant="headingSm">
-                  {sent
-                    ? `Recipients (${recipientRows.length})`
-                    : `Will send to ${plural(recipientRows.length, 'collector')} currently in ${batch.name}`}
-                </Text>
-              </div>
-              <IndexTable
-                resourceName={{ singular: 'recipient', plural: 'recipients' }}
-                itemCount={recipientRows.length}
-                selectable={false}
-                headings={[
-                  { title: 'Collector' },
-                  { title: 'Email' },
-                  { title: 'HubSpot contact' },
-                  { title: 'HubSpot send ID' },
-                  { title: 'Status' },
-                ]}
-              >
-                {recipientRows.map((row, index) => (
-                  <IndexTable.Row id={row.key} key={row.key} position={index}>
-                    <IndexTable.Cell>{row.name}</IndexTable.Cell>
-                    <IndexTable.Cell>{row.email}</IndexTable.Cell>
-                    <IndexTable.Cell>{row.contact}</IndexTable.Cell>
-                    <IndexTable.Cell>{row.sendId}</IndexTable.Cell>
-                    <IndexTable.Cell>
+      <div className="rd-stack">
+        {failures.length > 0 ? (
+          <Bar tone="fail">
+            <b>{plural(failures.length, 'recipient')} could not be delivered.</b> They are listed
+            below with the reason; fix the missing email or HubSpot contact and retry from here
+            once sending is live.
+          </Bar>
+        ) : null}
+
+        <Card>
+          <CardHead title="Details" />
+          <KV rows={facts.map((f) => ({ k: f.k, v: f.v }))} />
+        </Card>
+
+        <Card>
+          <CardHead title={sent ? 'Email as sent' : 'Email as it will send'} />
+          <EmailPreview
+            subject={send.subject}
+            headline={send.headline}
+            body={send.body}
+            nextSteps={send.nextSteps}
+            imageName={send.imageName}
+            sampleRecipientName={recipientRows[0]?.name}
+          />
+        </Card>
+
+        <Card>
+          <CardHead
+            title={
+              sent
+                ? `Recipients (${recipientRows.length})`
+                : `Will send to ${plural(recipientRows.length, 'collector')} currently in ${batch.name}`
+            }
+          />
+          <div className="rd-scroll">
+            <table className="rd-t rd-t27 rd-fit rd-tpad">
+              <thead>
+                <tr>
+                  <th scope="col">Collector</th>
+                  <th scope="col">Email</th>
+                  <th scope="col">HubSpot contact</th>
+                  <th scope="col">HubSpot send ID</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recipientRows.map((row) => (
+                  <tr key={row.key}>
+                    <td className="rd-ink">{row.name}</td>
+                    <td>{row.email}</td>
+                    <td>{row.contact}</td>
+                    <td>{row.sendId}</td>
+                    <td>
                       {row.failed ? (
-                        <InlineStack gap="100" blockAlign="center" wrap>
-                          <Badge tone="critical">{sent ? 'Failed' : 'Flagged'}</Badge>
-                          {row.error ? (
-                            <Text as="span" variant="bodySm" tone="subdued">
-                              {row.error}
-                            </Text>
-                          ) : null}
-                        </InlineStack>
+                        <Pill tone="red">{sent ? 'Failed' : 'Flagged'}</Pill>
                       ) : sent ? (
-                        <Badge tone="success">Delivered to HubSpot</Badge>
+                        <Pill tone="green">Delivered</Pill>
                       ) : (
-                        <Badge tone="info">Ready</Badge>
+                        <Pill tone="blue">Ready</Pill>
                       )}
-                    </IndexTable.Cell>
-                  </IndexTable.Row>
+                    </td>
+                    <td>
+                      {row.error ? (
+                        <Cap>{row.error}</Cap>
+                      ) : (
+                        <span className="rd-none">–</span>
+                      )}
+                    </td>
+                  </tr>
                 ))}
-              </IndexTable>
-            </Card>
-          </BlockStack>
-        </Layout.Section>
-        <Layout.Section variant="oneThird">
-          <Card>
-            <BlockStack gap="200">
-              <Text as="h2" variant="headingSm">
-                Details
-              </Text>
-              <DetailRow label="Template" value={`${send.templateRef} (cloned & patched per send)`} />
-              <DetailRow label="Type" value={send.type === 'delay' ? 'Delay notice' : 'Milestone'} />
-              <DetailRow label="Scheduled" value={formatDay(send.scheduledDate)} />
-              {send.approvedBy ? (
-                <DetailRow
-                  label="Approved"
-                  value={`${userName(send.approvedBy)}${send.approvedAt ? ` · ${formatDateTime(send.approvedAt)}` : ''}`}
-                />
-              ) : null}
-              {send.heldBy ? <DetailRow label="Held by" value={userName(send.heldBy)} /> : null}
-              {sent && send.sentAt ? (
-                <DetailRow label="Sent" value={formatDateTime(send.sentAt)} />
-              ) : null}
-              {send.hubspotEmailId ? (
-                <DetailRow label="HubSpot email" value={send.hubspotEmailId} />
-              ) : null}
-              <DetailRow label="Created by" value={userName(send.createdBy)} />
-              {!sent ? (
-                <BlockStack gap="050">
-                  <Text as="span" variant="bodySm" tone="subdued">
-                    They last received
-                  </Text>
-                  {lastSent ? (
-                    <Button
-                      variant="plain"
-                      onClick={() => navigate(`/sends/${lastSent.sendId}`)}
-                    >
-                      {`${TEMPLATE_LABELS[lastSent.templateRef]}${lastSent.type === 'delay' ? ' (delay)' : ''} — ${formatDay(lastSent.sentAt.slice(0, 10))}`}
-                    </Button>
-                  ) : (
-                    <Text as="span" variant="bodyMd">
-                      Nothing yet — this will be their first email
-                    </Text>
-                  )}
-                </BlockStack>
-              ) : null}
-            </BlockStack>
-          </Card>
-        </Layout.Section>
-      </Layout>
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </div>
+
       <EditSendModal
         send={editing && !sent ? send : null}
         onClose={() => setEditing(false)}
         onSaved={() => detail.reload()}
       />
-      <Modal
+      <Dialog
         open={confirmingCancel}
-        onClose={() => setConfirmingCancel(false)}
+        size="sm"
         title={`Cancel “${send.subject}”?`}
-        primaryAction={{
-          content: 'Cancel send',
-          destructive: true,
-          onAction: () => void act('cancel'),
-        }}
-        secondaryActions={[{ content: 'Keep it', onAction: () => setConfirmingCancel(false) }]}
+        onClose={() => setConfirmingCancel(false)}
+        primary={{ label: 'Cancel send', onClick: () => void act('cancel'), destructive: true }}
+        secondary={{ label: 'Keep it', onClick: () => setConfirmingCancel(false) }}
       >
-        <Modal.Section>
-          <Text as="p">
-            The email will not go out and drops off the plan. This is recorded in the batch
-            history. Scheduled for {formatDay(send.scheduledDate)}.
-          </Text>
-        </Modal.Section>
-      </Modal>
+        <p>
+          The email will not go out and drops off the plan. This is recorded in the batch history.
+          Scheduled for {formatDay(send.scheduledDate)}.
+        </p>
+      </Dialog>
     </Page>
-  );
-}
-
-function DetailRow({ label, value }: { label: string; value: string }): ReactElement {
-  return (
-    <BlockStack gap="050">
-      <Text as="span" variant="bodySm" tone="subdued">
-        {label}
-      </Text>
-      <Text as="span" variant="bodyMd">
-        {value}
-      </Text>
-    </BlockStack>
   );
 }

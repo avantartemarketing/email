@@ -1,8 +1,11 @@
 /**
- * Screenshot the five screens for the design-review artifact.
+ * Screenshot the app for the design-review artifact.
+ *
  * Pattern from the first session: serve dist/ (vite preview), drive the
- * preinstalled Chromium, use role-based selectors (Polaris Tabs render
- * hidden text copies that break text= selectors).
+ * preinstalled Chromium, use role-based selectors. The Polaris-era selectors
+ * are gone with Polaris — a row is now `table.rd-t27 tbody tr` and a tick is a
+ * `[role="checkbox"]` span rather than an `<input>`, because the kit draws the
+ * mark as an SVG that strokes on.
  *
  *   npm run build && npx vite preview --port 4173 &
  *   node scripts/shoot-screens.mjs <outDir>
@@ -27,15 +30,21 @@ const page = await browser.newPage({
   deviceScaleFactor: 1.5,
 });
 
+const ROW = 'table.rd-t27 tbody tr';
+
 async function shot(name, { fullPage = true } = {}) {
-  await page.waitForTimeout(650); // let Polaris settle + skeletons resolve
+  // The type is the whole system; a shot taken before it loads is a shot of a
+  // different font.
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}/${name}.jpg`, fullPage, type: 'jpeg', quality: 82 });
   console.log('shot', name);
 }
 
 async function goHome() {
   await page.goto(BASE + '/', { waitUntil: 'networkidle' });
-  await page.getByRole('heading', { name: 'Releases' }).first().waitFor();
+  await page.getByRole('heading', { name: 'Releases' }).first().waitFor().catch(() => {});
+  await page.locator(ROW).first().waitFor();
 }
 
 // --- 1. releases index ----------------------------------------------------
@@ -43,10 +52,10 @@ await goHome();
 await page.getByText('Falling Light').first().waitFor();
 await shot('01-releases-index');
 
-// the next-send popover: date-only cell expands to the next three sends
+// the next-send popover: a date-only cell that opens the next three sends
 await page
-  .locator('.Polaris-IndexTable__TableRow', { hasText: 'Falling Light' })
-  .getByRole('button')
+  .locator(ROW, { hasText: 'Falling Light' })
+  .locator('.rd-menuwrap button')
   .first()
   .click();
 await page.getByText(/Next ·/).waitFor();
@@ -56,7 +65,7 @@ await page.keyboard.press('Escape');
 // --- 2. release detail: Falling Light framed flow -------------------------
 await page.getByText('Falling Light').first().click();
 await page.getByRole('tab', { name: /^Framed \(/ }).waitFor();
-await page.waitForTimeout(300);
+await page.waitForTimeout(400);
 await shot('03-release-emails-card');
 
 // the Emails tab: image slots + copy status per email
@@ -81,12 +90,13 @@ await page.getByRole('button', { name: 'Done' }).click();
 // --- 4. reschedule flow ---------------------------------------------------
 await page.getByRole('tab', { name: /^Framed \(/ }).click();
 await page.waitForTimeout(400);
-// select three orders, open the reschedule modal
-const checkboxes = page.locator('.Polaris-IndexTable__TableRow input[type="checkbox"]');
-await checkboxes.nth(0).click();
-await checkboxes.nth(1).click();
-await checkboxes.nth(2).click();
-await page.getByRole('button', { name: /Change delivery date \(3\)/ }).click();
+// tick three orders — the bulk bar replaces the header row in place
+const ticks = page.locator(`${ROW} [role="checkbox"]`);
+await ticks.nth(0).click();
+await ticks.nth(1).click();
+await ticks.nth(2).click();
+await shot('02-bulk-bar', { fullPage: false });
+await page.getByRole('button', { name: /Change delivery date/ }).first().click();
 await page.getByRole('dialog').waitFor();
 const future = new Date(Date.now() + 60 * 86400_000).toISOString().slice(0, 10);
 await page.getByLabel('New promised delivery date').fill(future);
@@ -107,12 +117,12 @@ await shot('09-release-nightgarden-batchless');
 
 // --- 6. approval queue ----------------------------------------------------
 await page.goto(BASE + '/approvals', { waitUntil: 'networkidle' });
-await page.getByRole('heading', { name: 'Approval queue' }).waitFor();
-await page.locator('.Polaris-IndexTable__TableRow').first().waitFor();
+await page.getByRole('heading', { name: 'Approval queue' }).waitFor().catch(() => {});
+await page.locator(ROW).first().waitFor();
 await shot('10-approval-queue');
 
 // inline preview: first row
-await page.locator('.Polaris-IndexTable__TableRow').first().click();
+await page.locator(ROW).first().click();
 await page.getByRole('dialog').waitFor();
 await page.getByText('What happens next?').first().waitFor();
 await shot('11-approval-preview', { fullPage: false });

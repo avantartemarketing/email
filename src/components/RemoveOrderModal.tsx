@@ -1,8 +1,9 @@
-import { Banner, BlockStack, Modal, TextField } from '@shopify/polaris';
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import type { Order } from '../types';
 import { useApp } from '../ui/AppContext';
+import { Bar, Dialog } from '../ui/rd';
+import Field from '../rd/components/Field';
 
 /** Cancellations/refunds are marked by hand in v1 — never inferred from CSV. */
 export function RemoveOrderModal({
@@ -35,37 +36,33 @@ export function RemoveOrderModal({
   };
 
   return (
-    <Modal
+    <Dialog
       open={order !== null}
+      size="sm"
       onClose={onClose}
       title={order ? `Remove ${order.shopifyOrderName} — ${order.collectorName}` : 'Remove order'}
-      primaryAction={{
-        content: 'Remove order',
+      primary={{
+        label: 'Remove order',
         destructive: true,
-        onAction: () => void save(),
-        loading: saving,
-        disabled: !reason.trim(),
+        onClick: () => void save(),
+        disabled: saving || !reason.trim(),
       }}
-      secondaryActions={[{ content: 'Cancel', onAction: onClose }]}
+      secondary={{ label: 'Cancel', onClick: onClose }}
     >
-      <Modal.Section>
-        <BlockStack gap="400">
-          <Banner tone="warning" title="The collector stops receiving updates">
-            <p>
-              The order drops out of its batch and out of every future send. Emails already sent
-              stay in the log. This does not refund or cancel anything in Shopify.
-            </p>
-          </Banner>
-          <TextField
-            label="Reason"
-            value={reason}
-            onChange={setReason}
-            autoComplete="off"
-            requiredIndicator
-            placeholder="e.g. Refunded in Shopify — collector cancelled"
-          />
-        </BlockStack>
-      </Modal.Section>
-    </Modal>
+      <Bar tone="warn">
+        <b>The collector stops receiving updates.</b> The order drops out of its batch and out of
+        every future send; emails already sent stay in the log. Nothing is refunded or cancelled in
+        Shopify.
+      </Bar>
+      <div className="rd-fields">
+        <Field
+          label="Reason"
+          value={reason}
+          onChange={setReason}
+          note="required"
+          noteNear={!reason.trim()}
+        />
+      </div>
+    </Dialog>
   );
 }

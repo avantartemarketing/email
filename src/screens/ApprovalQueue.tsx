@@ -1,19 +1,3 @@
-import {
-  Badge,
-  BlockStack,
-  Button,
-  ButtonGroup,
-  Card,
-  EmptyState,
-  IndexTable,
-  InlineStack,
-  Modal,
-  Page,
-  SkeletonBodyText,
-  Tabs,
-  Text,
-  Tooltip,
-} from '@shopify/polaris';
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -23,25 +7,43 @@ import { TEMPLATE_LABELS, plural, sendStatusBadge } from '../ui/format';
 import { useApp } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
 import { useColumns } from '../ui/useColumns';
+import {
+  Btn,
+  Cap,
+  Card,
+  CellLink,
+  Dialog,
+  Empty,
+  Foot,
+  None,
+  Page,
+  Skeleton,
+  Why,
+} from '../ui/rd';
+import Tabs from '../rd/components/Tabs';
 import { EmailPreview } from '../components/EmailPreview';
 
 /**
- * The approval gate: every pending send across every release, soonest
- * first. Admins approve (queues it for its scheduled day) or hold. The Held
- * tab is the parking lot — released sends return to pending.
+ * The approval gate: every pending send across every release, soonest first.
+ * Admins approve (which queues it for its scheduled day) or hold. The Held tab
+ * is the parking lot — released sends return to pending.
+ *
+ * Nine columns of single-line facts, which is what the columns control is for:
+ * the reviewer's question is "what is this, who gets it, and what did they get
+ * last time", and everything else can be put away.
  */
 export function ApprovalQueue(): ReactElement {
   const { data, isAdmin, showToast } = useApp();
   const navigate = useNavigate();
   const queue = useAsync(() => data.listApprovalQueue(), []);
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState<'pending' | 'held'>('pending');
   const [preview, setPreview] = useState<PendingSendItem | null>(null);
   const [actingOn, setActingOn] = useState<string | null>(null);
 
   const items = queue.data ?? [];
   const pending = items.filter((i) => i.send.status === 'pending_approval');
   const held = items.filter((i) => i.send.status === 'held');
-  const shown = tab === 0 ? pending : held;
+  const shown = tab === 'pending' ? pending : held;
 
   const columns = useColumns('approval-queue', [
     { id: 'scheduled', title: 'Scheduled', locked: true },
@@ -49,10 +51,10 @@ export function ApprovalQueue(): ReactElement {
     { id: 'subject', title: 'Subject' },
     { id: 'release', title: 'Release' },
     { id: 'batch', title: 'Batch', defaultHidden: true },
-    { id: 'recipients', title: 'Recipients' },
+    { id: 'recipients', title: 'Recipients', n: true },
     { id: 'lastReceived', title: 'They last received' },
     { id: 'status', title: 'Status', locked: true },
-    { id: 'actions', title: 'Actions', locked: true },
+    { id: 'actions', title: '', locked: true },
   ]);
 
   const act = async (
@@ -84,162 +86,125 @@ export function ApprovalQueue(): ReactElement {
     }
   };
 
-  const actions = (item: PendingSendItem): ReactElement => {
+  /** What a row offers. Non-admins see the controls and why they are shut. */
+  const rowActions = (item: PendingSendItem): ReactElement => {
+    const busy = actingOn === item.send.id;
     const buttons =
       item.send.status === 'pending_approval' ? (
-        <ButtonGroup>
-          <Button
-            size="slim"
-            variant="primary"
-            disabled={!isAdmin}
-            loading={actingOn === item.send.id}
-            onClick={() => void act(item, 'approve')}
-          >
+        <>
+          <Btn kind="pri" disabled={!isAdmin || busy} onClick={() => void act(item, 'approve')}>
             Approve
-          </Button>
-          <Button
-            size="slim"
-            disabled={!isAdmin}
-            onClick={() => void act(item, 'hold')}
-          >
+          </Btn>
+          <Btn small disabled={!isAdmin || busy} onClick={() => void act(item, 'hold')}>
             Hold
-          </Button>
-        </ButtonGroup>
+          </Btn>
+        </>
       ) : (
-        <Button
-          size="slim"
-          disabled={!isAdmin}
-          loading={actingOn === item.send.id}
-          onClick={() => void act(item, 'unhold')}
-        >
+        <Btn small disabled={!isAdmin || busy} onClick={() => void act(item, 'unhold')}>
           Release hold
-        </Button>
+        </Btn>
       );
-    return isAdmin ? buttons : <Tooltip content="Only admins can approve or hold sends">{buttons}</Tooltip>;
+    return (
+      <div className="rd-rowacts" onClick={(e) => e.stopPropagation()}>
+        {isAdmin ? buttons : <Why says="Only admins can approve or hold sends">{buttons}</Why>}
+      </div>
+    );
   };
 
-  return (
-    <Page
-      fullWidth
-      title="Approval queue"
-      subtitle="Nothing sends without an approval from this screen"
-    >
-      <BlockStack gap="400">
-        <Card padding="0">
-          <InlineStack align="space-between" blockAlign="center" wrap>
-            <Tabs
-              tabs={[
-                { id: 'pending', content: queue.data ? `Pending (${pending.length})` : 'Pending' },
-                { id: 'held', content: queue.data ? `Held (${held.length})` : 'Held' },
-              ]}
-              selected={tab}
-              onSelect={setTab}
-            />
-            <div style={{ padding: '0 var(--p-space-400)' }}>{columns.columnsButton}</div>
-          </InlineStack>
-          {queue.data === null ? (
-            <div style={{ padding: 'var(--p-space-400)' }}>
-              <SkeletonBodyText lines={6} />
-            </div>
-          ) : shown.length === 0 ? (
-            <EmptyState
-              heading={tab === 0 ? 'Nothing waiting for approval' : 'Nothing on hold'}
-              image=""
-            >
-              <p>
-                {tab === 0
-                  ? 'New and rescheduled comms plans land here before anything can send.'
-                  : 'Sends an admin has parked appear here until released back to pending.'}
-              </p>
-            </EmptyState>
-          ) : (
-            <IndexTable
-              resourceName={{ singular: 'send', plural: 'sends' }}
-              itemCount={shown.length}
-              selectable={false}
-              headings={columns.headings as [{ title: string }]}
-            >
-              {shown.map((item, index) => {
-                const overdue =
-                  item.send.status === 'pending_approval' && item.send.scheduledDate < today();
-                return (
-                  <IndexTable.Row
-                    id={item.send.id}
-                    key={item.send.id}
-                    position={index}
-                    onClick={() => setPreview(item)}
-                  >
-                    <IndexTable.Cell>
-                      <InlineStack gap="100" blockAlign="center" wrap={false}>
-                        <Text as="span" fontWeight={overdue ? 'semibold' : 'regular'}>
-                          {formatDayShort(item.send.scheduledDate)}
-                        </Text>
-                        {overdue ? <Badge tone="critical">Overdue</Badge> : null}
-                      </InlineStack>
-                    </IndexTable.Cell>
-                    {columns.show('email') ? (
-                      <IndexTable.Cell>
-                        <Text as="span" fontWeight="semibold">
-                          {TEMPLATE_LABELS[item.send.templateRef]}
-                          {item.send.type === 'delay' ? ' (delay)' : ''}
-                        </Text>
-                      </IndexTable.Cell>
-                    ) : null}
-                    {columns.show('subject') ? (
-                      <IndexTable.Cell>
-                        <Text as="span" variant="bodySm" tone="subdued" truncate>
-                          {item.send.subject}
-                        </Text>
-                      </IndexTable.Cell>
-                    ) : null}
-                    {columns.show('release') ? (
-                      <IndexTable.Cell>{item.release.title}</IndexTable.Cell>
-                    ) : null}
-                    {columns.show('batch') ? (
-                      <IndexTable.Cell>
-                        {item.releaseBatchCount > 1 ? (
-                          item.batch.name
-                        ) : (
-                          <Text as="span" variant="bodySm" tone="subdued">
-                            —
-                          </Text>
-                        )}
-                      </IndexTable.Cell>
-                    ) : null}
-                    {columns.show('recipients') ? (
-                      <IndexTable.Cell>{item.recipientCount}</IndexTable.Cell>
-                    ) : null}
-                    {columns.show('lastReceived') ? (
-                      <IndexTable.Cell>
-                        {item.lastSent ? (
-                          <Text as="span" variant="bodySm">
-                            {`${TEMPLATE_LABELS[item.lastSent.templateRef]}${item.lastSent.type === 'delay' ? ' (delay)' : ''} · ${formatDayShort(item.lastSent.sentAt.slice(0, 10))}`}
-                          </Text>
-                        ) : (
-                          <Text as="span" variant="bodySm" tone="subdued">
-                            Nothing yet
-                          </Text>
-                        )}
-                      </IndexTable.Cell>
-                    ) : null}
-                    <IndexTable.Cell>{sendStatusBadge(item.send)}</IndexTable.Cell>
-                    <IndexTable.Cell>
-                      <div onClick={(e) => e.stopPropagation()}>{actions(item)}</div>
-                    </IndexTable.Cell>
-                  </IndexTable.Row>
-                );
-              })}
-            </IndexTable>
-          )}
-        </Card>
-        <Text as="p" variant="bodySm" tone="subdued">
-          Approving a future-dated send queues it; the send worker fires it on the day (phase 3).
-          Approving an overdue send releases it in the next run.
-        </Text>
-      </BlockStack>
+  const lastReceivedLabel = (item: PendingSendItem): string =>
+    `${TEMPLATE_LABELS[item.lastSent!.templateRef]}${
+      item.lastSent!.type === 'delay' ? ' (delay)' : ''
+    } · ${formatDayShort(item.lastSent!.sentAt.slice(0, 10))}`;
 
-      <Modal
+  return (
+    /* The columns control sits in the PAGE head, not the card's: the kit's own
+       note is that a picker governs a screen rather than a table, and where a
+       screen has one table the two placements are the same place. */
+    <Page title="Approval queue" actions={columns.menu}>
+      <Tabs
+        tabs={[
+          { key: 'pending', label: queue.data ? `Pending (${pending.length})` : 'Pending' },
+          { key: 'held', label: queue.data ? `Held (${held.length})` : 'Held' },
+        ]}
+        value={tab}
+        onPick={setTab}
+        label="Queue"
+      />
+      <Card>
+        {queue.data === null ? (
+          <Skeleton rows={6} />
+        ) : shown.length === 0 ? (
+          <Empty>
+            {tab === 'pending'
+              ? 'Nothing waiting for approval. New and rescheduled comms plans land here before anything can send.'
+              : 'Nothing on hold. Sends an admin has parked appear here until released back to pending.'}
+          </Empty>
+        ) : (
+          <>
+            <div className="rd-scroll">
+              <table className="rd-t rd-t27 rd-fit rd-tpad">
+                <thead>
+                  <tr>{columns.head}</tr>
+                </thead>
+                <tbody>
+                  {shown.map((item) => {
+                    const overdue =
+                      item.send.status === 'pending_approval' && item.send.scheduledDate < today();
+                    return (
+                      <tr
+                        key={item.send.id}
+                        className="rd-rowlink"
+                        onClick={() => setPreview(item)}
+                      >
+                        <td className={overdue ? 'rd-ink' : undefined}>
+                          {formatDayShort(item.send.scheduledDate)}
+                        </td>
+                        {columns.show('email') ? (
+                          <td className="rd-ink">
+                            {TEMPLATE_LABELS[item.send.templateRef]}
+                            {item.send.type === 'delay' ? ' (delay)' : ''}
+                          </td>
+                        ) : null}
+                        {columns.show('subject') ? (
+                          <td>
+                            <Cap>{item.send.subject}</Cap>
+                          </td>
+                        ) : null}
+                        {columns.show('release') ? <td>{item.release.title}</td> : null}
+                        {columns.show('batch') ? (
+                          <td>{item.releaseBatchCount > 1 ? item.batch.name : <None />}</td>
+                        ) : null}
+                        {columns.show('recipients') ? (
+                          <td className="n">{item.recipientCount}</td>
+                        ) : null}
+                        {columns.show('lastReceived') ? (
+                          <td>
+                            {item.lastSent ? (
+                              lastReceivedLabel(item)
+                            ) : (
+                              <span className="rd-none">Nothing yet</span>
+                            )}
+                          </td>
+                        ) : null}
+                        <td>{sendStatusBadge(item.send)}</td>
+                        <td>{rowActions(item)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <Foot>
+              {plural(shown.length, 'send')} · approving a future-dated send queues it for the day;
+              approving an overdue one releases it in the next run
+            </Foot>
+          </>
+        )}
+      </Card>
+
+      <Dialog
         open={preview !== null}
+        size="lg"
         onClose={() => setPreview(null)}
         title={
           preview
@@ -248,89 +213,81 @@ export function ApprovalQueue(): ReactElement {
               : preview.release.title
             : ''
         }
-        primaryAction={
-          preview?.send.status === 'pending_approval'
-            ? {
-                content: `Approve — ${plural(preview.recipientCount, 'collector')}`,
-                onAction: () => void act(preview, 'approve'),
-                disabled: !isAdmin,
-                loading: actingOn === preview.send.id,
-              }
-            : preview
+        primary={
+          preview
+            ? preview.send.status === 'pending_approval'
               ? {
-                  content: 'Release hold',
-                  onAction: () => void act(preview, 'unhold'),
-                  disabled: !isAdmin,
-                  loading: actingOn === preview.send.id,
+                  label: `Approve — ${plural(preview.recipientCount, 'collector')}`,
+                  onClick: () => void act(preview, 'approve'),
+                  disabled: !isAdmin || actingOn === preview.send.id,
                 }
-              : undefined
+              : {
+                  label: 'Release hold',
+                  onClick: () => void act(preview, 'unhold'),
+                  disabled: !isAdmin || actingOn === preview.send.id,
+                }
+            : undefined
         }
-        secondaryActions={
+        secondary={
           preview
             ? [
                 ...(preview.send.status === 'pending_approval'
-                  ? [
-                      {
-                        content: 'Hold',
-                        onAction: () => void act(preview, 'hold'),
-                        disabled: !isAdmin,
-                      },
-                    ]
+                  ? [{ label: 'Hold', onClick: () => void act(preview, 'hold') }]
                   : []),
                 {
-                  content: 'Open send detail',
-                  onAction: () => {
+                  label: 'Open send detail',
+                  onClick: () => {
                     navigate(`/sends/${preview.send.id}`);
                     setPreview(null);
                   },
                 },
               ]
-            : []
+            : undefined
         }
       >
         {preview ? (
-          <Modal.Section>
-            <BlockStack gap="300">
-              <InlineStack gap="200" blockAlign="center" wrap>
-                {sendStatusBadge(preview.send)}
-                <Text as="span" variant="bodySm" tone="subdued">
-                  Scheduled {formatDayShort(preview.send.scheduledDate)} ·{' '}
-                  {plural(preview.recipientCount, 'recipient')} · template{' '}
-                  {preview.send.templateRef}
-                </Text>
-              </InlineStack>
-              {preview.lastSent ? (
-                <InlineStack gap="100" blockAlign="center" wrap>
-                  <Text as="span" variant="bodySm" tone="subdued">
-                    These collectors last received:
-                  </Text>
-                  <Button
-                    variant="plain"
-                    size="micro"
-                    onClick={() => {
-                      navigate(`/sends/${preview.lastSent!.sendId}`);
-                      setPreview(null);
-                    }}
-                  >
-                    {`${TEMPLATE_LABELS[preview.lastSent.templateRef]}${preview.lastSent.type === 'delay' ? ' (delay)' : ''} — ${formatDayShort(preview.lastSent.sentAt.slice(0, 10))}`}
-                  </Button>
-                </InlineStack>
-              ) : (
-                <Text as="span" variant="bodySm" tone="subdued">
-                  This is the first email these collectors will receive for this release.
-                </Text>
-              )}
-              <EmailPreview
-                subject={preview.send.subject}
-                headline={preview.send.headline}
-                body={preview.send.body}
-                nextSteps={preview.send.nextSteps}
-                imageName={preview.send.imageName}
-              />
-            </BlockStack>
-          </Modal.Section>
+          <>
+            <div className="rd-facts">
+              <div className="rd-fact">
+                <span>Status</span>
+                <b>{sendStatusBadge(preview.send)}</b>
+              </div>
+              <div className="rd-fact">
+                <span>Scheduled</span>
+                <b>{formatDayShort(preview.send.scheduledDate)}</b>
+              </div>
+              <div className="rd-fact">
+                <span>Recipients</span>
+                <b>{preview.recipientCount}</b>
+              </div>
+              <div className="rd-fact">
+                <span>They last received</span>
+                <b>
+                  {preview.lastSent ? (
+                    <CellLink
+                      onClick={() => {
+                        navigate(`/sends/${preview.lastSent!.sendId}`);
+                        setPreview(null);
+                      }}
+                    >
+                      {lastReceivedLabel(preview)}
+                    </CellLink>
+                  ) : (
+                    'Nothing yet'
+                  )}
+                </b>
+              </div>
+            </div>
+            <EmailPreview
+              subject={preview.send.subject}
+              headline={preview.send.headline}
+              body={preview.send.body}
+              nextSteps={preview.send.nextSteps}
+              imageName={preview.send.imageName}
+            />
+          </>
         ) : null}
-      </Modal>
+      </Dialog>
     </Page>
   );
 }

@@ -1,22 +1,6 @@
-import {
-  Badge,
-  Banner,
-  BlockStack,
-  Button,
-  Card,
-  IndexTable,
-  InlineStack,
-  Modal,
-  Page,
-  SkeletonBodyText,
-  SkeletonPage,
-  Tabs,
-  Text,
-  useIndexResourceState,
-} from '@shopify/polaris';
 import { useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import type {
   Batch,
   Order,
@@ -26,9 +10,30 @@ import type {
 } from '../types';
 import { formatDay, formatDayShort, today } from '../logic/dates';
 import { inheritedSentStory } from '../logic/reschedule';
-import { plural, releaseStatusBadge } from '../ui/format';
-import { useApp } from '../ui/AppContext';
+import { plural, productKindTag, releaseStatusBadge } from '../ui/format';
+import { useApp, useCrumb } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
+import {
+  Bar,
+  Btn,
+  Cap,
+  Card,
+  CardHead,
+  Dialog,
+  Empty,
+  Foot,
+  None,
+  Page,
+  Pill,
+  RowAct,
+  Skeleton,
+  Stack,
+} from '../ui/rd';
+import Tabs from '../rd/components/Tabs';
+import BulkBar from '../rd/components/BulkBar';
+import RowTick from '../rd/components/RowTick';
+import usePicked from '../rd/components/usePicked';
+import { useGridPin } from '../rd/components/useGridPin';
 import { PlanTable } from '../components/PlanTable';
 import { BatchHistoryTimeline } from '../components/BatchHistoryTimeline';
 import { RescheduleModal } from '../components/RescheduleModal';
@@ -44,24 +49,27 @@ import { useColumns } from '../ui/useColumns';
 export function ReleaseDetail(): ReactElement {
   const { releaseId } = useParams<{ releaseId: string }>();
   const { data } = useApp();
-  const navigate = useNavigate();
   const detail = useAsync(() => data.getRelease(releaseId!), [releaseId]);
   const [selectedTab, setSelectedTab] = useState(0);
   const [importOpen, setImportOpen] = useState(false);
   const [allocationOpen, setAllocationOpen] = useState(false);
+  // The shell's path ends at the record this screen is showing.
+  useCrumb(detail.data?.release.title);
 
   if (detail.error) {
     return (
-      <Page title="Release not found" backAction={{ content: 'Releases', onAction: () => navigate('/') }}>
-        <Banner tone="critical" title={detail.error.message} />
+      <Page title="Release not found">
+        <Bar tone="fail">{detail.error.message}</Bar>
       </Page>
     );
   }
   if (detail.data === null) {
     return (
-      <SkeletonPage fullWidth title="Release">
-        <SkeletonBodyText lines={10} />
-      </SkeletonPage>
+      <Page title="Release">
+        <Card>
+          <Skeleton rows={10} />
+        </Card>
+      </Page>
     );
   }
 
@@ -75,10 +83,10 @@ export function ReleaseDetail(): ReactElement {
     batches.length > 1
       ? batches.map((b) => {
           const active = d.orders.filter((o) => o.batchId === b.id && !o.removed).length;
-          return { id: b.id, content: `${b.name} (${active})` };
+          return { key: b.id, label: `${b.name} (${active})` };
         })
-      : [{ id: 'overview', content: 'Overview' }];
-  const tabs = [...batchTabs, { id: 'emails', content: 'Emails' }];
+      : [{ key: 'overview', label: 'Overview' }];
+  const tabs = [...batchTabs, { key: 'emails', label: 'Emails' }];
   const emailsIndex = tabs.length - 1;
   const tabIndex = Math.min(selectedTab, emailsIndex);
   const showingEmails = tabIndex === emailsIndex;
@@ -89,72 +97,86 @@ export function ReleaseDetail(): ReactElement {
 
   return (
     <Page
-      fullWidth
       title={d.release.title}
-      subtitle={`${d.release.artist}${d.release.editionSize ? ` · edition of ${d.release.editionSize}` : ''} · ${d.release.productKind}`}
-      titleMetadata={releaseStatusBadge(d.release.status)}
-      backAction={{ content: 'Releases', onAction: () => navigate('/') }}
-      secondaryActions={[
-        { content: 'Import orders', onAction: () => setImportOpen(true) },
-        { content: 'Import warehouse allocation', onAction: () => setAllocationOpen(true) },
-      ]}
+      tag={releaseStatusBadge(d.release.status)}
+      facts={
+        <>
+          <span>
+            {d.release.artist}
+            {d.release.editionSize ? ` · edition of ${d.release.editionSize}` : ''}
+          </span>
+          {productKindTag(d.release.productKind)}
+        </>
+      }
+      actions={
+        <>
+          <Btn onClick={() => setImportOpen(true)}>Import orders</Btn>
+          <Btn onClick={() => setAllocationOpen(true)}>Import warehouse allocation</Btn>
+        </>
+      }
     >
-      <BlockStack gap="400">
+      <Stack>
         {flaggedNoEmail.length > 0 || flaggedNoContact.length > 0 ? (
-          <Banner tone="warning" title="Some orders can't receive email yet">
-            <p>
-              {flaggedNoEmail.length > 0
-                ? `${plural(flaggedNoEmail.length, 'order')} with no email address (${flaggedNoEmail
-                    .map((o) => o.shopifyOrderName)
-                    .join(', ')}). `
-                : ''}
-              {flaggedNoContact.length > 0
-                ? `${plural(flaggedNoContact.length, 'order')} with no matching HubSpot contact (${flaggedNoContact
-                    .map((o) => o.shopifyOrderName)
-                    .join(', ')}).`
-                : ''}{' '}
-              They stay in their batches and are flagged on every send until resolved in HubSpot,
-              then re-imported.
-            </p>
-          </Banner>
+          <Bar tone="warn">
+            <b>Some orders can't receive email yet.</b>{' '}
+            {flaggedNoEmail.length > 0
+              ? `${plural(flaggedNoEmail.length, 'order')} with no email address (${flaggedNoEmail
+                  .map((o) => o.shopifyOrderName)
+                  .join(', ')}). `
+              : ''}
+            {flaggedNoContact.length > 0
+              ? `${plural(flaggedNoContact.length, 'order')} with no matching HubSpot contact (${flaggedNoContact
+                  .map((o) => o.shopifyOrderName)
+                  .join(', ')}).`
+              : ''}{' '}
+            They stay in their batches and are flagged on every send until resolved in HubSpot, then
+            re-imported.
+          </Bar>
         ) : null}
 
-        <Tabs tabs={tabs} selected={tabIndex} onSelect={setSelectedTab} />
-        {showingEmails ? (
-          <ReleaseEmailsPanel release={d.release} onChanged={() => detail.reload()} />
-        ) : d.orders.length === 0 ? (
-          <Card>
-            <BlockStack gap="300">
-              <Text as="h2" variant="headingSm">
-                No orders yet
-              </Text>
-              <Text as="p" tone="subdued">
-                Review the Emails tab (pick each send's image), then import the Shopify order
-                export to create this release's orders
-                {d.release.productKind === 'print' ? ' — framed and unframed prints land in their own batches with separate timelines' : ''}.
-              </Text>
-              <InlineStack gap="200">
-                <Button variant="primary" onClick={() => setImportOpen(true)}>
-                  Import orders
-                </Button>
-              </InlineStack>
-            </BlockStack>
-          </Card>
-        ) : batch ? (
-          <BatchSection
-            key={batch.id}
-            detail={d}
-            batch={batch}
-            singleBatch={singleBatch}
-            onChanged={() => detail.reload()}
-            onBatchCreated={() => {
-              detail.reload();
-              // The new batch lands at the end (sorted by creation).
-              setSelectedTab(batches.length);
-            }}
+        <Tabs
+          tabs={tabs}
+          value={tabs[tabIndex].key}
+          onPick={(key) => setSelectedTab(tabs.findIndex((t) => t.key === key))}
+          label="Release"
+        />
+      </Stack>
+
+      {showingEmails ? (
+        <ReleaseEmailsPanel release={d.release} onChanged={() => detail.reload()} />
+      ) : d.orders.length === 0 ? (
+        <Card>
+          <CardHead
+            title="No orders yet"
+            actions={
+              <Btn kind="pri" onClick={() => setImportOpen(true)}>
+                Import orders
+              </Btn>
+            }
           />
-        ) : null}
-      </BlockStack>
+          <Empty>
+            Review the Emails tab (pick each send's image), then import the Shopify order export to
+            create this release's orders
+            {d.release.productKind === 'print'
+              ? ' — framed and unframed prints land in their own batches with separate timelines'
+              : ''}
+            .
+          </Empty>
+        </Card>
+      ) : batch ? (
+        <BatchSection
+          key={batch.id}
+          detail={d}
+          batch={batch}
+          singleBatch={singleBatch}
+          onChanged={() => detail.reload()}
+          onBatchCreated={() => {
+            detail.reload();
+            // The new batch lands at the end (sorted by creation).
+            setSelectedTab(batches.length);
+          }}
+        />
+      ) : null}
       <ImportCsvModal
         open={importOpen}
         release={d.release}
@@ -228,8 +250,10 @@ function BatchSection({
   // "This batch" in copy; the batch name only exists once there are several.
   const batchLabel = singleBatch ? null : batch.name;
 
-  const { selectedResources, allResourcesSelected, handleSelectionChange, clearSelection } =
-    useIndexResourceState(activeOrders as unknown as { [key: string]: unknown }[]);
+  const picked = usePicked();
+  // Ruling 9's bar replaces the header row; the grid is held still for as long
+  // as a selection lasts so ticking a box moves nothing.
+  const pin = useGridPin(picked.size > 0);
 
   const orderColumns = useColumns('orders', [
     { id: 'order', title: 'Order', locked: true },
@@ -252,9 +276,7 @@ function BatchSection({
   const [cancellingSend, setCancellingSend] = useState<ScheduledSend | null>(null);
 
   const selectedOrders =
-    selectedResources.length > 0
-      ? activeOrders.filter((o) => selectedResources.includes(o.id))
-      : activeOrders;
+    picked.size > 0 ? activeOrders.filter((o) => picked.has(o.id)) : activeOrders;
 
   const submitPlan = async () => {
     try {
@@ -279,193 +301,200 @@ function BatchSection({
   };
 
   return (
-    <BlockStack gap="400">
-          <Card>
-            <BlockStack gap="300">
-              <InlineStack align="space-between" blockAlign="center" wrap>
-                <BlockStack gap="050">
-                  <Text as="h2" variant="headingSm">
-                    Promised dispatch
-                  </Text>
-                  <Text as="p" variant="headingLg">
-                    {batch.promiseDate ? `From ${formatDay(batch.promiseDate)}` : 'Not set'}
-                  </Text>
-                </BlockStack>
-                <InlineStack gap="200" wrap>
-                  {batch.promiseDate ? (
-                    <Button
-                      variant="primary"
-                      onClick={() => setRescheduleOpen(true)}
-                      disabled={activeOrders.length === 0}
-                    >
-                      {selectedResources.length > 0 && selectedResources.length < activeOrders.length
-                        ? `Change delivery date (${selectedResources.length})`
-                        : 'Change delivery date'}
-                    </Button>
-                  ) : (
-                    <Button variant="primary" onClick={() => setPromiseOpen(true)}>
-                      Set promise date
-                    </Button>
-                  )}
-                  {draftCount > 0 ? (
-                    <Button onClick={() => void submitPlan()}>
-                      {`Submit plan for approval (${draftCount})`}
-                    </Button>
-                  ) : null}
-                  <Button onClick={() => setAddSendOpen(true)} disabled={!batch.promiseDate}>
-                    Add send
-                  </Button>
-                </InlineStack>
-              </InlineStack>
-            </BlockStack>
-          </Card>
-
-          <PlanTable
-            sends={batchSends}
-            inheritedSends={singleBatch ? [] : inheritedSends}
-            batchActiveOrderCount={activeOrders.length}
-            onEdit={(send) => setEditingSend(send)}
-            onCancel={(send) => setCancellingSend(send)}
-          />
-
-          <Card padding="0">
-            <div style={{ padding: 'var(--p-space-400) var(--p-space-400) var(--p-space-200)' }}>
-              <InlineStack align="space-between" blockAlign="center" wrap gap="200">
-                <Text as="h2" variant="headingSm">
-                  Orders
-                </Text>
-                <InlineStack gap="300" blockAlign="center" wrap>
-                  {hasAllocations ? (
-                    <Text as="span" variant="bodySm" tone="subdued">
-                      Warehouse allocation: {allocatedCount} of {activeOrders.length}
-                      {allocatedCount < activeOrders.length ? ' — re-import the sheet for the rest' : ''}
-                    </Text>
-                  ) : null}
-                  {orderColumns.columnsButton}
-                </InlineStack>
-              </InlineStack>
-            </div>
-            <IndexTable
-              resourceName={{ singular: 'order', plural: 'orders' }}
-              itemCount={activeOrders.length}
-              selectedItemsCount={allResourcesSelected ? 'All' : selectedResources.length}
-              onSelectionChange={handleSelectionChange}
-              headings={orderColumns.headings as [{ title: string }]}
-              promotedBulkActions={
-                batch.promiseDate
-                  ? [
-                      {
-                        content: 'Change delivery date',
-                        onAction: () => setRescheduleOpen(true),
-                      },
-                    ]
-                  : []
-              }
-            >
-              {activeOrders.map((order, index) => {
-                const edition = editionSummary(order.allocations);
-                return (
-                  <IndexTable.Row
-                    id={order.id}
-                    key={order.id}
-                    position={index}
-                    selected={selectedResources.includes(order.id)}
-                  >
-                    <IndexTable.Cell>
-                      <Text as="span" fontWeight="semibold">
-                        {order.shopifyOrderName}
-                      </Text>
-                    </IndexTable.Cell>
-                    {orderColumns.show('collector') ? (
-                      <IndexTable.Cell>{order.collectorName}</IndexTable.Cell>
-                    ) : null}
-                    {orderColumns.show('contact') ? (
-                      <IndexTable.Cell>
-                        <InlineStack gap="100" blockAlign="center" wrap={false}>
-                          <Text as="span" variant="bodySm">
-                            {order.email ?? '—'}
-                          </Text>
-                          {!order.email ? <Badge tone="critical">No email</Badge> : null}
-                          {order.email && !order.hubspotContactId ? (
-                            <Badge tone="warning">No HubSpot contact</Badge>
-                          ) : null}
-                        </InlineStack>
-                      </IndexTable.Cell>
-                    ) : null}
-                    {orderColumns.show('item') ? (
-                      <IndexTable.Cell>{order.variant || '—'}</IndexTable.Cell>
-                    ) : null}
-                    {orderColumns.show('frame') ? (
-                      <IndexTable.Cell>
-                        {allocationField(order.allocations, (a) => a.frameFinish) ?? '—'}
-                      </IndexTable.Cell>
-                    ) : null}
-                    {orderColumns.show('glass') ? (
-                      <IndexTable.Cell>
-                        {allocationField(order.allocations, (a) => a.glass) ?? '—'}
-                      </IndexTable.Cell>
-                    ) : null}
-                    {orderColumns.show('mount') ? (
-                      <IndexTable.Cell>
-                        {allocationField(order.allocations, (a) => a.mountingType) ?? '—'}
-                      </IndexTable.Cell>
-                    ) : null}
-                    {orderColumns.show('edition') ? (
-                      <IndexTable.Cell>
-                        {edition ? (
-                          <Text as="span">{edition}</Text>
-                        ) : (
-                          <Text as="span" variant="bodySm" tone="subdued">
-                            {hasAllocations ? 'Not allocated' : '—'}
-                          </Text>
-                        )}
-                      </IndexTable.Cell>
-                    ) : null}
-                    {orderColumns.show('ordered') ? (
-                      <IndexTable.Cell>{formatDayShort(order.orderDate)}</IndexTable.Cell>
-                    ) : null}
-                    <IndexTable.Cell>
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          size="micro"
-                          tone="critical"
-                          variant="plain"
-                          onClick={() => setRemovingOrder(order)}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    </IndexTable.Cell>
-                  </IndexTable.Row>
-                );
-              })}
-            </IndexTable>
-            {removedOrders.length > 0 ? (
-              <div style={{ padding: 'var(--p-space-300) var(--p-space-400)' }}>
-                <BlockStack gap="100">
-                  {removedOrders.map((order) => (
-                    <InlineStack key={order.id} gap="200" blockAlign="center" wrap>
-                      <Badge>Removed</Badge>
-                      <Text as="span" variant="bodySm" tone="subdued">
-                        {order.shopifyOrderName} · {order.collectorName} —{' '}
-                        {order.removedReason ?? 'removed'}
-                        {order.removedBy ? ` (by ${userName(order.removedBy)})` : ''}
-                      </Text>
-                    </InlineStack>
-                  ))}
-                </BlockStack>
+    <>
+      <Stack>
+        {/* The card head's own row (`CardHead`'s markup), leading with the date
+            as a figure rather than with a section name: the label under it is
+            what the head would otherwise have said twice. */}
+        <Card>
+          <div className="rd-cardhead">
+            <div>
+              <div className="rd-lede">
+                {batch.promiseDate ? `From ${formatDay(batch.promiseDate)}` : 'Not set'}
               </div>
-            ) : null}
-          </Card>
+              <div className="rd-ledelab">Promised dispatch</div>
+            </div>
+            <div className="rd-cardacts">
+              {batch.promiseDate ? (
+                <Btn
+                  kind="pri"
+                  onClick={() => setRescheduleOpen(true)}
+                  disabled={activeOrders.length === 0}
+                >
+                  {picked.size > 0 && picked.size < activeOrders.length
+                    ? `Change delivery date (${picked.size})`
+                    : 'Change delivery date'}
+                </Btn>
+              ) : (
+                <Btn kind="pri" onClick={() => setPromiseOpen(true)}>
+                  Set promise date
+                </Btn>
+              )}
+              {draftCount > 0 ? (
+                <Btn onClick={() => void submitPlan()}>
+                  {`Submit plan for approval (${draftCount})`}
+                </Btn>
+              ) : null}
+              <Btn onClick={() => setAddSendOpen(true)} disabled={!batch.promiseDate}>
+                Add send
+              </Btn>
+            </div>
+          </div>
+        </Card>
 
-          <Card>
-            <BlockStack gap="300">
-              <Text as="h2" variant="headingSm">
-                {singleBatch ? 'History' : 'Batch history'}
-              </Text>
-              <BatchHistoryTimeline events={batchEvents} />
-            </BlockStack>
-          </Card>
+        <PlanTable
+          sends={batchSends}
+          inheritedSends={singleBatch ? [] : inheritedSends}
+          batchActiveOrderCount={activeOrders.length}
+          onEdit={(send) => setEditingSend(send)}
+          onCancel={(send) => setCancellingSend(send)}
+        />
+
+        <Card>
+          <CardHead
+            title={
+              <>
+                Orders
+                {hasAllocations ? (
+                  <span className="rd-sub">
+                    Warehouse allocation: {allocatedCount} of {activeOrders.length}
+                    {allocatedCount < activeOrders.length
+                      ? ' — re-import the sheet for the rest'
+                      : ''}
+                  </span>
+                ) : null}
+              </>
+            }
+            actions={orderColumns.menu}
+          />
+          <div className="rd-scroll">
+            <table
+              className="rd-t rd-t27 rd-fit rd-tpad rd-tsel"
+              ref={pin.ref}
+              style={pin.style}
+            >
+              {pin.cols}
+              <thead>
+                {picked.size > 0 ? (
+                  <BulkBar
+                    count={picked.size}
+                    columns={orderColumns.count + 1}
+                    actions={
+                      batch.promiseDate
+                        ? [
+                            {
+                              label: 'Change delivery date',
+                              onClick: () => setRescheduleOpen(true),
+                            },
+                          ]
+                        : []
+                    }
+                  />
+                ) : (
+                  <tr>
+                    <th aria-hidden />
+                    {orderColumns.head}
+                  </tr>
+                )}
+              </thead>
+              <tbody>
+                {activeOrders.length === 0 ? (
+                  <tr>
+                    <td className="rd-prose" colSpan={orderColumns.count + 1}>
+                      No orders yet
+                    </td>
+                  </tr>
+                ) : (
+                  activeOrders.map((order) => {
+                    const edition = editionSummary(order.allocations);
+                    const frame = allocationField(order.allocations, (a) => a.frameFinish);
+                    const glass = allocationField(order.allocations, (a) => a.glass);
+                    const mount = allocationField(order.allocations, (a) => a.mountingType);
+                    return (
+                      <tr key={order.id}>
+                        <td>
+                          <RowTick
+                            id={order.id}
+                            on={picked.has(order.id)}
+                            label={order.shopifyOrderName}
+                            onPress={picked.press}
+                          />
+                        </td>
+                        <td className="rd-ink">{order.shopifyOrderName}</td>
+                        {orderColumns.show('collector') ? (
+                          <td>
+                            <Cap>{order.collectorName}</Cap>
+                          </td>
+                        ) : null}
+                        {orderColumns.show('contact') ? (
+                          <td>
+                            {order.email ? <Cap>{order.email}</Cap> : <None />}
+                            {!order.email ? <Pill tone="red">No email</Pill> : null}
+                            {order.email && !order.hubspotContactId ? (
+                              <Pill tone="amber">No HubSpot contact</Pill>
+                            ) : null}
+                          </td>
+                        ) : null}
+                        {orderColumns.show('item') ? (
+                          <td>
+                            {order.variant ? (
+                              <Cap>{order.variant}</Cap>
+                            ) : (
+                              <None />
+                            )}
+                          </td>
+                        ) : null}
+                        {orderColumns.show('frame') ? <td>{frame ?? <None />}</td> : null}
+                        {orderColumns.show('glass') ? <td>{glass ?? <None />}</td> : null}
+                        {orderColumns.show('mount') ? <td>{mount ?? <None />}</td> : null}
+                        {orderColumns.show('edition') ? (
+                          <td>
+                            {edition ??
+                              (hasAllocations ? (
+                                <span className="rd-mut">Not allocated</span>
+                              ) : (
+                                <None />
+                              ))}
+                          </td>
+                        ) : null}
+                        {orderColumns.show('ordered') ? (
+                          <td>{formatDayShort(order.orderDate)}</td>
+                        ) : null}
+                        <td>
+                          <div className="rd-rowacts">
+                            <RowAct danger onClick={() => setRemovingOrder(order)}>
+                              Remove
+                            </RowAct>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+          {removedOrders.length > 0 ? (
+            <Foot>
+              {removedOrders.map((order) => (
+                <div key={order.id}>
+                  <Pill tone="grey" small>
+                    Removed
+                  </Pill>{' '}
+                  {order.shopifyOrderName} · {order.collectorName} —{' '}
+                  {order.removedReason ?? 'removed'}
+                  {order.removedBy ? ` (by ${userName(order.removedBy)})` : ''}
+                </div>
+              ))}
+            </Foot>
+          ) : null}
+        </Card>
+
+        <Card>
+          <CardHead title={singleBatch ? 'History' : 'Batch history'} />
+          <BatchHistoryTimeline events={batchEvents} />
+        </Card>
+      </Stack>
 
       <RescheduleModal
         open={rescheduleOpen}
@@ -479,7 +508,7 @@ function BatchSection({
         inheritedSentSends={inheritedSends}
         onDone={(message) => {
           setRescheduleOpen(false);
-          clearSelection();
+          picked.clear();
           showToast(message);
           if (selectedOrders.length < activeOrders.length) onBatchCreated();
           else onChanged();
@@ -500,39 +529,33 @@ function BatchSection({
         onClose={() => setAddSendOpen(false)}
         onSaved={onChanged}
       />
-      <EditSendModal
-        send={editingSend}
-        onClose={() => setEditingSend(null)}
-        onSaved={onChanged}
-      />
+      <EditSendModal send={editingSend} onClose={() => setEditingSend(null)} onSaved={onChanged} />
       <RemoveOrderModal
         order={removingOrder}
         onClose={() => setRemovingOrder(null)}
         onSaved={() => {
           // A removed order must not linger in the reschedule selection.
-          clearSelection();
+          picked.clear();
           onChanged();
         }}
       />
-      <Modal
+      <Dialog
         open={cancellingSend !== null}
-        onClose={() => setCancellingSend(null)}
         title={cancellingSend ? `Cancel “${cancellingSend.subject}”?` : ''}
-        primaryAction={{
-          content: 'Cancel send',
+        onClose={() => setCancellingSend(null)}
+        primary={{
+          label: 'Cancel send',
           destructive: true,
-          onAction: () => void confirmCancelSend(),
+          onClick: () => void confirmCancelSend(),
         }}
-        secondaryActions={[{ content: 'Keep it', onAction: () => setCancellingSend(null) }]}
+        secondary={{ label: 'Keep it', onClick: () => setCancellingSend(null) }}
       >
-        <Modal.Section>
-          <Text as="p">
-            The email will not go out and drops off the plan. This is recorded in the batch
-            history. Scheduled for {cancellingSend ? formatDayShort(cancellingSend.scheduledDate) : ''}
-            {cancellingSend && cancellingSend.scheduledDate < today() ? ' (overdue)' : ''}.
-          </Text>
-        </Modal.Section>
-      </Modal>
-    </BlockStack>
+        <p>
+          The email will not go out and drops off the plan. This is recorded in the batch history.
+          Scheduled for {cancellingSend ? formatDayShort(cancellingSend.scheduledDate) : ''}
+          {cancellingSend && cancellingSend.scheduledDate < today() ? ' (overdue)' : ''}.
+        </p>
+      </Dialog>
+    </>
   );
 }

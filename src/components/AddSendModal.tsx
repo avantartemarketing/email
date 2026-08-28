@@ -1,10 +1,12 @@
-import { BlockStack, Modal, Select, TextField } from '@shopify/polaris';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { ReactElement } from 'react';
 import type { Batch, TemplateRef } from '../types';
 import { addDays, today } from '../logic/dates';
 import { TEMPLATE_LABELS } from '../ui/format';
 import { useApp } from '../ui/AppContext';
+import { Dialog } from '../ui/rd';
+import Field from '../rd/components/Field';
+import { SelectField } from '../rd/components/Picker';
 
 const TEMPLATE_OPTIONS = (Object.keys(TEMPLATE_LABELS) as TemplateRef[]).map((ref) => ({
   label: `${TEMPLATE_LABELS[ref]} (${ref})`,
@@ -29,6 +31,7 @@ export function AddSendModal({
   const [templateRef, setTemplateRef] = useState<TemplateRef>('pp-ontrack');
   const [scheduledDate, setScheduledDate] = useState(addDays(today(), 7));
   const [saving, setSaving] = useState(false);
+  const dateId = useId();
 
   const save = async () => {
     setSaving(true);
@@ -45,37 +48,35 @@ export function AddSendModal({
   };
 
   return (
-    <Modal
+    <Dialog
       open={open}
+      size="sm"
       onClose={onClose}
       title={batchLabel ? `Add send — ${batchLabel}` : 'Add send'}
-      primaryAction={{
-        content: 'Add draft send',
-        onAction: () => void save(),
-        loading: saving,
-        disabled: !scheduledDate,
+      primary={{
+        label: 'Add draft send',
+        onClick: () => void save(),
+        disabled: saving || !scheduledDate,
       }}
-      secondaryActions={[{ content: 'Cancel', onAction: onClose }]}
+      secondary={{ label: 'Cancel', onClick: onClose }}
     >
-      <Modal.Section>
-        <BlockStack gap="400">
-          <Select
-            label="Template"
-            options={TEMPLATE_OPTIONS}
-            value={templateRef}
-            onChange={(value) => setTemplateRef(value as TemplateRef)}
-            helpText="Copy is pre-filled from the HubSpot master and editable before approval."
-          />
-          <TextField
-            label="Scheduled date"
+      <div className="rd-fields">
+        <SelectField
+          label="Template"
+          value={templateRef}
+          options={TEMPLATE_OPTIONS}
+          onChange={(value) => setTemplateRef(value as TemplateRef)}
+        />
+        <Field label="Scheduled date" value={scheduledDate} controlId={dateId}>
+          <input
+            id={dateId}
             type="date"
-            value={scheduledDate}
-            onChange={setScheduledDate}
             min={today()}
-            autoComplete="off"
+            value={scheduledDate}
+            onChange={(e) => setScheduledDate(e.target.value)}
           />
-        </BlockStack>
-      </Modal.Section>
-    </Modal>
+        </Field>
+      </div>
+    </Dialog>
   );
 }

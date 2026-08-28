@@ -1,0 +1,769 @@
+/**
+ * The redesign's tokens, as ruled in `docs/TOKEN-RULINGS.md`.
+ *
+ * Those rulings supersede both the HANDOFF.md token list and the inline values
+ * in the concept file: implement from here, and where a drawn
+ * screen disagrees with a token, the token wins. `scripts/redesign-tokens.mjs`
+ * checks the concept file against this set and names anything left over.
+ *
+ * Every name carries an `rd-` prefix. The rulings name the ink ramp `--ink`,
+ * `--ink-muted` and `--ink-faint`, and all three already exist in
+ * an older stylesheet with different values — since that file loads second it
+ * would win, and a ported screen would silently render in Workbench's ink.
+ * The prefix is the only reason the names differ; the roles are the rulings'.
+ *
+ * Loaded before `styles.css`, so Workbench still governs every screen not yet
+ * ported. Nothing here changes a screen on its own.
+ */
+
+/* Inter, self-hosted (ruling 10).
+   `public/fonts/InterVariable.woff2` is the latin optical-size cut from
+   `@fontsource-variable/inter`, copied in rather than imported: the package
+   ships forty files split by unicode range, and this admin needs one. The
+   variable file covers 400, 500 and 600 from a single face, so there are no
+   synthetic weights and no 600-mapped-onto-Bd fudge — which is what the
+   retired Neue Haas declaration had to do, because that family has no 600 cut
+   and the concept was drawn in a browser falling back to Inter anyway.
+
+   `unicode-range` is left at its default: the admin shows Japanese, Korean and
+   CJK place names as latin transliterations, and long-form copy in those
+   scripts falls through to the system stack whatever is declared here. */
+/* Two settings the ruling makes mandatory rather than optional, at the root so
+   nothing has to remember them.
+
+   `tabular-nums` is the one that matters: Inter's proportional figures are its
+   default, and they break every column that stacks. It is already stated per
+   column in several places; this is the floor under those.
+
+   `font-optical-sizing: auto` engages the variable file's optical-size axis,
+   which thickens strokes at small sizes — most of what the move to Inter was
+   for. The `cv05`/`ss03` stylistic sets are deliberately NOT set: the ruling
+   calls them a judgement call rather than a ruling and asks to see the result
+   without them first. */
+:root {
+  font-optical-sizing: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+@font-face {
+  font-family: 'Inter Variable';
+  src: url('/fonts/InterVariable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Type ------------------------------------------------------------------
+     One family, two roles (ruling 10). They resolve to the same stack and stay
+     separate variables on purpose: the roles differ in size and weight —
+     display is 21-22px at 400/500, text is 9-15px — and keeping them apart
+     leaves room to reintroduce a display face without touching call sites.
+
+     The fallbacks are the system faces, in the order the ruling gives them.
+     Helvetica and Arial are deliberately NOT in front of them. */
+  /* The emoji faces are NAMED at the end of both stacks, not left to the
+     generic. Inter carries no emoji glyphs, and a stack that ends at
+     `sans-serif` leaves the browser to find a colour emoji font on its own —
+     which it usually does and does not have to. A caption from Instagram is
+     half emoji, and "the emoji does not render" is what naming no emoji face
+     looks like. Costs nothing where the fallback was working anyway. */
+  --rd-font-display: 'Inter Variable', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji';
+  --rd-font-text: 'Inter Variable', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji';
+
+  /* The scale, whole. A size typed at the point of use is the fault
+     `docs/reading-scale-port.md` spent 52 screens removing; it does not come
+     back here. 14.5, 17 and 24px are content inside rendered artifacts —
+     email preview, invoice paper — and are deliberately absent. */
+  /* Page title, display 400. Ruling 24 raised this to 24 ("was 22") and the
+     owner overruled his own ruling on 24 Aug 2026, looking at "🚚 › Box
+     planner": "the header doesn't need to be so big in font". Back to the 22
+     the ruling replaced, which is also the value that keeps every step of this
+     scale distinct — 21 is the KPI figure and 20 the document header, and a
+     page title sharing a number with either would make the scale read as a
+     list of coincidences. The head's own offset moved with it: `.rd-page`'s
+     top padding, in redesign.css. */
+  --rd-size-title: 22px;
+  --rd-size-kpi: 21px;          /* KPI value, display 500 */
+  --rd-size-doc-head: 20px;     /* document headers */
+  --rd-size-hero: 16px;         /* KPI and document headers */
+  --rd-size-wordmark: 15px;
+  --rd-size-section: 14px;      /* dense-sheet section title, 500 */
+  --rd-size-field: 13.5px;      /* field values */
+  --rd-size-cell: 13px;         /* table cell, 400 */
+  --rd-size-cell-dense: 12.5px; /* dense sheet cell */
+  --rd-size-head: 12px;         /* column header, 500 */
+  --rd-size-caption: 11.5px;    /* captions, mini buttons */
+  --rd-size-label: 11px;        /* KPI label, dense-sheet header */
+  --rd-size-float: 10.5px;      /* floated form label */
+  --rd-size-caps: 10px;         /* caps labels */
+  --rd-size-caps-micro: 9px;    /* micro caps column captions, line editors */
+
+  /* Weight. 400 and 500 carry everything; "bold marks the answer" is 500.
+     600 is legitimate in exactly one role — tracked micro-caps at 9-10px,
+     which need it to stay legible. There is no 700. */
+  --rd-weight-body: 400;
+  --rd-weight-emphasis: 500;
+  --rd-weight-caps: 600;
+
+  /* Ink ramp. The screens were the truth here; the first README list was
+     stale. Roles are the rulings' own. */
+  --rd-ink: #181d26;            /* titles, answers, primary buttons */
+  --rd-ink-cell: #1f242c;       /* table cell text */
+  --rd-ink-body: #33383f;       /* long-form copy */
+  --rd-ink-ui: #41454d;         /* default UI text — nav, chips, notes. The workhorse. */
+  --rd-ink-tertiary: #5b6470;   /* labels, rail pages, secondary buttons */
+  --rd-ink-muted: #6b7380;      /* captions, key-value labels */
+  --rd-ink-faint: #8a919c;      /* placeholders, floated labels, timestamps */
+  --rd-ink-disabled: #a0a7b1;   /* empty dashes, untouched rows (#98a1ad folds in) */
+  /* The bar's own ink. It was `--rd-ink-on-navy` and a pale blue, because the
+     bar was navy; the bar is white now, so this is an ordinary UI grey and
+     sits inside the ramp rather than beside it. The name changed with the
+     colour on purpose — a token called "on navy" holding a grey is how the
+     next person ships white on white. */
+  --rd-ink-on-shell: #5b6470;
+
+  /* Ruling 24's title crumb. The chevron is its own grey: lighter than any
+     ink in the ramp, because it is a separator rather than something to
+     read — at --rd-ink-faint it competed with the name beside it. The hover
+     square is the one neutral fill in the system that is not a surface. */
+  --rd-crumb-chev: #b6c0cc;
+  --rd-hover-square: #e8eaed;
+
+  /* Column-header ink and the ground it sits on — ruling 97, the owner's
+     reference of 27 Aug: near-black labels on a very faint wash.
+
+     ONE token, not two. `--rd-ink-head` was declared here as "column-header
+     ink" and used by `.rd-t27 th`, `.rd-linehd` and a record well's
+     head, while the base `.rd-t th` reached for `--rd-ink-tertiary` instead:
+     the same decision made twice at two values, which is ruling 7's fault in
+     a different place. Both now read this.
+
+     **The wash is what makes the dark ink safe, and they ship together.** The
+     reading scale is "rank comes from ink, then size", so a column label as
+     dark as its own figures inverts rank — the exact fault ruling 18 was
+     written to repair on the finance group heads, where the group label "read
+     as a heading floating above the table rather than the thing that OWNS
+     those four columns". The reference gets away with it because the header is
+     on a different SURFACE. Take the ink without the ground and the labels
+     compete with their columns; take the ground without the ink and nothing
+     has changed.
+
+     Ruling 18's own two-row heads keep their ruled inks — group label #181d26
+     over column labels #5b6470 — because there the hierarchy is between two
+     header rows rather than between the header and the table. They gain the
+     wash and nothing else. */
+  --rd-ink-head: #181d26;
+
+  /* Half the group band's tint, and that is the whole specification: ruling 14
+     puts bands on --rd-band #f4f7fb, and a header at the same value would make
+     the header and the first band of every grouped table —
+     Log, Pay, All payments, Vendors, Emails — read as one stacked object with
+     a hairline through it. Fainter than the band, so the band still reads as
+     the heavier thing.
+
+     Opaque, necessarily: the header is `position: sticky`, and a translucent
+     ground lets the rows show through it as they pass. */
+  --rd-head-bg: #f9fbfd;
+
+  /* The group row's drawn height on a two-row finance head — where the
+     column-label row sticks to when the header holds its place. Padding 6 + 4
+     around ruling 18's 11.5px caption line; measured rather than guessed, and
+     `workbench-parity` measures it again on every run, because a wrong offset
+     here shows as a seam of body rows crawling between the two header rows. */
+  --rd-head-group-h: 24px;
+
+  /* The bar's height, and therefore the rail's wordmark row. One number,
+     because the two must agree: they are what puts the rail's first nav item
+     and the work area's first pixel on the same line. */
+  --rd-bar-h: 44px;
+
+  /* The page's side padding, and the bar's. One number, so the two bands the
+     work area is made of are inset by the same amount and the bar's right-hand
+     controls line up with the page's.
+
+     It does NOT put the path and the section's name on one vertical line: the
+     rail toggle sits in front of the path, so the path starts past it. That is
+     ElevenLabs' own arrangement and it is deliberate — the toggle is a control
+     on the bar, not part of the address. */
+  --rd-page-x: 22px;
+
+  /* Ruling 95's floor: the smallest a thing you AIM at may be. Bought with
+     padding or an overlay, never by growing what is drawn — the drawing
+     decides the size of the mark, this decides the size of the target. */
+  --rd-tap: 24px;
+
+
+  /* Structure. One hairline decision, not two: the concept also carries
+     #dddddd through its own --color-hairline, which is the bound system's
+     default riding in rather than a choice — it remaps to --rd-border.
+     #c9d2dd stays distinct and deliberate, being the edge that means
+     "editable".
+
+     --rd-border-strong is kept against the ruling's "three border tokens
+     total": it is the concept's `.seam`, the column-group separator, 11 uses,
+     and it is what keeps the two mirrored halves of a paired finance table
+     apart. Raised as round three rather than dropped. */
+  --rd-hairline-row: #eef1f5;   /* in-table row rule */
+  --rd-border: #dfe5ec;         /* sidebar, bar, buttons, chips, cards, seams */
+  --rd-border-strong: #d5dee9;  /* column-group seam */
+  --rd-field-border: #c9d2dd;   /* form fields and selects only */
+
+  /* Surfaces --------------------------------------------------------------- */
+  /* The table band: a group header, a section rule, a whole-period total. 21
+     uses across 52a, 54a and 54b and always this job, which makes it a role
+     rather than one of round two's stray washes. */
+  /* Ruling 14 names the band ground #f4f7fb. It had been #f2f5f9, read off an
+     earlier drawing — two values a step apart doing one job, which is the
+     shape of every drift this file exists to end. */
+  --rd-band: #f4f7fb;
+  /* Ruling 20's three tiers on the Targets sheet, which supersede `20a`'s.
+     
+     The point of the set is that depth is carried by COLOUR, not by outline
+     numbering — no 1.1 / 1.2.1 chips — so the three have to be tellable apart
+     at a glance and mean the same thing wherever they appear.
+
+     A family band is navy and reversed out: it is the only row on the sheet
+     that is a heading rather than a grain you read figures at. The
+     A rollup band and a detail band share ONE colour deliberately —
+     they are the same kind of thing, a grain the Targets and Stock sections
+     hang off — and a paler tier for the rollup would have said otherwise. The
+     section header is paler again and identical at every depth, so the colour
+     means "section" wherever it turns up.
+
+     `--rd-band-inner` was `20a`'s paler colour band and is gone: ruling 20
+     puts the rollup and the colours on the same tier, so a second tier would
+     be a distinction the design has stopped making. */
+  --rd-fam-bg: #123a63;
+  --rd-fam-ink: #ffffff;
+  --rd-fam-edge: #4a6a94;
+  --rd-grain-bg: #c9daf8;
+  --rd-grain-ink: #16305c;
+  --rd-sec-bg: #eef3fa;
+  --rd-sec-ink: #33383f;
+  /* "This cell responds" — it opens something or it takes typing. Never on a
+     derived figure, which is what makes it worth anything: a wash on every
+     cell is a texture, and a wash on a total is a promise the sheet cannot
+     keep. */
+  --rd-live-wash: #e9f7ff;
+  /* Ruling 20's geometry. Bands and rows differ by two pixels, which is the
+     whole of what separates a heading row from a figure row on a sheet this
+     dense — so both are named rather than typed, and the harness measures
+     them rather than trusting the stylesheet. */
+  --rd-band-h: 28px;
+  --rd-row-h-dense: 26px;
+  /* A dense row carrying a two-line label — `73d`'s shipment rows, where the
+     reference sits over the day and the source. 26px holds one line of 12.5px
+     and nothing else, so the second line is named rather than left to a
+     padding somebody would later halve. */
+  --rd-row-h-two: 38px;
+  /* The row a foot action is about. Lighter than the live wash, because it
+     says "this one" and not "type here" — the two appear on the same row and
+     must not read as the same thing. */
+  --rd-row-sel: #eef2f8;
+
+  /* How far the pinned document reader sits from the top and bottom of the
+     window. One number, used twice — as the sticky offset and, doubled, as
+     what comes off the viewport height — so the two can never disagree. */
+  --rd-reader-inset: 14px;
+  /* A meter's unfilled track (12 uses) and the ground of a chip that opens a
+     menu rather than toggling (9 uses). Both were in round two's pale-wash
+     group and both turned out to be roles. */
+  --rd-track: #e8ecf1;
+  --rd-chip-menu: #e9edf2;
+  /* A resting checkbox's edge — lighter than a field border, because an
+     unticked box is not an invitation to type. */
+  --rd-checkbox-border: #c3ccd8;
+  /* The work area is WHITE, and the rail beside it is the grey — ElevenLabs'
+     way round, on the owner's ruling of 27 Aug 2026, and the inverse of the
+     cool desk this shell carried until then. What holds a card is its
+     hairline, not a change of ground; every card in the redesign already
+     draws one, which is why the swap costs no markup.
+
+     `--rd-canvas-shell` is the ground BEHIND everything, seen only where the
+     work area does not reach. With the desk white there is nothing for it to
+     be but the same white. */
+  --rd-canvas: #ffffff;         /* page desk */
+  --rd-canvas-shell: #ffffff;
+  --rd-card: #ffffff;
+  --rd-inset: #f6f8fa;          /* read-only value boxes, popover inner panels */
+
+  /* Action ----------------------------------------------------------------- */
+  --rd-primary: #254fad;        /* buttons */
+  --rd-link: #1b61c9;
+
+  /* Shell ------------------------------------------------------------------
+     The navy bar is gone (27 Aug 2026). The chrome is one light warm field —
+     warm rather than neutral because neutral goes flat, which six rendered
+     variants made plain — and the bar itself is the same white as the work it
+     belongs to, held apart from it by one hairline.
+
+     The rail is the only tinted surface in the shell. It carries no right-hand
+     border: against a white work area the tone change IS the edge. */
+  --rd-shell: #ffffff;          /* the top bar */
+  --rd-rail: #f7f6f4;           /* the sidebar — the one warm grey */
+  --rd-shell-field: #f6f8fa;    /* the bar's search well */
+  --rd-shell-field-border: #dfe5ec;
+
+  /* Status tints. Six pairs, and colour never carries meaning alone — every
+     one of these sits beside a word. */
+  --rd-blue-bg: #e7effb;    --rd-blue-ink: #2b5286;    /* Reserved, Scheduled */
+  --rd-amber-bg: #fbf1dd;   --rd-amber-ink: #8a5800;   /* Invoiced, Partial */
+  --rd-green-bg: #e7f3ea;   --rd-green-ink: #2e6b45;   /* Fulfilled, Paid, Yes */
+  --rd-grey-bg: #eef0f3;    --rd-grey-ink: #4a515b;    /* resting states */
+  --rd-violet-bg: #efeaf9;  --rd-violet-ink: #5b3fa8;  /* Waiting quantity */
+  --rd-red-bg: #fbe9e7;     --rd-red-ink: #b3261e;     /* due, refused, No */
+
+  /* A header's action row --------------------------------------------------
+     The concept's `.btn`, verbatim: one declared height for every control
+     whatever its fill, and a secondary that is a GREY BLOCK rather than a
+     white box with a border. Both matter and the second one is why the owner
+     reported this — a 1px light border on white against a near-white page has
+     almost no contrast at its top and bottom edge, so a secondary measuring
+     exactly what the primary measures still READS shorter beside it.
+
+     `.btn.sec{background:#e2e5ea}` and its `#d6dae0` hover are the mock's own
+     values. The height is the app's, not the mock's 32: this redesign runs
+     denser than the concept everywhere (34px rows against 42), and 26 is what
+     the padding already produced — declared now so it is a whole pixel and so
+     two controls can never drift apart again.
+
+     Named apart from `--rd-control-h`, which is a different control: that one
+     is the bulk bar's pill, built from 4px of padding rather than 5, and it
+     comes out 24.4. Reusing it here quietly took 2px off every header button
+     on the way past — which is the drift this token exists to stop, arriving
+     through the token itself. */
+  --rd-head-control-h: 26px;
+
+  /* A tab's height — ruling 96. Ruling 22's card-head figure ("every control
+     in a card head measures 30px whatever its fill"), because that is what a
+     tab is: a control with a ground, sized so its lozenge has room to be one
+     rather than a label with a box drawn tight around it. Declared rather than
+     typed so the three strips being folded into one cannot drift apart again,
+     which is exactly how `--rd-head-control-h` came to exist. */
+  --rd-tab-h: 30px;
+  --rd-btn-sec: #e2e5ea;
+  --rd-btn-sec-hover: #d6dae0;
+
+  /* Bands ------------------------------------------------------------------ */
+  --rd-warn-bg: #fdf6e7;
+  --rd-warn-border: #ecd9ac;
+  --rd-warn-ink: #5b4a1e;
+  --rd-warn-dot: #c07f00;       /* the indicator on a warnbar — its only role */
+  --rd-fail-bg: #fbe9e7;
+  --rd-fail-border: #eecac5;
+  /* The failure band's ink, darker than its dot — the same shape as the
+     warnbar, whose #5b4a1e text sits under a #c07f00 dot. Read off 54c rather
+     than ruled: round two asked about #7a2620 and the answer is in the
+     markup, where it is the band's text beside a #b3261e indicator. */
+  --rd-fail-ink: #7a2620;
+
+  /* Armed destructive. Deliberately softer than the failure red, so a control
+     waiting for its second click does not read as an error that has already
+     happened. */
+  --rd-armed-bg: #fdf5f4;
+  --rd-armed-border: #e4c4c0;
+  --rd-armed-outline: #d88a84;
+
+  /* ---- Elevation ----
+     ~~Floating dialogues and popovers carry the only shadow in the system.~~
+     **Overruled by the owner, 27 Aug 2026**, with a reference from another
+     admin: *"all the shapes in it have a slightly shadow / relief I think.
+     would be good to match this"*. HANDOFF.md's "cards #ffffff, border #dfe5ec,
+     radius 10px, no shadows" is amended with it — recorded here rather than
+     left saying the opposite of what the app draws.
+
+     The flat rule had been eroding anyway: three drop shadows were typed into
+     `redesign.css` at five sites, none of them named by any ruling, because
+     `prove-tokens.mjs` skipped every `box-shadow` line. They are the five roles
+     below. Nothing here is invented — this names what was already drawn and
+     adds one: a card at rest.
+
+     **The border stays.** That admin pairs a hairline with the shadow, and
+     dropping the border for a shadow alone is the change that would actually
+     alter this app's character.
+
+     Surface elevation (below) and CONTROL relief are two decisions. That admin's
+     buttons read as pressable because of an inner bevel, which is an inset
+     shadow and a different thing from lifting a surface; `--rd-shadow-control`
+     is the one control that already carries it, named so the second decision
+     has somewhere to land if it is taken. */
+
+  /* A card at rest, one step above the desk. The owner's ask. */
+  --rd-shadow-rest: 0 1px 3px rgba(24, 29, 38, 0.08);
+  /* The same surface under the pointer — `45a`'s card tiles. */
+  --rd-shadow-lift: 0 2px 8px rgba(24, 29, 38, 0.14);
+  /* A control that is holding a state, not a surface being raised. */
+  --rd-shadow-control: 0 1px 2px rgba(24, 29, 38, 0.06);
+
+  --rd-shadow-float: 0 18px 48px rgba(24, 29, 38, 0.18);
+
+  /* Ruling 13's flag edge, as the ruling states it. Not elevation — a ring,
+     drawn so white-heavy flags (JP, FI, DK) survive a white row rather than
+     reading as a missing image. Named here because the elevation check now
+     reads every shadow, and a ruled value belongs in the token file rather
+     than in a list of exceptions to a check. */
+  --rd-flag-hairline: 0 0 0 0.5px rgba(24, 29, 38, 0.12);
+
+  /* The document desk and the sheet's shadow — `45b`'s invoice viewer, and
+     the card dialogue's preview, which is the same thing one size down: a
+     rendered card resting on a surface. A page being read is a physical object on a surface, so the
+     surface is a step darker than the canvas the cards sit on; at
+     --rd-canvas's own value the sheet would have no edge. #e3e9f0 is an orphan
+     in ORPHAN-VALUES.md at one use, which is exactly this one — raised for a
+     ruling rather than rounded to the nearest token it is not. */
+  --rd-desk: #e3e9f0;
+  --rd-shadow-sheet: 0 2px 12px rgba(24, 29, 38, 0.1);
+
+  /* The gap between two stacked cards — a chart and the table that reads it,
+     a standing panel and the fields under it. The owner reported the chart
+     and its table looking joined; they were 6px apart where the rest of the
+     redesign uses this. One token, so a third caller cannot invent a fourth
+     value. */
+  --rd-card-gap: 14px;
+  /* A card's own inset, which `.rd-sechead` and `.rd-foot` have each carried
+     as a literal 16 since they were written. Named here because a fourth
+     copy is the point at which they start drifting apart. */
+  --rd-card-inset: 16px;
+
+  /* Category tags (ruling 12) --------------------------------------------
+     The admin has TWO lozenge shapes and the shape carries the distinction: a
+     999px pill is a STATUS — a state that changes over time — and a 6px tag is
+     a CATEGORY, a fixed taxonomy value. Tints are deliberately lower-chroma
+     than the status pills so a tag never reads as a state; never tint a tag
+     from the status palette.
+
+     A new taxonomy value gets a token HERE, not a colour picked at the call
+     site. Design ruled four; the owner asked for eight, so the four below the
+     line are new and follow the same recipe — a near-neutral ground under an
+     ink dark enough to read at 11px, and none of them within reach of the
+     six status tints above. */
+  --rd-tag-slate-bg: #e9eef6;   --rd-tag-slate-ink: #3f5573;   /* Storage, Freight */
+  --rd-tag-violet-bg: #efeaf9;  --rd-tag-violet-ink: #5b3fa8;  /* Print */
+  --rd-tag-moss-bg: #eaf0ea;    --rd-tag-moss-ink: #3f6349;    /* Production, Materials */
+  --rd-tag-clay-bg: #fdeee9;    --rd-tag-clay-ink: #a84b23;    /* Creative */
+  --rd-tag-stone-bg: #eef0f3;   --rd-tag-stone-ink: #4a515b;   /* Software, Banking, every currency */
+  /* The owner's four. Same recipe, still clear of the status palette. */
+  --rd-tag-teal-bg: #e4eff0;    --rd-tag-teal-ink: #2f5f64;
+  --rd-tag-sand-bg: #f3eee4;    --rd-tag-sand-ink: #6b5730;
+  --rd-tag-plum-bg: #f4eaf0;    --rd-tag-plum-ink: #7a3f5e;
+  --rd-tag-steel-bg: #e8ecef;   --rd-tag-steel-ink: #445159;
+  /* Ruling 16 names this pair by value, on the `January` phase, and it was the
+     one tint in that ruling with no token behind it.
+
+     ⚠ It is the SAME pair as the status palette's `--rd-amber` (Invoiced,
+     Partial), which the tag rule above says never to reuse. Two of Design's
+     rules disagree, and this follows the one that names a value: nudging the
+     hex would put two ambers within a shade of each other at 11px, which
+     separates nothing and quietly diverges from a ruled number. What actually
+     keeps a January phase from reading as an Invoiced state is the thing that
+     already has to: shape — a 6px tag is not a 999px pill — and the word, since
+     colour never carries meaning alone anywhere in this admin. Raised with the
+     owner rather than settled here. */
+  --rd-tag-amber-bg: #fbf1dd;   --rd-tag-amber-ink: #8a5800;
+
+  /* ---- Chart series (ruling 15) ----
+     A chart may carry more than one line — two products, or five variants —
+     and they need to be told apart. Named as a SET rather than picked per
+     screen, for the same reason the tag tints are: a sixth series added on one
+     screen would otherwise arrive in whatever colour was nearby.
+
+     Series 1 is the accent, because the first line is the answer. The rest
+     step away from it in hue rather than only in lightness, so they survive
+     being printed and being looked at by somebody who cannot separate reds
+     from greens. None is a status colour: a line is not a state. */
+  --rd-series-1: #254fad;
+  --rd-series-2: #2f7d6b;
+  --rd-series-3: #a1642a;
+  --rd-series-4: #7a3f8f;
+  --rd-series-5: #4a6b8a;
+
+  /* ---- Values that were typed at the point of use ----
+     DESIGN-SYSTEM §1's rule is "never a value typed at the point of use", and
+     it is not only about type. Ten hex values had grown into redesign.css,
+     each doing a real job and each unnameable from where it sat: a second
+     screen wanting the same tint would have had to copy the number, and a
+     third would have got it slightly wrong. Named here, where every other
+     value in this system lives. */
+
+  /* The edge of a note that is telling you something rather than warning you
+     — one step darker than its own ground so the band has a boundary. */
+  --rd-blue-border: #c9d9f2;
+  /* The spine a day's log entries hang off. Heavier than a hairline because
+     it runs the height of a list and has to survive being crossed by rows. */
+  --rd-spine: #e3e8ef;
+  /* The ground of a person's initial — on the note composer and on the entry
+     they wrote. Dark and near-neutral, because it is an identity marker and
+     not a status: nothing on this screen should read a mood into it. */
+  --rd-face-bg: #24344d;
+  /* The answer column on a dense sheet: the one column read down rather than
+     across, tinted rather than ruled because eleven rules would be a fence. */
+  --rd-answer-bg: #f4f6f9;
+  /* A cell that can be typed into while Edit is live, and — the same wash — a
+     row lit by the pointer being on its DOT one card away (ruling 16). One
+     token because it is one idea: this is the thing you are pointing at. */
+  --rd-live-bg: #eef4fb;
+  /* No image chosen. A hatch, because nothing-here-yet is a STATE and an empty
+     grey box is a gap. */
+  --rd-hatch-a: #f0e7da;
+  --rd-hatch-b: #faf6ef;
+  /* Ruling 15's band, by its own values: pale bars anchored to the floor, and
+     the second one for the half of a SIGNED band that goes down. */
+  --rd-band-up: #e4ebf4;
+  --rd-band-down: #f2e2df;
+  /* What a dialogue puts the page behind. The ink at .28 rather than black:
+     a neutral scrim greys the whole screen, and this one keeps the page's own
+     colour under it so what you were reading is still recognisable. */
+  --rd-scrim: rgba(24, 29, 38, 0.28);
+
+  /* The group rule and seam on a two-row finance header (ruling 18).
+     The whole of a finance table is THREE line weights and no more: this at 1.5px,
+     --rd-border at 1px under the column labels and around cards, and
+     --rd-hairline-row at 1px between rows. A fourth means something is wrong.
+
+     Group rule and seam are one token on purpose. They are the same weight and
+     the same colour deliberately — one weight across the top and down the left
+     is what makes a group read as a BRACKET around its columns rather than as
+     a heading floating above them — and styling them separately is exactly how
+     that gets broken by accident. */
+  --rd-group-rule: #b8c4d4;
+  --rd-group-rule-w: 1.5px;
+
+  /* Suggested — model-read and unconfirmed. Never pre-selected, always worded
+     "suggested"; the dashed edge indexes the word rather than replacing it. */
+  --rd-suggest-bg: #fdf9ef;
+  --rd-suggest-border: #d9b96a;
+
+  /* Meter ramp. Data-viz fills only, always beside the printed percentage —
+     never for text, never for a status. */
+  --rd-meter-ok: #2e8a52;
+  --rd-meter-behind: #d9a514;
+  --rd-meter-badly: #b3261e;
+
+  /* Language lozenges. One stable triple per language, tokenised from 38a and
+     reused wherever a language is shown, on every screen that shows one — never
+     re-derived per screen. Covers all eight of LANGS (src/lib/constants.ts).
+     Three of them share a status palette pair; both are worded, so a lozenge
+     and a tag cannot be confused for one another by colour alone. */
+  --rd-lang-en-bg: #e8eef8;  --rd-lang-en-border: #d6e2f4;  --rd-lang-en-ink: #2b5fb3;
+  --rd-lang-de-bg: #fbf1dd;  --rd-lang-de-border: #f0e2bd;  --rd-lang-de-ink: #8a5800;
+  --rd-lang-fr-bg: #fdeeee;  --rd-lang-fr-border: #f4d9d9;  --rd-lang-fr-ink: #b3362b;
+  --rd-lang-it-bg: #e7f3ea;  --rd-lang-it-border: #d2e7d8;  --rd-lang-it-ink: #2e6b45;
+  --rd-lang-es-bg: #f1ecf8;  --rd-lang-es-border: #e2d8f0;  --rd-lang-es-ink: #6a4fb3;
+  --rd-lang-zh-bg: #e8f2f4;  --rd-lang-zh-border: #d3e6ea;  --rd-lang-zh-ink: #12808a;
+  --rd-lang-ko-bg: #efeaf9;  --rd-lang-ko-border: #ddd3f0;  --rd-lang-ko-ink: #5b3fa8;
+  --rd-lang-ja-bg: #fdf0e6;  --rd-lang-ja-border: #f2ddc8;  --rd-lang-ja-ink: #b06a1e;
+
+  /* Radii, by layer. Controls are 7px and the rule stands; the rest are
+     different layers rather than drift. 3px folds into 4, 5px into 6, and the
+     single 1px was a slip. */
+  --rd-radius-field: 6px;       /* form fields — owner's call, 25 Aug 2026 */
+  --rd-radius-meter: 4px;       /* meter bars, image thumbs */
+  /* The country flag, and nothing else. It is the smallest drawn rectangle in
+     the app — 14×10 — and it had been borrowing the form field's corner to get
+     its 2px. When the owner took fields to 6px (25 Aug) the flag went with
+     them, which on a ten-pixel-tall rectangle is most of the way to a lozenge.
+     A flag is not a form field; it needed its own name to stop travelling. */
+  --rd-radius-flag: 2px;
+
+  /* The flash a copied cell takes (ruling 27, 84d). The ruling gives `#e7f3ea`,
+     which is already in this file as the green status tint — so it is aliased
+     rather than retyped: one value, and a name that says what it is doing
+     here. A copy is not a status, and a screen reading `--rd-green-bg` on a
+     reference cell would be reading the wrong role. */
+  --rd-copied-wash: var(--rd-green-bg);
+  --rd-radius-menu: 6px;        /* floating-menu items, tooltips, mini copy-pills, language lozenges */
+  --rd-radius-control: 7px;     /* every control */
+  --rd-radius-inset: 8px;       /* inset surface panels — bar search, preview desks, popover innards */
+  --rd-radius-card: 10px;
+  --rd-radius-float: 12px;      /* dialogues and popovers */
+  --rd-radius-pill: 999px;      /* status pills, avatars */
+
+  /* Row geometry (ruling 11, as amended 21 Aug).
+
+     34px, not the 32 of the table tool it was measured against: two pixels above
+     it and well below the ~40 of the commerce admin beside it,
+     which Design names as the point where the category tags and the flags stop
+     touching the row edges. A 19px tag in a 32px row leaves 6.5px above and
+     below and reads as crammed; at 34 it breathes.
+
+     The CELL owns the height — a height inferred from padding is what let the
+     status pill prop every row open, and Design found their own first draft
+     rendering 46px rows while labelled 40. Stated as content height because
+     this file's cells are content-box (the concept declares column widths on
+     content-box cells, and flipping the box model to state one number would
+     move every declared column by 24px). The row rule is the one pixel
+     between the two: a 31px cell over a 1px border-bottom measures 32.
+
+     Verify by measuring `tr.getBoundingClientRect().height`, never by reading
+     this file back. The header matches the body: one number for both, which is
+     also what lets ruling 9's bulk bar stand in a header row without either
+     having to be matched to the other by arithmetic. */
+  --rd-row-h: 34px;
+  --rd-head-h: 34px;
+  /* A row carrying a picture — the Cards table, and nothing else yet.
+     34px holds one line of type and no more, so a thumbnail in it would be
+     the row: the owner asked for rows "a little bit higher to allow us to
+     show a thumbnail". 48 is that, arrived at from the picture rather than
+     from a round number — a 36px square with 6px of air above and below it,
+     which is the same air the 12px cell padding gives it either side. Cards
+     are square (`42c`), so one number sizes both of the thumbnail's sides. */
+  --rd-row-h-thumb: 48px;
+  --rd-thumb: 36px;
+  --rd-row-rule: 1px;
+
+  /* A control's height, from the grey bar pill's own parts rather than a number
+     read off a screenshot: 12px type on a 1.2 line box, 4px of padding above
+     and below, and its 1px edge. It is a token because two rows depend on it
+     agreeing — a checkbox table's header row is sized to hold a control, since
+     on selection the bulk bar takes that row's place (ruling 9) and the bar
+     carries pills. See the header-row note in redesign.css. */
+  --rd-control-h: calc(var(--rd-size-head) * 1.2 + 10px);
+
+  /* The motion budget (ruling 27 §0) --------------------------------------
+     One curve and two durations, and the reason the list is this short is that
+     a duration typed at the point of use is the same defect as a colour typed
+     there: the next screen copies the number, the third gets it slightly
+     wrong, and nothing in the app agrees about how long a thing takes.
+
+     `ease-out` is the only curve. Ruling 27 rejects the easing zoo by name and
+     rejects overshoot by counter-example — a 300ms bounce was drawn in 83h
+     precisely so it could be turned down.
+
+     Two durations do almost all the work:
+
+       state    a row, a cell, a control, a tint, a fill, a collapse
+       overlay  a popover, a dialogue, a menu, a warning band
+
+     and three exceptions, each with a stated reason rather than a taste:
+
+       pointer  anything tracking the pointer — a crosshair on a longer curve
+                reads as lag rather than as tracking
+       rows     several rows travelling at once (85d, 89g); 120 is too quick to
+                follow a row through when ten of them move
+       draw     a one-off chart draw-in (87e's siblings), which happens once
+
+     Nothing may add a fourth exception without a ruling. */
+  --rd-ease: ease-out;
+  --rd-dur-state: 120ms;
+  --rd-dur-overlay: 160ms;
+  --rd-dur-pointer: 80ms;
+  --rd-dur-rows: 140ms;
+  --rd-dur-draw: 420ms;
+
+  /* The scale an overlay grows from (ruling 27 §4, 85b). The ruling gives the
+     range .96–.98: a dialogue is large and takes the smaller number, a menu or
+     popover is small and takes the larger, because the same ratio moves a
+     560px panel a visible distance and a 190px menu almost none. */
+  --rd-scale-dialog: 0.96;
+  --rd-scale-pop: 0.98;
+
+  /* ---- Added by the host product (post-purchase comms), 28 Aug 2026 ----
+     The kit's rule for a value it does not carry is to name it HERE with the
+     role it plays, rather than type it where it is used. These are the two
+     roles this product has that the kit does not.
+
+     1 · The rail's width. The kit states 224px inside its phone rule, where
+     the rail becomes an overlay, and nowhere else — so a desktop rail had no
+     number to read and would have got one typed into a component. Same value,
+     named, so the two cannot drift. */
+  --rd-rail-w: 224px;
+
+  /* 2 · The email, as it will arrive.
+     This file says of the reading scale: "14.5, 17 and 24px are content inside
+     rendered artifacts — email preview, invoice paper — and are deliberately
+     absent." This product's whole subject is one of those artifacts, so the
+     absent sizes are named as their own set rather than borrowed from the UI
+     scale. The prefix is the fence: nothing outside `.rd-mail*` may spend
+     these, and nothing inside it may spend the UI scale's. The values are the
+     rendered email's own, read off the HubSpot template this tool sends. */
+  --rd-email-w: 600px;
+  --rd-email-head: 22px;        /* the headline, centred */
+  --rd-email-body: 14.5px;      /* body copy — reading size, not UI size */
+  --rd-email-lead: 1.55;
+  --rd-email-mark: 13px;        /* the wordmark */
+  --rd-email-track: 0.34em;     /* …and its tracking, which is most of it */
+  --rd-email-foot: 11.5px;      /* the unsubscribe line */
+}
+
+/* §7 · Reduced motion.
+   The ruling's own test for whether an animation was decoration: turn it off
+   and see whether anything is LOST. Nothing here is — every state above is
+   legible at its end value, because in each case the motion says something
+   about a change the screen states in words or position anyway.
+
+   So this is a blunt instrument on purpose. Zeroing the durations rather than
+   unsetting the transitions is what keeps the end state: `transition: none`
+   and a zeroed duration land in the same place, but a zeroed duration still
+   fires `transitionend`, and the travelling dot and the counting figures both
+   settle themselves on that event. A rule that stopped the event would leave
+   them mid-travel, which is the one way a reduced-motion switch could actually
+   break a screen.
+
+   `!important` because these override transitions written on `.rd-x.on` and
+   other multi-class selectors that outrank a bare universal rule.
+
+   JS-driven motion reads the same query through `prefersReducedMotion()` in
+   `src/lib/motion.ts`, so there is one answer and not two. */
+@media (prefers-reduced-motion: reduce) {
+  .rd-shell *,
+  .rd-shell *::before,
+  .rd-shell *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+    animation-delay: 0ms !important;
+    transition-delay: 0ms !important;
+  }
+}
+
+/* The redesign shell suppresses each area's own rail, because its sidebar
+   carries areas and pages together. `.app` is a two-column grid sized
+   `var(--rail-w) minmax(0, 1fr)`, so with the rail gone the screen body lands
+   in the rail's column and every table crushes to 224px — a fault no metric
+   in the shell harness could see, and the reason that harness also shoots the
+   page. One column, and no rail-shaped minimum. */
+.rd-shell .app {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+/* And they must not clip.
+   Workbench gives every screen its own scroller — `.screen-body` inside
+   `.main` — so `.app` and `.main` are both fixed to the viewport and hidden,
+   which is right when something inside them scrolls. The redesign's screens
+   have no such inner scroller: the shell's own `<main>` is the scroller, and
+   the page is meant to grow to whatever it holds.
+
+   Left as they were, `.main` clipped the page at the viewport and the shell's
+   `<main>` had nothing to scroll, so a sixty-row Orders list rendered all
+   sixty rows and showed the first nine with no way to reach the rest. Every
+   harness passed: they measure what is on the page, and all sixty rows WERE
+   on the page. */
+.rd-shell .app,
+.rd-shell .main {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+/* And they must not paint. `.app` carries Workbench's canvas, which sat behind
+   the redesign's own and showed wherever a screen did not cover it. The shell's
+   `<main>` paints `--rd-canvas`; nothing between it and the page should paint
+   at all. */
+.rd-shell .app,
+.rd-shell .main {
+  background: transparent;
+}
+
+/* The ink a redesign page inherits.
+   `styles.css` sets the body to Workbench's #303030, so anything in a redesign
+   component that does not name its own colour was drawing in a grey that is not
+   in the redesign's ramp at all — the drift check found it 700-odd times on one
+   screen. The concept never sets a body colour and every element in it names
+   its own, so there is no drawn answer to copy; the ramp's own is
+   `--rd-ink-ui`, "default UI text — the workhorse". */
+.rd-shell {
+  color: var(--rd-ink-ui);
+}

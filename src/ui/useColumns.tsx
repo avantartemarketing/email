@@ -1,96 +1,99 @@
-import { Button, ChoiceList, Popover } from '@shopify/polaris';
-import { useMemo, useState } from 'react';
-import type { ReactElement } from 'react';
-
 /**
- * Shopify-style column visibility for a table: a "Columns" disclosure button
- * with a checklist, persisted per table. Tables list every field as its own
- * single-line column and let the person choose what they need — never two
- * lines of text stacked in one cell.
+ * Which columns a table is showing, and the control that changes it.
+ *
+ * The kit's `ColumnsMenu` is the control — one chip, drawn the same way
+ * wherever a table can put a column away, because three copies of a menu is
+ * three chances to word it differently. This adds what a screen also needs and
+ * the kit leaves to its host: the choice REMEMBERED (a column put away comes
+ * back put away tomorrow), and the header cells themselves, so a table cannot
+ * draw a heading whose cells it is no longer rendering.
+ *
+ * A locked column has no entry in the menu at all. The kit's own note on this
+ * is the rule: what is not offered is as deliberate as what is — the tick
+ * gutter, because it is how a selection is made, and any column carrying a
+ * warning, because a list you can hide the warnings on is a list that stops
+ * warning you.
  */
+import { useCallback, useMemo, useState } from 'react';
+import type { ReactElement } from 'react';
+import ColumnsMenu from '../rd/components/ColumnsMenu';
+import { NAMESPACE } from '../rd/lib/view';
 
 export interface ColumnDef {
   id: string;
   title: string;
-  /** In the picker but off until switched on. */
+  /** A figure column: right-aligned, tabular. */
+  n?: boolean;
+  /** Off until somebody asks for it — a spec field, a second identifier. */
   defaultHidden?: boolean;
-  /** Always visible and not offered in the picker (e.g. the key column). */
+  /** Never offered: identity, status, the row's own actions. */
   locked?: boolean;
 }
 
-export interface ColumnState {
-  /** True when the column should render. */
-  show: (id: string) => boolean;
-  /** Headings for the currently visible columns, in definition order. */
-  headings: { title: string }[];
-  /** The "Columns" button + popover, ready to place in a toolbar. */
-  columnsButton: ReactElement;
-}
+const key = (table: string) => `${NAMESPACE}.columns.${table}`;
 
-function load(storageKey: string, defs: ColumnDef[]): string[] {
+function read(table: string): string[] | null {
   try {
-    const raw = localStorage.getItem(storageKey);
-    if (raw) {
-      const saved = JSON.parse(raw) as unknown;
-      if (Array.isArray(saved)) {
-        return defs
-          .filter((d) => !d.locked && saved.includes(d.id))
-          .map((d) => d.id);
-      }
-    }
+    const raw = localStorage.getItem(key(table));
+    return raw ? (JSON.parse(raw) as string[]) : null;
   } catch {
-    // Storage unavailable — fall through to defaults.
+    // A browser that refuses storage still gets a working table.
+    return null;
   }
-  return defs.filter((d) => !d.locked && !d.defaultHidden).map((d) => d.id);
 }
 
-export function useColumns(tableId: string, defs: ColumnDef[]): ColumnState {
-  const storageKey = `pp-columns-${tableId}`;
-  const [selected, setSelected] = useState<string[]>(() => load(storageKey, defs));
-  const [open, setOpen] = useState(false);
+export function useColumns(
+  table: string,
+  defs: ColumnDef[],
+): {
+  show: (id: string) => boolean;
+  /** The `<th>`s, ready to drop into the header row. */
+  head: ReactElement[];
+  /** How many cells a row draws — what a spanning row has to cover. */
+  count: number;
+  menu: ReactElement;
+} {
+  const [hidden, setHidden] = useState<Set<string>>(() => {
+    const stored = read(table);
+    if (stored) return new Set(stored);
+    return new Set(defs.filter((d) => d.defaultHidden && !d.locked).map((d) => d.id));
+  });
 
-  const change = (ids: string[]): void => {
-    if (ids.length === 0) return; // a table with no optional columns left is a mistake
-    setSelected(ids);
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(ids));
-    } catch {
-      // Best-effort persistence only.
-    }
-  };
-
-  const visible = useMemo(() => new Set(selected), [selected]);
-  const show = (id: string): boolean => {
-    const def = defs.find((d) => d.id === id);
-    return Boolean(def && (def.locked || visible.has(id)));
-  };
-
-  const columnsButton = (
-    <Popover
-      active={open}
-      onClose={() => setOpen(false)}
-      activator={
-        <Button size="slim" disclosure onClick={() => setOpen((v) => !v)}>
-          Columns
-        </Button>
-      }
-    >
-      <div style={{ padding: 'var(--p-space-300) var(--p-space-400)' }}>
-        <ChoiceList
-          allowMultiple
-          title="Visible columns"
-          titleHidden
-          choices={defs.filter((d) => !d.locked).map((d) => ({ label: d.title, value: d.id }))}
-          selected={selected}
-          onChange={change}
-        />
-      </div>
-    </Popover>
+  const toggle = useCallback(
+    (id: string) => {
+      setHidden((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        try {
+          localStorage.setItem(key(table), JSON.stringify([...next]));
+        } catch {
+          // Not remembering is a smaller fault than not working.
+        }
+        return next;
+      });
+    },
+    [table],
   );
 
-  return {
-    show,
-    headings: defs.filter((d) => show(d.id)).map((d) => ({ title: d.title })),
-    columnsButton,
-  };
+  const show = useCallback((id: string) => !hidden.has(id), [hidden]);
+  const visible = useMemo(() => defs.filter((d) => d.locked || !hidden.has(d.id)), [defs, hidden]);
+
+  const head = visible.map((d) => (
+    <th key={d.id} className={d.n ? 'n' : undefined} scope="col">
+      {d.title}
+    </th>
+  ));
+
+  const menu = (
+    <ColumnsMenu
+      columns={defs
+        .filter((d) => !d.locked)
+        .map((d) => ({ id: d.id, label: d.title, width: null, n: d.n }))}
+      hidden={hidden}
+      onToggle={toggle}
+    />
+  );
+
+  return { show, head, count: visible.length, menu };
 }

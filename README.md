@@ -17,8 +17,12 @@ nothing persists between reloads and nothing sends.
 npm install
 npm run dev        # → http://localhost:5173
 npm test           # logic + seeded-world integration tests (vitest)
-npm run build      # typecheck + production bundle into dist/
+npm run check      # the design system's own rules, on the source
+npm run build      # check + typecheck + production bundle into dist/
 npm run serve      # serve dist/ (the Render web service entrypoint)
+
+npx vite preview --port 4173 &
+npm run check:screens   # …and its rules on a real render of every screen
 ```
 
 The app boots signed in as Tom (admin). The user menu (top right) switches
@@ -60,14 +64,54 @@ src/data/        The storage seam.
   mock/            Phase-1 in-memory implementation + fixtures + seed
   index.ts         getDataLayer() — swap point for phase 2
 
-src/screens/     The five Polaris screens: releases index, release detail
-                 (batch tabs, order selection, plan timeline, history),
-                 approval queue, send detail. The reschedule modal lives in
+src/screens/     The four screens: releases index, release detail (batch
+                 tabs, order selection, comms plan, orders, history), approval
+                 queue, send detail. The reschedule modal lives in
                  src/components/RescheduleModal.tsx.
+
+src/rd/          The Workbench-rd design system, dropped in as a folder.
+  css/tokens.css   Every value the system has. The only file with a literal.
+  css/redesign.css The component vocabulary — 65 sections.
+  css/app.css      This product's own layer (rail, dialogue furniture, toast,
+                   the email artifact), held to the same rules.
+  components/      21 components and 6 hooks that compile against React alone.
+
+src/ui/          This app's primitives in that vocabulary — rd.tsx (Page, Card,
+                 Dialog, Pill, Tag, Bar, Facts…), format.tsx, useColumns.tsx.
+
+checks/          The system's own harnesses. prove-tokens (no value typed at
+                 the point of use), prove-kit (no phantom class, no dangling
+                 import), prove-screens (34px rows, no cell over another,
+                 one-row heads, Inter loaded — measured on a real render).
+docs/            PORTING-BRIEF.md and workbench-rd/ — the rulings, with the
+                 arguments attached.
 
 server/          Express service that serves the SPA (grows the API in ph. 2).
 scripts/         hubspot-pipe-test.mjs — the pipe prover (below).
 ```
+
+### The design system
+
+The UI is **Workbench-rd**: hand-written CSS and plain React, no framework
+underneath — which is what makes it portable, since there is no Polaris or
+Material grammar to bend around. Shopify Polaris was removed when it went in;
+the app has no UI dependency now.
+
+Two rules carry most of it, and both are enforced by `npm run check`, which the
+build runs first:
+
+- **Never type a value at the point of use.** Every colour and size is a token
+  in `src/rd/css/tokens.css`. If the one you need is not there, add it there,
+  named, with the role it plays.
+- **Colour never carries meaning alone**, and the shape carries a distinction
+  the colour does not: a pill (999px) is a *status*, a state that changes over
+  time; a tag (6px, soft fill, no border) is a *category*, a fixed taxonomy
+  value that does not change because time passed.
+
+`docs/workbench-rd/TOKEN-RULINGS.md` is the spine — every token with the
+argument that settled it. `docs/PORTING-BRIEF.md` is the local contract.
+Rendering a screen and LOOKING at it is part of the loop, not a formality:
+`npm run check:screens` measures the anatomy of all four against the rulings.
 
 Rules encoded in the mock the same way Postgres will enforce them later:
 

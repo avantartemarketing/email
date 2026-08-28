@@ -1,5 +1,4 @@
-import { Banner, BlockStack, Modal, TextField } from '@shopify/polaris';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { ReactElement } from 'react';
 import type { Batch, Release } from '../types';
 import { addDays, formatDay, today } from '../logic/dates';
@@ -7,6 +6,8 @@ import { generateMilestonePlan } from '../logic/plan';
 import { releaseFillerTemplate, releaseSequenceFor } from '../logic/templates';
 import { plural } from '../ui/format';
 import { useApp } from '../ui/AppContext';
+import { Bar, Dialog, Facts } from '../ui/rd';
+import Field from '../rd/components/Field';
 
 /** First-time promise date → generates the draft milestone plan. */
 export function PromiseDateModal({
@@ -28,6 +29,7 @@ export function PromiseDateModal({
   const { data, showToast } = useApp();
   const [date, setDate] = useState('');
   const [saving, setSaving] = useState(false);
+  const dateId = useId();
   const tomorrow = addDays(today(), 1);
   const valid = date >= tomorrow;
 
@@ -53,41 +55,42 @@ export function PromiseDateModal({
   };
 
   return (
-    <Modal
+    <Dialog
       open={open}
       onClose={onClose}
       title={batchLabel ? `Set promise date — ${batchLabel}` : 'Set promise date'}
-      primaryAction={{
-        content: 'Set date & draft plan',
-        onAction: () => void save(),
-        loading: saving,
-        disabled: !valid,
+      primary={{
+        label: 'Set date & draft plan',
+        onClick: () => void save(),
+        disabled: saving || !valid,
       }}
-      secondaryActions={[{ content: 'Cancel', onAction: onClose }]}
+      secondary={{ label: 'Cancel', onClick: onClose }}
     >
-      <Modal.Section>
-        <BlockStack gap="400">
-          <TextField
-            label="Promised dispatch date"
+      <div className="rd-fields">
+        <Field label="Promised dispatch date" value={date} controlId={dateId}>
+          <input
+            id={dateId}
             type="date"
-            value={date}
-            onChange={setDate}
             min={tomorrow}
-            autoComplete="off"
-            error={date && !valid ? 'The promise date must be in the future' : undefined}
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
           />
-          {valid ? (
-            <Banner tone="info" title={`${plural(preview.length, 'milestone email')} will be drafted`}>
-              <p>
-                Spaced no more than five weeks apart between now and{' '}
-                {formatDay(date)}, ending with “preparing for dispatch”. You can edit, add or
-                remove sends before submitting the plan for approval — nothing sends without an
-                admin's approval.
-              </p>
-            </Banner>
-          ) : null}
-        </BlockStack>
-      </Modal.Section>
-    </Modal>
+        </Field>
+      </div>
+      {date && !valid ? <Bar tone="fail">The promise date must be in the future.</Bar> : null}
+      {valid ? (
+        <div className="rd-after">
+          <div className="rd-after-t">What gets drafted</div>
+          <Facts
+            items={[
+              { label: 'Milestone emails', value: preview.length },
+              { label: 'Spaced', value: 'No more than 5 weeks apart' },
+              { label: 'Ending', value: formatDay(date) },
+              { label: 'Then', value: 'Yours to edit, then approve' },
+            ]}
+          />
+        </div>
+      ) : null}
+    </Dialog>
   );
 }

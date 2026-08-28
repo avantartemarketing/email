@@ -1,29 +1,36 @@
-import {
-  Badge,
-  Button,
-  Card,
-  IndexTable,
-  Page,
-  Popover,
-  SkeletonBodyText,
-  Text,
-  useIndexResourceState,
-} from '@shopify/polaris';
+/**
+ * The releases list — the app's front door.
+ *
+ * A ticked table in the kit's vocabulary: `usePicked` owns the set and the
+ * shift-range, `RowTick` owns the gesture, `BulkBar` REPLACES the header row
+ * while a selection is live (ruling 9) and `useGridPin` holds the
+ * content-sized grid still across that swap, so ticking a box moves nothing.
+ */
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { UpcomingSendInfo } from '../types';
 import { formatDayShort } from '../logic/dates';
-import { TEMPLATE_LABELS, releaseStatusBadge } from '../ui/format';
+import { TEMPLATE_LABELS, plural, releaseStatusBadge } from '../ui/format';
 import { useApp } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
 import { useColumns } from '../ui/useColumns';
+import { Btn, Cap, Card, Foot, None, Page, Pill, Skeleton } from '../ui/rd';
+import Menu from '../rd/components/Menu';
+import BulkBar from '../rd/components/BulkBar';
+import RowTick from '../rd/components/RowTick';
+import usePicked from '../rd/components/usePicked';
+import useGridPin from '../rd/components/useGridPin';
 import { NewReleaseModal } from '../components/NewReleaseModal';
 
 /**
  * The next-send cell: just the date at rest; clicking it opens the next
  * three sends — which email, which batch, how many collectors — each a
  * link into its send detail.
+ *
+ * The kit's `Menu` and not a popover of our own: its panel is a portal, and a
+ * panel drawn as a child of the chip is clipped the moment the chip sits in a
+ * table's scrollport — full height, every item behind the clip.
  */
 function NextSendCell({
   upcoming,
@@ -32,41 +39,22 @@ function NextSendCell({
   upcoming: UpcomingSendInfo[];
   onOpenSend: (sendId: string) => void;
 }): ReactElement {
-  const [open, setOpen] = useState(false);
-  if (upcoming.length === 0) {
-    return (
-      <Text as="span" variant="bodySm" tone="subdued">
-        —
-      </Text>
-    );
-  }
+  if (upcoming.length === 0) return <None />;
   return (
-    <Popover
-      active={open}
-      onClose={() => setOpen(false)}
-      activator={
-        <Button variant="plain" onClick={() => setOpen((v) => !v)}>
-          {formatDayShort(upcoming[0].scheduledDate)}
-        </Button>
-      }
-    >
-      <div style={{ padding: 'var(--p-space-300) var(--p-space-400)', minWidth: 300 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--p-space-200)' }}>
-          {upcoming.map((send, idx) => (
-            <div key={send.sendId}>
-              <Button variant="plain" onClick={() => onOpenSend(send.sendId)}>
-                {`${formatDayShort(send.scheduledDate)} — ${TEMPLATE_LABELS[send.templateRef]}${send.type === 'delay' ? ' (delay)' : ''}`}
-              </Button>
-              <Text as="p" variant="bodySm" tone="subdued">
-                {idx === 0 ? 'Next · ' : ''}
-                {send.batchName} · {send.recipientCount} collector
-                {send.recipientCount === 1 ? '' : 's'}
-              </Text>
-            </div>
-          ))}
-        </div>
-      </div>
-    </Popover>
+    <Menu
+      chipClass="rd-cellink"
+      chip={formatDayShort(upcoming[0].scheduledDate)}
+      items={upcoming.map((send, idx) => ({
+        key: send.sendId,
+        label: [
+          `${idx === 0 ? 'Next · ' : ''}${formatDayShort(send.scheduledDate)}`,
+          `${TEMPLATE_LABELS[send.templateRef]}${send.type === 'delay' ? ' (delay)' : ''}`,
+          send.batchName,
+          plural(send.recipientCount, 'collector'),
+        ].join(' · '),
+      }))}
+      onPick={(sendId) => onOpenSend(sendId)}
+    />
   );
 }
 
@@ -79,124 +67,134 @@ export function ReleasesIndex(): ReactElement {
   const columns = useColumns('releases', [
     { id: 'release', title: 'Release', locked: true },
     { id: 'artist', title: 'Artist' },
-    { id: 'edition', title: 'Edition size', defaultHidden: true },
+    { id: 'edition', title: 'Edition size', n: true, defaultHidden: true },
     { id: 'status', title: 'Status' },
-    { id: 'orders', title: 'Orders' },
-    { id: 'batches', title: 'Batches' },
+    { id: 'orders', title: 'Orders', n: true },
+    { id: 'batches', title: 'Batches', n: true },
     { id: 'next', title: 'Next send' },
     { id: 'overdue', title: 'Overdue' },
     { id: 'pending', title: 'Pending approval' },
   ]);
 
   const rows = releases.data ?? [];
-  const { selectedResources, allResourcesSelected, handleSelectionChange } =
-    useIndexResourceState(
-      rows.map((r) => ({ id: r.release.id })) as unknown as { [key: string]: unknown }[],
-    );
+  const picked = usePicked();
+  const pin = useGridPin(picked.size > 0);
 
   return (
     <Page
-      fullWidth
       title="Releases"
-      subtitle="Every release with post-purchase comms, and what needs attention"
-      primaryAction={{ content: 'New release', onAction: () => setNewReleaseOpen(true) }}
+      actions={
+        <>
+          {columns.menu}
+          <Btn kind="pri" onClick={() => setNewReleaseOpen(true)}>
+            New release
+          </Btn>
+        </>
+      }
     >
-      <Card padding="0">
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            padding: 'var(--p-space-300) var(--p-space-400) 0',
-          }}
-        >
-          {columns.columnsButton}
-        </div>
+      <Card>
         {releases.data === null ? (
-          <div style={{ padding: 'var(--p-space-400)' }}>
-            <SkeletonBodyText lines={6} />
-          </div>
+          <Skeleton rows={6} />
         ) : (
-          <IndexTable
-            resourceName={{ singular: 'release', plural: 'releases' }}
-            itemCount={rows.length}
-            selectedItemsCount={allResourcesSelected ? 'All' : selectedResources.length}
-            onSelectionChange={handleSelectionChange}
-            headings={columns.headings as [{ title: string }]}
-          >
-            {rows.map((summary, index) => {
-              const { release } = summary;
-              return (
-                <IndexTable.Row
-                  id={release.id}
-                  key={release.id}
-                  position={index}
-                  selected={selectedResources.includes(release.id)}
-                  onClick={() => navigate(`/releases/${release.id}`)}
-                >
-                  <IndexTable.Cell>
-                    <Text as="span" fontWeight="semibold">
-                      {release.title}
-                    </Text>
-                  </IndexTable.Cell>
-                  {columns.show('artist') ? (
-                    <IndexTable.Cell>{release.artist}</IndexTable.Cell>
-                  ) : null}
-                  {columns.show('edition') ? (
-                    <IndexTable.Cell>{release.editionSize ?? '—'}</IndexTable.Cell>
-                  ) : null}
-                  {columns.show('status') ? (
-                    <IndexTable.Cell>{releaseStatusBadge(release.status)}</IndexTable.Cell>
-                  ) : null}
-                  {columns.show('orders') ? (
-                    <IndexTable.Cell>{summary.orderCount}</IndexTable.Cell>
-                  ) : null}
-                  {columns.show('batches') ? (
-                    <IndexTable.Cell>
-                      {summary.batchCount > 1 ? (
-                        summary.batchCount
-                      ) : (
-                        <Text as="span" variant="bodySm" tone="subdued">
-                          —
-                        </Text>
-                      )}
-                    </IndexTable.Cell>
-                  ) : null}
-                  {columns.show('next') ? (
-                    <IndexTable.Cell>
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <NextSendCell
-                          upcoming={summary.upcomingSends}
-                          onOpenSend={(sendId) => navigate(`/sends/${sendId}`)}
-                        />
-                      </div>
-                    </IndexTable.Cell>
-                  ) : null}
-                  {columns.show('overdue') ? (
-                    <IndexTable.Cell>
-                      {summary.overdueCount > 0 ? (
-                        <Badge tone="critical">{String(summary.overdueCount)}</Badge>
-                      ) : (
-                        <Text as="span" variant="bodySm" tone="subdued">
-                          —
-                        </Text>
-                      )}
-                    </IndexTable.Cell>
-                  ) : null}
-                  {columns.show('pending') ? (
-                    <IndexTable.Cell>
-                      {summary.pendingApprovalCount > 0 ? (
-                        <Badge tone="attention">{String(summary.pendingApprovalCount)}</Badge>
-                      ) : (
-                        <Text as="span" variant="bodySm" tone="subdued">
-                          —
-                        </Text>
-                      )}
-                    </IndexTable.Cell>
-                  ) : null}
-                </IndexTable.Row>
-              );
-            })}
-          </IndexTable>
+          <>
+            <div className="rd-scroll">
+              <table
+                className="rd-t rd-t27 rd-fit rd-tpad rd-tsel"
+                ref={pin.ref}
+                style={pin.style}
+              >
+                {pin.cols}
+                <thead>
+                  {picked.size > 0 ? (
+                    <BulkBar count={picked.size} columns={columns.count + 1} actions={[]} />
+                  ) : (
+                    <tr>
+                      <th aria-hidden />
+                      {columns.head}
+                    </tr>
+                  )}
+                </thead>
+                <tbody>
+                  {rows.length === 0 ? (
+                    <tr>
+                      <td className="rd-prose" colSpan={columns.count + 1}>
+                        No releases yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    rows.map((summary) => {
+                      const { release } = summary;
+                      return (
+                        <tr
+                          key={release.id}
+                          className="rd-rowlink"
+                          onClick={() => navigate(`/releases/${release.id}`)}
+                        >
+                          <td onClick={(e) => e.stopPropagation()}>
+                            <RowTick
+                              id={release.id}
+                              on={picked.has(release.id)}
+                              label={release.title}
+                              onPress={picked.press}
+                            />
+                          </td>
+                          <td className="rd-ink">
+                            <Cap>{release.title}</Cap>
+                          </td>
+                          {columns.show('artist') ? (
+                            <td>
+                              <Cap>{release.artist}</Cap>
+                            </td>
+                          ) : null}
+                          {columns.show('edition') ? (
+                            <td className="n">{release.editionSize ?? <None />}</td>
+                          ) : null}
+                          {columns.show('status') ? (
+                            <td>{releaseStatusBadge(release.status)}</td>
+                          ) : null}
+                          {columns.show('orders') ? (
+                            <td className="n">{summary.orderCount}</td>
+                          ) : null}
+                          {columns.show('batches') ? (
+                            <td className="n">
+                              {summary.batchCount > 1 ? summary.batchCount : <None />}
+                            </td>
+                          ) : null}
+                          {columns.show('next') ? (
+                            <td onClick={(e) => e.stopPropagation()}>
+                              <NextSendCell
+                                upcoming={summary.upcomingSends}
+                                onOpenSend={(sendId) => navigate(`/sends/${sendId}`)}
+                              />
+                            </td>
+                          ) : null}
+                          {columns.show('overdue') ? (
+                            <td>
+                              {summary.overdueCount > 0 ? (
+                                <Pill tone="red">{summary.overdueCount}</Pill>
+                              ) : (
+                                <None />
+                              )}
+                            </td>
+                          ) : null}
+                          {columns.show('pending') ? (
+                            <td>
+                              {summary.pendingApprovalCount > 0 ? (
+                                <Pill tone="amber">{summary.pendingApprovalCount}</Pill>
+                              ) : (
+                                <None />
+                              )}
+                            </td>
+                          ) : null}
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <Foot>{plural(rows.length, 'release')}</Foot>
+          </>
         )}
       </Card>
       <NewReleaseModal open={newReleaseOpen} onClose={() => setNewReleaseOpen(false)} />

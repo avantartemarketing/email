@@ -1,0 +1,602 @@
+/**
+ * This product's own layer, on top of the kit.
+ *
+ * The kit ships the vocabulary any admin needs and deliberately stops short of
+ * two things (README §2): the navigation furniture, "being particular to
+ * whatever areas your product has", and anything a screen invented for itself.
+ * Everything here is one of those two, written to the kit's own rules —
+ * `rd-` prefixed, and not one value typed at the point of use. `prove-tokens`
+ * reads this file alongside `redesign.css` and holds it to the same standard.
+ *
+ * Nothing here restates something the kit already draws. Where this file and
+ * the kit disagree, the kit wins and this file is the bug.
+ */
+
+/* ---------- The rail's nav rows ----------
+   The kit draws the rail's head (`.rd-wordmark`) and its collapse control and
+   stops there. A nav row is a tab in every respect that matters — a control
+   that holds which screen you are on — so it is drawn as one: the open row is
+   an OBJECT (white, hairlined, `--rd-shadow-control`) against the rail's warm
+   grey, and the rest are text. Ruling 96's argument, one surface over.
+
+   The lozenge's box is on every row, transparent-bordered, for ruling 96's own
+   reason: a border that arrives on selection is 2px of width appearing under
+   the pointer at the moment of the click. */
+.rd-rail {
+  width: var(--rd-rail-w);
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  background: var(--rd-rail);
+  /* No right-hand border: against a white work area the tone change IS the
+     edge. The kit's shell note says so; this is that note obeyed. */
+}
+.rd-railnav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+}
+.rd-navrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--rd-tab-h);
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--rd-radius-control);
+  background: none;
+  font: var(--rd-weight-emphasis) var(--rd-size-cell-dense) var(--rd-font-text);
+  color: var(--rd-ink-tertiary);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rd-navrow:hover:not(.on) {
+  color: var(--rd-ink);
+  background: var(--rd-hover-square);
+}
+.rd-navrow.on {
+  background: var(--rd-card);
+  border-color: var(--rd-border);
+  box-shadow: var(--rd-shadow-control);
+  color: var(--rd-ink);
+}
+/* A count riding on a nav row. It is a QUANTITY, not a state — so it takes the
+   resting grey and never a status tint: an amber badge on a nav row would say
+   the queue was wrong rather than that it had five things in it. */
+.rd-navcount {
+  margin-left: auto;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: var(--rd-radius-pill);
+  background: var(--rd-grey-bg);
+  color: var(--rd-grey-ink);
+  font: var(--rd-weight-emphasis) var(--rd-size-label) / 17px var(--rd-font-text);
+  text-align: center;
+}
+.rd-navrow.on .rd-navcount {
+  background: var(--rd-band);
+}
+
+/* The shell: rail beside the work, both full height, only the work scrolls. */
+.rd-app {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--rd-canvas-shell);
+}
+.rd-work {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.rd-workscroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--rd-canvas);
+}
+
+/* The bar's right-hand end — who is signed in. A chip that opens a menu, so it
+   is the kit's chip, plus the initials disc the shell's identity marker uses. */
+.rd-who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--rd-head-control-h);
+  padding: 0 9px 0 5px;
+  border: 1px solid var(--rd-border);
+  border-radius: var(--rd-radius-control);
+  background: var(--rd-card);
+  font: var(--rd-weight-emphasis) var(--rd-size-head) / 1 var(--rd-font-text);
+  color: var(--rd-ink-ui);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rd-face {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: var(--rd-radius-pill);
+  background: var(--rd-face-bg);
+  color: var(--rd-card);
+  display: grid;
+  place-items: center;
+  font: var(--rd-weight-caps) var(--rd-size-caps) / 1 var(--rd-font-text);
+}
+
+/* ---------- The page head's own row ----------
+   The kit's `.rd-head` is the flex row a page title sits in; the example page
+   wears it and the kit's own history is a warning about cutting it (MAP.md).
+   What is added here is the row BENEATH it — the line of facts a record page
+   states about itself once, so no card has to repeat them. */
+.rd-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 2px 12px;
+}
+.rd-head .rd-headacts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+/* Every control in the head row is one height whatever its fill — ruling 89j,
+   and the reason `--rd-head-control-h` exists. */
+.rd-head .rd-chip,
+.rd-head .rd-btn-pri,
+.rd-headacts .rd-chip,
+.rd-headacts .rd-btn-pri {
+  height: var(--rd-head-control-h);
+  display: inline-flex;
+  align-items: center;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+/* The line under the title: what this record IS. Facts, separated, never a
+   sentence — a sentence here is read once and printed forever. */
+.rd-subhead {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: -8px 2px 14px;
+  font: var(--rd-weight-body) var(--rd-size-head) / 1.2 var(--rd-font-text);
+  color: var(--rd-ink-muted);
+}
+.rd-backlink {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: var(--rd-weight-body) var(--rd-size-head) / 1 var(--rd-font-text);
+  color: var(--rd-ink-muted);
+  cursor: pointer;
+}
+.rd-backlink:hover {
+  color: var(--rd-ink);
+}
+
+/* A stack of cards down a page, at the gap two stacked cards already use. */
+.rd-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rd-card-gap);
+}
+/* A card's head row: its name on the left, its own controls on the right, at
+   the same single control height the page head uses. */
+.rd-cardhead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px var(--rd-card-inset) 9px;
+}
+.rd-cardhead .rd-sechead {
+  padding: 0;
+}
+.rd-cardacts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.rd-cardacts .rd-chip {
+  height: var(--rd-head-control-h);
+  display: inline-flex;
+  align-items: center;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* The figure a record page leads with — a promised date, a count. The KPI
+   role, at the KPI size, in the display face. */
+.rd-lede {
+  font: var(--rd-weight-emphasis) var(--rd-size-kpi) / 1.15 var(--rd-font-display);
+  color: var(--rd-ink);
+}
+.rd-ledelab {
+  font: var(--rd-weight-body) var(--rd-size-label) / 1.2 var(--rd-font-text);
+  color: var(--rd-ink-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* A key and its value, down a card — the record's facts where a table would be
+   a table of one row. */
+.rd-kv {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 7px 14px;
+  padding: 2px var(--rd-card-inset) var(--rd-card-inset);
+  font: var(--rd-weight-body) var(--rd-size-cell) / 1.45 var(--rd-font-text);
+  color: var(--rd-ink-cell);
+}
+.rd-kvk {
+  color: var(--rd-ink-muted);
+}
+.rd-kvv {
+  min-width: 0;
+  color: var(--rd-ink-cell);
+}
+
+/* Prose inside a card — the one place a paragraph is allowed, and it takes the
+   long-form ink rather than the cell's. */
+.rd-copy {
+  padding: 0 var(--rd-card-inset) var(--rd-card-inset);
+  font: var(--rd-weight-body) var(--rd-size-cell) / 1.55 var(--rd-font-text);
+  color: var(--rd-ink-body);
+}
+.rd-copy p {
+  margin: 0 0 8px;
+}
+.rd-copy p:last-child {
+  margin-bottom: 0;
+}
+
+/* A band that is telling you something rather than warning you — the kit names
+   the border token for exactly this and ships no rule that spends it. */
+.rd-notebar {
+  display: flex;
+  gap: 9px;
+  padding: 9px 14px;
+  background: var(--rd-blue-bg);
+  border: 1px solid var(--rd-blue-border);
+  border-radius: var(--rd-radius-inset);
+  font: var(--rd-weight-body) var(--rd-size-cell-dense) / 1.45 var(--rd-font-text);
+  color: var(--rd-blue-ink);
+}
+.rd-notedot {
+  color: var(--rd-blue-ink);
+  flex: none;
+}
+.rd-notebar b,
+.rd-failpanel b {
+  font-weight: var(--rd-weight-emphasis);
+}
+
+/* ---------- The dialogue's own furniture ----------
+   The kit draws `.rd-dialog`, its scrim and its foot, and leaves the head and
+   body to the screen. Stated once here so eight dialogues cannot each invent a
+   padding. */
+.rd-dialoghd {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px 4px;
+  font: var(--rd-weight-emphasis) var(--rd-size-hero) / 1.3 var(--rd-font-display);
+  color: var(--rd-ink);
+}
+.rd-dialogbody {
+  padding: 8px 20px 4px;
+  font: var(--rd-weight-body) var(--rd-size-cell) / 1.5 var(--rd-font-text);
+  color: var(--rd-ink-body);
+}
+.rd-dialogbody p {
+  margin: 0 0 10px;
+}
+.rd-dialogbody p:last-child {
+  margin-bottom: 0;
+}
+.rd-dialogx {
+  margin-left: auto;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: var(--rd-weight-body) var(--rd-size-hero) / 1 var(--rd-font-text);
+  color: var(--rd-ink-faint);
+  cursor: pointer;
+}
+.rd-dialogx:hover {
+  color: var(--rd-ink);
+}
+/* A dialogue tall enough to scroll keeps its actions in view.
+   Found on 28 Aug 2026 by rendering the reschedule dialogue at 1520×940: the
+   kit's `.rd-dialog` carries the overflow itself, so the whole panel scrolls
+   INCLUDING its foot — and this app puts a 600px email preview inside two of
+   its dialogues. The most consequential button in the tool (Save — queue for
+   approval) sat below that preview, reachable only by scrolling past it.
+   Sticky rather than moving the foot out of the panel: it stays the panel's
+   last child, so every short dialogue renders exactly as it did. */
+.rd-dialog .rd-dialogfoot {
+  position: sticky;
+  bottom: 0;
+  background: var(--rd-card);
+}
+
+/* Dialogues come at three widths and no others, so a screen picks a size
+   rather than a number. */
+.rd-dialog-sm { width: 420px; }
+.rd-dialog-md { width: 560px; }
+.rd-dialog-lg { width: 760px; }
+
+/* A field stack inside a dialogue or card, at the gap the kit's own example
+   leaves between two fields. */
+.rd-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rd-fieldrow {
+  display: flex;
+  gap: 8px;
+}
+.rd-fieldrow > * {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---------- What the app said and then took away ----------
+   A confirmation of something that has already happened. It is not a status
+   and not a band: it arrives, it is read, it goes. The one shadow it takes is
+   the float's, because it is floating. */
+.rd-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  z-index: 60;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 560px;
+  padding: 10px 14px;
+  border-radius: var(--rd-radius-float);
+  background: var(--rd-ink);
+  color: var(--rd-card);
+  box-shadow: var(--rd-shadow-float);
+  font: var(--rd-weight-body) var(--rd-size-cell) / 1.4 var(--rd-font-text);
+  animation: rd-toast-in var(--rd-dur-overlay) var(--rd-ease);
+}
+.rd-toast-bad {
+  background: var(--rd-red-ink);
+}
+.rd-toastx {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: var(--rd-weight-body) var(--rd-size-cell) / 1 var(--rd-font-text);
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+}
+.rd-toastx:hover {
+  opacity: 1;
+}
+@keyframes rd-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+}
+
+/* A row you can open. The pointer says so; nothing is drawn. */
+.rd-rowlink {
+  cursor: pointer;
+}
+.rd-t tbody tr.rd-rowlink:hover td {
+  background: var(--rd-row-sel);
+}
+/* A cell's own word that opens something — the identity column, mostly. It is
+   a link and reads as one only on approach, so it does not turn a table into a
+   page of blue. */
+.rd-cellink {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.rd-cellink:hover {
+  color: var(--rd-link);
+  text-decoration: underline;
+}
+/* The muted "nothing here" dash a cell takes when it has no value. */
+.rd-none {
+  color: var(--rd-ink-disabled);
+}
+
+/* ---------- The cap, on ONE line ----------
+   The kit's `.rd-cap` caps a cell at 27 characters and WRAPS inside the cap —
+   its README documents fixing it so it wraps rather than clips, and that is
+   right for a system whose rows may take two lines.
+
+   This product ruled otherwise. The owner, on a table whose cells had gone to
+   two lines: "don't do text on two lines like this in tables. Add extra
+   columns if you need." And again a round later: "these columns should never
+   wrap like this to make the row double height." So a long value here takes
+   one line and ellipsises, and the whole of it is one click away in the row's
+   own record — which is where a 60-character email subject was always going to
+   be read anyway.
+
+   Found on 28 Aug 2026 by measuring the approval queue: every row was a
+   correct 34px, and four of them held two lines of 13px type squeezed inside
+   it. The row geometry check could not see it, because the rows were right —
+   only the picture and the ruling together said otherwise. */
+.rd-capline {
+  display: inline-block;
+  max-width: 27ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+/* Micro actions at the end of a row. Quiet until approached: a row of buttons
+   in every row is a column of buttons down the table. */
+.rd-rowacts {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.rd-rowact {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: var(--rd-weight-emphasis) var(--rd-size-caption) / 1 var(--rd-font-text);
+  color: var(--rd-ink-tertiary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rd-rowact:hover {
+  color: var(--rd-ink);
+}
+.rd-rowact-danger {
+  color: var(--rd-red-ink);
+}
+.rd-rowact-danger:hover {
+  color: var(--rd-red-ink);
+  text-decoration: underline;
+}
+
+/* An empty table's sentence, and an empty screen's. The kit gives the cell its
+   `white-space: normal`; this gives the line its ink and its room. */
+.rd-empty {
+  padding: 26px var(--rd-card-inset);
+  font: var(--rd-weight-body) var(--rd-size-cell) / 1.5 var(--rd-font-text);
+  color: var(--rd-ink-muted);
+  text-align: center;
+}
+
+/* Loading, before anything has arrived. A bar the width of the thing it stands
+   in for — not a spinner, which says "wait" without saying what for. */
+.rd-skelrow {
+  height: 11px;
+  margin: 9px var(--rd-card-inset);
+  border-radius: var(--rd-radius-meter);
+  background: var(--rd-track);
+  animation: rd-skel var(--rd-dur-draw) var(--rd-ease) infinite alternate;
+}
+@keyframes rd-skel {
+  to {
+    opacity: 0.45;
+  }
+}
+
+/* ---------- The email, as it will arrive ----------
+   A rendered artifact rather than a screen: a 600px column of somebody else's
+   HTML, previewed inside ours. `tokens.css` says the sizes inside one are
+   deliberately absent from the reading scale — so they are named as their own
+   set (`--rd-email-*`), which is what the kit asks for when a value has a role
+   the scale does not cover. Nothing in here is UI, and nothing outside here
+   may use these. */
+.rd-mail {
+  background: var(--rd-desk);
+  padding: var(--rd-card-inset);
+}
+.rd-mailpaper {
+  max-width: var(--rd-email-w);
+  /* The 600 is the WHOLE sheet, padding included — that is what a 600px email
+     table is. Without this the box grew by its own padding and rendered 652,
+     which `prove-screens` caught on 28 Aug 2026 the first time it measured
+     this screen. The kit's table cells are deliberately content-box and this
+     is not one of them; stated here rather than globally for that reason. */
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 22px 26px 26px;
+  background: var(--rd-card);
+  border-radius: var(--rd-radius-meter);
+  box-shadow: var(--rd-shadow-sheet);
+  font: var(--rd-weight-body) var(--rd-email-body) / var(--rd-email-lead) var(--rd-font-text);
+  color: var(--rd-ink-body);
+}
+.rd-mailmark {
+  text-align: center;
+  padding: 4px 0 18px;
+  font: var(--rd-weight-caps) var(--rd-email-mark) / 1 var(--rd-font-display);
+  letter-spacing: var(--rd-email-track);
+  color: var(--rd-ink);
+}
+/* No image chosen is a STATE, so it is the hatch rather than a grey box. */
+.rd-mailhero {
+  display: grid;
+  place-items: center;
+  min-height: 128px;
+  margin-bottom: 18px;
+  border-radius: var(--rd-radius-meter);
+  background: repeating-linear-gradient(
+    45deg,
+    var(--rd-hatch-b),
+    var(--rd-hatch-b) 8px,
+    var(--rd-hatch-a) 8px,
+    var(--rd-hatch-a) 16px
+  );
+  font: var(--rd-weight-emphasis) var(--rd-size-cell-dense) var(--rd-font-text);
+  color: var(--rd-ink-tertiary);
+  text-align: center;
+  padding: 12px;
+}
+.rd-mailhead {
+  margin: 0 0 14px;
+  text-align: center;
+  font: var(--rd-weight-emphasis) var(--rd-email-head) / 1.35 var(--rd-font-display);
+  color: var(--rd-ink);
+}
+.rd-mailbody {
+  white-space: pre-wrap;
+}
+.rd-mailsteps {
+  margin-top: 18px;
+  padding: 13px 16px 15px;
+  border: 1px solid var(--rd-border);
+  border-radius: var(--rd-radius-inset);
+}
+.rd-mailsteps h4 {
+  margin: 0 0 10px;
+  font: var(--rd-weight-emphasis) var(--rd-size-hero) / 1.3 var(--rd-font-display);
+  color: var(--rd-ink);
+}
+.rd-mailstep {
+  display: flex;
+  gap: 11px;
+  padding-bottom: 10px;
+}
+.rd-mailstep:last-child {
+  padding-bottom: 0;
+}
+.rd-mailstep i {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  margin-top: 6px;
+  border-radius: var(--rd-radius-pill);
+  background: var(--rd-track);
+}
+.rd-mailstep b {
+  display: block;
+  font-weight: var(--rd-weight-emphasis);
+  color: var(--rd-ink);
+}
+.rd-mailfoot {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rd-hairline-row);
+  text-align: center;
+  font-size: var(--rd-email-foot);
+  color: var(--rd-ink-muted);
+}

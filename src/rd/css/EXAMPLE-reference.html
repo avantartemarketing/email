@@ -1,0 +1,135 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Workbench-rd — the vocabulary, rendered</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<!--
+  Every screen this system has ever got wrong was one nobody looked at. So the
+  kit ships one page that renders its vocabulary with no build step and no
+  React: open it and the system is either right in front of you or it is not.
+
+  Serve it from the KIT ROOT rather than opening the file directly —
+  `tokens.css` asks for `/fonts/InterVariable.woff2`, an absolute path, so
+  under file:// the type silently falls back and every measurement in it is a
+  measurement of something else:
+
+      python3 -m http.server 8000     # then http://localhost:8000/example/
+
+  The markup here is copied from the kit's components in `../components`, not
+  written to look like them.
+-->
+<link rel="stylesheet" href="./tokens.css" />
+<link rel="stylesheet" href="./redesign.css" />
+<style>
+  /* The host app supplies the shell; this page only needs its ground. */
+  body {
+    margin: 0;
+    background: var(--rd-canvas);
+    font-family: var(--rd-font-text);
+  }
+</style>
+
+<div class="rd-page">
+  <div class="rd-head">
+    <div class="rd-title">Suppliers</div>
+    <div style="flex: 1"></div>
+    <button class="rd-btn-pri">New supplier</button>
+  </div>
+
+  <div class="rd-tabs" role="tablist" aria-label="Suppliers">
+    <button class="rd-tab on" role="tab" aria-selected="true">All</button>
+    <button class="rd-tab" role="tab" aria-selected="false">Owed</button>
+    <button class="rd-tab" role="tab" aria-selected="false">Archived</button>
+  </div>
+
+  <div class="rd-toolbar">
+    <label class="rd-search"><span>⌕</span><input placeholder="Search suppliers" /></label>
+    <div class="rd-chips">
+      <button class="rd-chip rd-chip-sm">Fields</button>
+      <button class="rd-chip rd-chip-sm">Filter</button>
+      <button class="rd-chip rd-chip-sm">Group</button>
+      <button class="rd-chip rd-chip-sm">Sort</button>
+    </div>
+    <span class="rd-chip rd-chip-sm rd-filterchip">Category · Storage &amp; Couriers<button class="rd-chip-x" aria-label="Remove">×</button></span>
+  </div>
+
+  <div class="rd-card">
+    <div class="rd-scroll">
+      <table class="rd-t rd-t27 rd-t32 rd-tsel rd-fit">
+        <thead>
+          <tr>
+            <th><span class="rd-cbx" aria-hidden><svg class="rd-cbxmark" width="16" height="16" viewBox="0 0 16 16" aria-hidden focusable="false"><path d="M3.6 8.4 L6.6 11.4 L12.4 5" /></svg></span></th>
+            <th>Supplier</th>
+            <th>Category</th>
+            <th>Status</th>
+            <th class="n">Invoices</th>
+            <th class="n">Total</th>
+            <th>Currency</th>
+            <th class="rd-fill" aria-hidden></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="rd-band">
+            <td colspan="8">
+              <div class="rd-bandwrap">
+                <span class="rd-bandchev">▾</span>
+                <div class="rd-bandlines">
+                  <div class="rd-bandcap">Storage &amp; Couriers</div>
+                  <div class="rd-bandval">3 suppliers</div>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td><span class="rd-cbx" aria-hidden><svg class="rd-cbxmark" width="16" height="16" viewBox="0 0 16 16" aria-hidden focusable="false"><path d="M3.6 8.4 L6.6 11.4 L12.4 5" /></svg></span></td>
+            <td class="rd-ink">Northgate Freight</td>
+            <td><span class="rd-ctag rd-ctag-steel">Storage &amp; Couriers</span></td>
+            <td><span class="rd-tag rd-tag-green">Paid</span></td>
+            <td class="n">12</td>
+            <td class="n">£8,420.00</td>
+            <td><span class="rd-ctag rd-ctag-stone">GBP</span></td>
+            <td class="rd-fill" aria-hidden></td>
+          </tr>
+          <tr>
+            <td><span class="rd-cbx on" aria-hidden><svg class="rd-cbxmark" width="16" height="16" viewBox="0 0 16 16" aria-hidden focusable="false"><path d="M3.6 8.4 L6.6 11.4 L12.4 5" /></svg></span></td>
+            <td class="rd-ink">Halden Storage</td>
+            <td><span class="rd-ctag rd-ctag-steel">Storage &amp; Couriers</span></td>
+            <td><span class="rd-tag rd-tag-amber">Awaiting</span></td>
+            <td class="n">4</td>
+            <td class="n">$1,190.55</td>
+            <td><span class="rd-ctag rd-ctag-stone">CAD</span></td>
+            <td class="rd-fill" aria-hidden></td>
+          </tr>
+          <tr>
+            <td><span class="rd-cbx" aria-hidden><svg class="rd-cbxmark" width="16" height="16" viewBox="0 0 16 16" aria-hidden focusable="false"><path d="M3.6 8.4 L6.6 11.4 L12.4 5" /></svg></span></td>
+            <td class="rd-mut"><span class="rd-cap">A supplier name long enough to run past the twenty-seven character cap</span></td>
+            <td><span class="rd-none">–</span></td>
+            <td><span class="rd-tag rd-tag-grey">Draft</span></td>
+            <td class="n"><span class="rd-none">–</span></td>
+            <td class="n"><span class="rd-none">–</span></td>
+            <td><span class="rd-none">–</span></td>
+            <td class="rd-fill" aria-hidden></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="rd-foot">3 suppliers · 1 selected</div>
+  </div>
+
+  <div class="rd-card" style="margin-top: 16px; padding: 16px">
+    <div class="rd-sechead">A card of fields</div>
+    <label class="rd-field">
+      <span class="rd-fieldlab">Supplier name</span>
+      <span class="rd-fieldval"><input value="Northgate Freight" /></span>
+    </label>
+    <label class="rd-field">
+      <span class="rd-fieldlab">Amount</span>
+      <span class="rd-fieldval"><span class="rd-fieldpre">£</span><input value="8,420.00" /></span>
+    </label>
+    <div class="rd-dialogfoot">
+      <button class="rd-btn-pri">Save</button>
+      <button class="rd-chip">Cancel</button>
+      <span style="flex: 1"></span>
+      <button class="rd-linkbtn rd-linkbtn-danger">Delete supplier</button>
+    </div>
+  </div>
+</div>
