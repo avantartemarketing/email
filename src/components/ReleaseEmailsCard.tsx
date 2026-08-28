@@ -4,6 +4,7 @@ import {
   BlockStack,
   Button,
   ButtonGroup,
+  Card,
   IndexTable,
   Modal,
   Select,
@@ -23,13 +24,13 @@ import { useApp } from '../ui/AppContext';
 import { EmailPreview } from './EmailPreview';
 
 /**
- * The release's email set, opened from the release page's "Release emails"
- * action so it stays out of the day-to-day flow. Emails are templated by
- * default: the routine per-release work is picking the hero image for each
- * slot (the on-track email gets three, cycled across a plan's fillers).
- * Custom copy is the exception — an artist photo to talk about, a delay —
- * and lives behind "Edit copy". Copy changes apply to every batch; image
- * picks update upcoming sends without resetting approvals.
+ * The release's email set, its own tab on the release page. Emails are
+ * templated by default: the routine per-release work is picking the hero
+ * image for each slot (the on-track email gets three, cycled across a
+ * plan's fillers). Custom copy is the exception — an artist photo to talk
+ * about, a delay — and lives behind "Edit copy". Copy changes apply to
+ * every batch; image picks update upcoming sends without resetting
+ * approvals.
  */
 
 interface EmailRow {
@@ -64,15 +65,11 @@ function rowsFor(release: Release): EmailRow[] {
   ];
 }
 
-export function ReleaseEmailsModal({
-  open,
+export function ReleaseEmailsPanel({
   release,
-  onClose,
   onChanged,
 }: {
-  open: boolean;
   release: Release;
-  onClose: () => void;
   onChanged: () => void;
 }): ReactElement {
   const { data, showToast } = useApp();
@@ -113,21 +110,18 @@ export function ReleaseEmailsModal({
   ];
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      size="large"
-      title={`Release emails — ${release.title}`}
-      primaryAction={{ content: 'Done', onAction: onClose }}
-    >
-      <Modal.Section>
+    <Card padding="0">
+      <div style={{ padding: 'var(--p-space-400) var(--p-space-400) var(--p-space-300)' }}>
+        <Text as="h2" variant="headingSm">
+          Emails for this release
+        </Text>
         <Text as="p" variant="bodySm" tone="subdued">
           Emails are templated — the routine setup here is picking the hero image for each
           send. Custom copy is the exception (an artist photo to talk about, a delay) and
           applies to every batch. Image picks update upcoming sends without resetting
           approvals.
         </Text>
-      </Modal.Section>
+      </div>
       <IndexTable
         resourceName={{ singular: 'email', plural: 'emails' }}
         itemCount={rows.length}
@@ -214,7 +208,7 @@ export function ReleaseEmailsModal({
         onClose={() => setEditingRef(null)}
         onSaved={onChanged}
       />
-    </Modal>
+    </Card>
   );
 }
 

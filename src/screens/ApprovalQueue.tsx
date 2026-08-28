@@ -170,7 +170,7 @@ export function ApprovalQueue(): ReactElement {
                     onClick={() => setPreview(item)}
                   >
                     <IndexTable.Cell>
-                      <InlineStack gap="100" blockAlign="center">
+                      <InlineStack gap="100" blockAlign="center" wrap={false}>
                         <Text as="span" fontWeight={overdue ? 'semibold' : 'regular'}>
                           {formatDayShort(item.send.scheduledDate)}
                         </Text>

@@ -39,7 +39,7 @@ import { EditSendModal } from '../components/EditSendModal';
 import { RemoveOrderModal } from '../components/RemoveOrderModal';
 import { ImportCsvModal } from '../components/ImportCsvModal';
 import { AllocationImportModal } from '../components/AllocationImportModal';
-import { ReleaseEmailsModal } from '../components/ReleaseEmailsCard';
+import { ReleaseEmailsPanel } from '../components/ReleaseEmailsCard';
 import { useColumns } from '../ui/useColumns';
 
 export function ReleaseDetail(): ReactElement {
@@ -50,7 +50,6 @@ export function ReleaseDetail(): ReactElement {
   const [selectedTab, setSelectedTab] = useState(0);
   const [importOpen, setImportOpen] = useState(false);
   const [allocationOpen, setAllocationOpen] = useState(false);
-  const [emailsOpen, setEmailsOpen] = useState(false);
 
   if (detail.error) {
     return (
@@ -70,10 +69,22 @@ export function ReleaseDetail(): ReactElement {
   const d = detail.data;
   const batches = d.batches;
   // Most releases never split: one batch means "the release" — no batch
-  // chrome. Tabs and batch names appear only once a split has happened.
+  // names. Print releases show their framed/unframed flows as tabs, and
+  // every release gets an Emails tab as a peer of its flows.
   const singleBatch = batches.length === 1;
-  const batchTab = Math.min(selectedTab, batches.length - 1);
-  const batch = batches[batchTab];
+  const batchTabs =
+    batches.length > 1
+      ? batches.map((b) => {
+          const active = d.orders.filter((o) => o.batchId === b.id && !o.removed).length;
+          return { id: b.id, content: `${b.name} (${active})` };
+        })
+      : [{ id: 'overview', content: 'Overview' }];
+  const tabs = [...batchTabs, { id: 'emails', content: 'Emails' }];
+  const emailsIndex = tabs.length - 1;
+  const tabIndex = Math.min(selectedTab, emailsIndex);
+  const showingEmails = tabIndex === emailsIndex;
+  const batchTab = Math.min(tabIndex, Math.max(batches.length - 1, 0));
+  const batch = showingEmails ? undefined : batches[batchTab];
   const flaggedNoEmail = d.orders.filter((o) => !o.removed && !o.email);
   const flaggedNoContact = d.orders.filter((o) => !o.removed && o.email && !o.hubspotContactId);
 
@@ -85,7 +96,6 @@ export function ReleaseDetail(): ReactElement {
       titleMetadata={releaseStatusBadge(d.release.status)}
       backAction={{ content: 'Releases', onAction: () => navigate('/') }}
       secondaryActions={[
-        { content: 'Release emails', onAction: () => setEmailsOpen(true) },
         { content: 'Import orders', onAction: () => setImportOpen(true) },
         { content: 'Import warehouse allocation', onAction: () => setAllocationOpen(true) },
       ]}
@@ -110,52 +120,41 @@ export function ReleaseDetail(): ReactElement {
           </Banner>
         ) : null}
 
-        {d.orders.length === 0 ? (
+        <Tabs tabs={tabs} selected={tabIndex} onSelect={setSelectedTab} />
+        {showingEmails ? (
+          <ReleaseEmailsPanel release={d.release} onChanged={() => detail.reload()} />
+        ) : d.orders.length === 0 ? (
           <Card>
             <BlockStack gap="300">
               <Text as="h2" variant="headingSm">
                 No orders yet
               </Text>
               <Text as="p" tone="subdued">
-                Review the release's emails and images, then import the Shopify order export
-                to create its orders{d.release.productKind === 'print' ? ' — framed and unframed prints land in their own batches with separate timelines' : ''}.
+                Review the Emails tab (pick each send's image), then import the Shopify order
+                export to create this release's orders
+                {d.release.productKind === 'print' ? ' — framed and unframed prints land in their own batches with separate timelines' : ''}.
               </Text>
               <InlineStack gap="200">
                 <Button variant="primary" onClick={() => setImportOpen(true)}>
                   Import orders
                 </Button>
-                <Button onClick={() => setEmailsOpen(true)}>Release emails</Button>
               </InlineStack>
             </BlockStack>
           </Card>
-        ) : (
-          <>
-            {batches.length > 1 ? (
-              <Tabs
-                tabs={batches.map((b) => {
-                  const active = d.orders.filter((o) => o.batchId === b.id && !o.removed).length;
-                  return { id: b.id, content: `${b.name} (${active})` };
-                })}
-                selected={batchTab}
-                onSelect={setSelectedTab}
-              />
-            ) : null}
-            {batch ? (
-              <BatchSection
-                key={batch.id}
-                detail={d}
-                batch={batch}
-                singleBatch={singleBatch}
-                onChanged={() => detail.reload()}
-                onBatchCreated={() => {
-                  detail.reload();
-                  // The new batch lands at the end (sorted by creation).
-                  setSelectedTab(batches.length);
-                }}
-              />
-            ) : null}
-          </>
-        )}
+        ) : batch ? (
+          <BatchSection
+            key={batch.id}
+            detail={d}
+            batch={batch}
+            singleBatch={singleBatch}
+            onChanged={() => detail.reload()}
+            onBatchCreated={() => {
+              detail.reload();
+              // The new batch lands at the end (sorted by creation).
+              setSelectedTab(batches.length);
+            }}
+          />
+        ) : null}
       </BlockStack>
       <ImportCsvModal
         open={importOpen}
@@ -168,12 +167,6 @@ export function ReleaseDetail(): ReactElement {
         release={d.release}
         onClose={() => setAllocationOpen(false)}
         onImported={() => detail.reload()}
-      />
-      <ReleaseEmailsModal
-        open={emailsOpen}
-        release={d.release}
-        onClose={() => setEmailsOpen(false)}
-        onChanged={() => detail.reload()}
       />
     </Page>
   );
@@ -393,7 +386,7 @@ function BatchSection({
                     ) : null}
                     {orderColumns.show('contact') ? (
                       <IndexTable.Cell>
-                        <InlineStack gap="100" blockAlign="center" wrap>
+                        <InlineStack gap="100" blockAlign="center" wrap={false}>
                           <Text as="span" variant="bodySm">
                             {order.email ?? '—'}
                           </Text>

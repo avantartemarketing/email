@@ -7,6 +7,21 @@ it once absorbed.
 
 ## Where things stand
 
+**Round-3 feedback (28 Aug) applied:**
+- Releases index: selectable rows; Overdue / Pending approval as separate
+  single-badge columns (no wrapped double-height rows anywhere); "Next
+  send" is a date-only cell whose popover shows the next three sends
+  (email, batch, collector count → send detail). `ReleaseSummary.upcomingSends`.
+- "Emails" is a peer TAB on the release page (Framed / Unframed / … /
+  Emails; Overview + Emails when batchless) — `ReleaseEmailsPanel`, no
+  more buried button.
+- **Comms plan layout is awaiting Tom's pick** from five mocked options:
+  https://claude.ai/code/artifact/7384926b-b8df-4040-8eb4-9e74d22af0cd
+  (plain table / progress strip + upcoming / stepper / upcoming-sent split
+  / merged activity table — the last two also slim or absorb batch
+  history). Build the chosen one next; recommendation was option 1, with
+  4 or 5 if the history busyness is the real complaint.
+
 **Round-2 feedback (same day, after the round-2 artifact) is also applied:**
 - Print releases run **framed and unframed as separate batches** ("Framed" /
   "Unframed", created at import by variant) with their own promise dates;

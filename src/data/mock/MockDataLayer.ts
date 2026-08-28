@@ -273,6 +273,14 @@ export class MockDataLayer implements DataLayer {
         orderCount: orders.length,
         batchCount: this.releaseBatches(release.id).length,
         nextScheduledSend: upcoming[0] ?? null,
+        upcomingSends: upcoming.slice(0, 3).map((s) => ({
+          sendId: s.id,
+          scheduledDate: s.scheduledDate,
+          templateRef: s.templateRef,
+          type: s.type,
+          batchName: this._store.batches.get(s.batchId)?.name ?? '',
+          recipientCount: this.activeBatchOrders(s.batchId).length,
+        })),
         pendingApprovalCount: sends.filter((s) => s.status === 'pending_approval').length,
         overdueCount: overdue.length,
       };

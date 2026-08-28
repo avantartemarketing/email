@@ -43,18 +43,26 @@ await goHome();
 await page.getByText('Falling Light').first().waitFor();
 await shot('01-releases-index');
 
+// the next-send popover: date-only cell expands to the next three sends
+await page
+  .locator('.Polaris-IndexTable__TableRow', { hasText: 'Falling Light' })
+  .getByRole('button')
+  .first()
+  .click();
+await page.getByText(/Next ·/).waitFor();
+await shot('01b-releases-next-popover', { fullPage: false });
+await page.keyboard.press('Escape');
+
 // --- 2. release detail: Falling Light framed flow -------------------------
 await page.getByText('Falling Light').first().click();
 await page.getByRole('tab', { name: /^Framed \(/ }).waitFor();
 await page.waitForTimeout(300);
 await shot('03-release-emails-card');
 
-// the release-emails modal: image slots + copy status per email
-await page.getByRole('button', { name: 'Release emails' }).click();
-await page.getByRole('dialog').waitFor();
+// the Emails tab: image slots + copy status per email
+await page.getByRole('tab', { name: 'Emails' }).click();
 await page.getByText('On track 1', { exact: true }).waitFor();
-await shot('04-release-email-edit', { fullPage: false });
-await page.getByRole('dialog').getByRole('button', { name: 'Done', exact: true }).click();
+await shot('04-release-email-edit');
 
 // Framed 3 — the overdue split batch, with inherited story in the plan
 await page.getByRole('tab', { name: /^Framed 3/ }).click();

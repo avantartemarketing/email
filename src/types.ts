@@ -293,12 +293,24 @@ export interface LastSentInfo {
   batchName: string;
 }
 
+/** One upcoming send, summarised for the releases index popover. */
+export interface UpcomingSendInfo {
+  sendId: string;
+  scheduledDate: string;
+  templateRef: TemplateRef;
+  type: SendType;
+  batchName: string;
+  recipientCount: number;
+}
+
 /** Denormalised row for the releases index screen. */
 export interface ReleaseSummary {
   release: Release;
   orderCount: number;
   batchCount: number;
   nextScheduledSend: ScheduledSend | null;
+  /** The next few scheduled sends (soonest first), for the index popover. */
+  upcomingSends: UpcomingSendInfo[];
   pendingApprovalCount: number;
   /** Any send pending/approved whose scheduled date is in the past. */
   overdueCount: number;
