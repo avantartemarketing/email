@@ -47,6 +47,21 @@ recorded at the rule that carries it:
    font's absolute path to `./fonts/…` — twice, in two different ways. The
    artifact build now patches the written file and asserts nothing survived.
 
+**Every table has the same four controls** — search, Columns, Group, Sort and
+Add filter — drawn by `src/ui/DataTable.tsx`, which is now the one table this
+app draws. A screen declares its COLUMNS once (title, how to draw the cell,
+and where the column is a fact, how to read its value) and the header, the
+cells, the Fields menu and the three view controls all come off that list. A
+column with no `value` is a gutter and is never offered; a `locked` column is
+never hideable — the identity, and everything carrying a warning. Grouping
+draws ruling 14's bands. The view is remembered per table.
+
+**The mock world is release-sized**: 605 orders across four releases, 293 of
+them on Falling Light, with the warehouse sheet and HubSpot directory grown to
+match. The hand-written rows are untouched at the top of each fixture — they
+carry the edge cases the seeded story and the tests depend on. Three
+assertions that counted the old world now state the invariant instead.
+
 **Tom's structural round is also in:**
 - **All orders** is the release's first tab — one row per PRINT, all fourteen
   warehouse/customer columns, hideable, order number linking into Shopify.
