@@ -675,3 +675,13 @@
 .rd-imgtile.on .rd-imgname {
   color: var(--rd-ink);
 }
+
+/* A cell holding a value and the flags about it — an email address with "no
+   HubSpot contact" beside it. One line, because a cell in this app is never
+   two, and the flags sit after the value rather than under it. */
+.rd-rowflags {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}

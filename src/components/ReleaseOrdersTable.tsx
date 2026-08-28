@@ -1,9 +1,10 @@
+import { useMemo } from 'react';
 import type { ReactElement } from 'react';
 import type { Batch, Order, OrderAllocation } from '../types';
 import { formatDayShort } from '../logic/dates';
-import { plural } from '../ui/format';
-import { useColumns } from '../ui/useColumns';
-import { Cap, Card, CardHead, Foot, None, Tag } from '../ui/rd';
+import { Cap, None, Tag } from '../ui/rd';
+import { DataTable } from '../ui/DataTable';
+import type { Column } from '../ui/DataTable';
 
 /**
  * Every order on the release, in one table — the warehouse's view rather than
@@ -12,10 +13,10 @@ import { Cap, Card, CardHead, Foot, None, Tag } from '../ui/rd';
  * **One row per PRINT, not per order.** The warehouse sheet is one row per
  * physical print (order #AA10418 is a framed print and a print-only one, at
  * two edition numbers), so an order with two prints is two rows here. Joining
- * them into one row would put two edition numbers and two frame finishes in
- * single cells, which is the two-facts-in-a-cell fault this app has already
- * ruled against twice — and it is the shape somebody reconciling against the
- * warehouse sheet is reading down.
+ * them would put two edition numbers and two frame finishes in single cells,
+ * which is the two-facts-in-a-cell fault this app has already ruled against
+ * twice — and it is the shape somebody reconciling against the warehouse sheet
+ * is reading down.
  *
  * An order with no allocation yet still gets its row, with the warehouse
  * columns empty: it exists, and a table that hides it until the sheet arrives
@@ -68,117 +69,165 @@ export function ReleaseOrdersTable({
   orders: Order[];
   batches: Batch[];
 }): ReactElement {
-  const columns = useColumns('release-orders', [
-    { id: 'order', title: 'Order', locked: true },
-    { id: 'print', title: 'Print name' },
-    { id: 'fulfilment', title: 'Fulfilment' },
-    { id: 'frame', title: 'Frame finish' },
-    { id: 'glass', title: 'Glass' },
-    { id: 'mounting', title: 'Mounting type', defaultHidden: true },
-    { id: 'setSize', title: 'Set size', n: true, defaultHidden: true },
-    { id: 'edition', title: 'Edition no.', n: true },
-    { id: 'batch', title: 'Batch' },
-    { id: 'promise', title: 'Promise date' },
-    { id: 'customer', title: 'Customer' },
-    { id: 'email', title: 'Customer email' },
-    { id: 'country', title: 'Country' },
-    { id: 'tags', title: 'Shopify tags' },
-  ]);
+  const active = useMemo(() => orders.filter((o) => !o.removed), [orders]);
+  const removed = orders.length - active.length;
+  const rows = useMemo(() => rowsFor(active, batches), [active, batches]);
 
-  const active = orders.filter((o) => !o.removed);
-  const removed = orders.filter((o) => o.removed);
-  const rows = rowsFor(active, batches);
-  const allocated = rows.filter((r) => r.allocation).length;
+  const columns: Column<Row>[] = [
+    {
+      id: 'order',
+      title: 'Order',
+      locked: true,
+      kind: 'text',
+      value: (r) => r.order.shopifyOrderName,
+      cell: (r) => (
+        <a
+          className="rd-cellink"
+          href={shopifyUrl(r.order.shopifyOrderName)}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`Open ${r.order.shopifyOrderName} in Shopify`}
+        >
+          {r.order.shopifyOrderName}
+        </a>
+      ),
+    },
+    {
+      id: 'print',
+      title: 'Print name',
+      kind: 'text',
+      value: (r) => r.allocation?.printName ?? r.order.lineItemTitle,
+      cell: (r) => <Cap>{r.allocation?.printName ?? r.order.lineItemTitle}</Cap>,
+    },
+    {
+      id: 'fulfilment',
+      title: 'Fulfilment',
+      kind: 'choice',
+      caption: 'FULFILMENT',
+      value: (r) => r.allocation?.fulfilment ?? r.order.variant,
+      cell: (r) => r.allocation?.fulfilment ?? r.order.variant ?? <None />,
+    },
+    {
+      id: 'frame',
+      title: 'Frame finish',
+      kind: 'choice',
+      caption: 'FRAME FINISH',
+      value: (r) => r.allocation?.frameFinish,
+      cell: (r) => r.allocation?.frameFinish ?? <None />,
+    },
+    {
+      id: 'glass',
+      title: 'Glass',
+      kind: 'choice',
+      caption: 'GLASS',
+      value: (r) => r.allocation?.glass,
+      cell: (r) => r.allocation?.glass ?? <None />,
+    },
+    {
+      id: 'mounting',
+      title: 'Mounting type',
+      defaultHidden: true,
+      kind: 'choice',
+      caption: 'MOUNTING',
+      value: (r) => r.allocation?.mountingType,
+      cell: (r) => r.allocation?.mountingType ?? <None />,
+    },
+    {
+      id: 'setSize',
+      title: 'Set size',
+      n: true,
+      defaultHidden: true,
+      kind: 'number',
+      value: (r) => r.allocation?.setSize,
+      cell: (r) => r.allocation?.setSize ?? <None />,
+    },
+    {
+      id: 'edition',
+      title: 'Edition no.',
+      n: true,
+      /* Text, not a number: "AP" is a real edition value and sorting it as a
+         number would put every proof at nought. */
+      kind: 'text',
+      value: (r) => r.allocation?.editionNumber,
+      cell: (r) => r.allocation?.editionNumber ?? <None />,
+    },
+    {
+      id: 'batch',
+      title: 'Batch',
+      kind: 'choice',
+      caption: 'BATCH',
+      value: (r) => r.batch?.name,
+      cell: (r) => r.batch?.name ?? <None />,
+    },
+    {
+      id: 'promise',
+      title: 'Promise date',
+      kind: 'date',
+      caption: 'PROMISE DATE',
+      value: (r) => r.batch?.promiseDate,
+      groupLabel: (key) => (key ? formatDayShort(key) : ''),
+      cell: (r) => (r.batch?.promiseDate ? formatDayShort(r.batch.promiseDate) : <None />),
+    },
+    {
+      id: 'customer',
+      title: 'Customer',
+      kind: 'text',
+      value: (r) => r.order.collectorName,
+      cell: (r) => <Cap>{r.order.collectorName}</Cap>,
+    },
+    {
+      id: 'email',
+      title: 'Customer email',
+      kind: 'text',
+      value: (r) => r.order.email,
+      cell: (r) => (r.order.email ? <Cap>{r.order.email}</Cap> : <None />),
+    },
+    {
+      id: 'country',
+      title: 'Country',
+      kind: 'choice',
+      caption: 'COUNTRY',
+      value: (r) => r.order.country,
+      cell: (r) => r.order.country ?? <None />,
+    },
+    {
+      id: 'tags',
+      title: 'Shopify tags',
+      kind: 'choice',
+      caption: 'TAG',
+      /* The first tag is what a group or a filter is about. An order with
+         several is still findable by search, which sweeps the joined string. */
+      value: (r) => r.order.shopifyTags[0],
+      searchable: true,
+      cell: (r) =>
+        r.order.shopifyTags.length > 0 ? (
+          r.order.shopifyTags.map((tag) => (
+            <Tag key={tag} tone="stone">
+              {tag}
+            </Tag>
+          ))
+        ) : (
+          <None />
+        ),
+    },
+  ];
 
   return (
-    <Card>
-      <CardHead title="All orders" actions={columns.menu} />
-      <div className="rd-scroll">
-        <table className="rd-t rd-t27 rd-fit rd-tpad">
-          <thead>
-            <tr>{columns.head}</tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td className="rd-prose" colSpan={columns.count}>
-                  No orders imported for this release yet.
-                </td>
-              </tr>
-            ) : (
-              rows.map(({ key, order, batch, allocation }) => (
-                <tr key={key}>
-                  <td className="rd-ink">
-                    <a
-                      className="rd-cellink"
-                      href={shopifyUrl(order.shopifyOrderName)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title={`Open ${order.shopifyOrderName} in Shopify`}
-                    >
-                      {order.shopifyOrderName}
-                    </a>
-                  </td>
-                  {columns.show('print') ? (
-                    <td>
-                      {allocation?.printName ? (
-                        <Cap>{allocation.printName}</Cap>
-                      ) : (
-                        <Cap>{order.lineItemTitle}</Cap>
-                      )}
-                    </td>
-                  ) : null}
-                  {columns.show('fulfilment') ? (
-                    <td>{allocation?.fulfilment ?? order.variant ?? <None />}</td>
-                  ) : null}
-                  {columns.show('frame') ? <td>{allocation?.frameFinish ?? <None />}</td> : null}
-                  {columns.show('glass') ? <td>{allocation?.glass ?? <None />}</td> : null}
-                  {columns.show('mounting') ? (
-                    <td>{allocation?.mountingType ?? <None />}</td>
-                  ) : null}
-                  {columns.show('setSize') ? (
-                    <td className="n">{allocation?.setSize ?? <None />}</td>
-                  ) : null}
-                  {columns.show('edition') ? (
-                    <td className="n">{allocation?.editionNumber ?? <None />}</td>
-                  ) : null}
-                  {columns.show('batch') ? <td>{batch?.name ?? <None />}</td> : null}
-                  {columns.show('promise') ? (
-                    <td>{batch?.promiseDate ? formatDayShort(batch.promiseDate) : <None />}</td>
-                  ) : null}
-                  {columns.show('customer') ? (
-                    <td>
-                      <Cap>{order.collectorName}</Cap>
-                    </td>
-                  ) : null}
-                  {columns.show('email') ? (
-                    <td>{order.email ? <Cap>{order.email}</Cap> : <None />}</td>
-                  ) : null}
-                  {columns.show('country') ? <td>{order.country ?? <None />}</td> : null}
-                  {columns.show('tags') ? (
-                    <td>
-                      {order.shopifyTags.length > 0 ? (
-                        order.shopifyTags.map((tag) => (
-                          <Tag key={tag} tone="stone">
-                            {tag}
-                          </Tag>
-                        ))
-                      ) : (
-                        <None />
-                      )}
-                    </td>
-                  ) : null}
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-      <Foot>
-        {plural(active.length, 'order')} · {rows.length} print
-        {rows.length === 1 ? '' : 's'} · {allocated} allocated by the warehouse
-        {removed.length > 0 ? ` · ${removed.length} removed and not listed` : ''}
-      </Foot>
-    </Card>
+    <DataTable
+      table="release-orders"
+      title="All orders"
+      noun="print"
+      searchPlaceholder="Search orders, collectors, editions"
+      columns={columns}
+      rows={rows}
+      rowKey={(r) => r.key}
+      empty="No orders imported for this release yet."
+      foot={
+        <>
+          {active.length} order{active.length === 1 ? '' : 's'}
+          {removed > 0 ? ` · ${removed} removed and not listed` : ''}
+        </>
+      }
+    />
   );
 }

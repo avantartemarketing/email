@@ -6,20 +6,9 @@ import { formatDayShort, today } from '../logic/dates';
 import { TEMPLATE_LABELS, plural, sendStatusBadge } from '../ui/format';
 import { useApp } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
-import { useColumns } from '../ui/useColumns';
-import {
-  Btn,
-  Cap,
-  Card,
-  CellLink,
-  Dialog,
-  Empty,
-  Foot,
-  None,
-  Page,
-  Skeleton,
-  Why,
-} from '../ui/rd';
+import { Btn, Cap, Card, CellLink, Dialog, None, Page, Skeleton, Why } from '../ui/rd';
+import { DataTable } from '../ui/DataTable';
+import type { Column } from '../ui/DataTable';
 import Tabs from '../rd/components/Tabs';
 import { EmailPreview } from '../components/EmailPreview';
 
@@ -44,18 +33,6 @@ export function ApprovalQueue(): ReactElement {
   const pending = items.filter((i) => i.send.status === 'pending_approval');
   const held = items.filter((i) => i.send.status === 'held');
   const shown = tab === 'pending' ? pending : held;
-
-  const columns = useColumns('approval-queue', [
-    { id: 'scheduled', title: 'Scheduled', locked: true },
-    { id: 'email', title: 'Email' },
-    { id: 'subject', title: 'Subject' },
-    { id: 'release', title: 'Release' },
-    { id: 'batch', title: 'Batch', defaultHidden: true },
-    { id: 'recipients', title: 'Recipients', n: true },
-    { id: 'lastReceived', title: 'They last received' },
-    { id: 'status', title: 'Status', locked: true },
-    { id: 'actions', title: '', locked: true },
-  ]);
 
   const act = async (
     item: PendingSendItem,
@@ -86,6 +63,14 @@ export function ApprovalQueue(): ReactElement {
     }
   };
 
+  const overdue = (item: PendingSendItem): boolean =>
+    item.send.status === 'pending_approval' && item.send.scheduledDate < today();
+
+  const lastReceivedLabel = (item: PendingSendItem): string =>
+    `${TEMPLATE_LABELS[item.lastSent!.templateRef]}${
+      item.lastSent!.type === 'delay' ? ' (delay)' : ''
+    } · ${formatDayShort(item.lastSent!.sentAt.slice(0, 10))}`;
+
   /** What a row offers. Non-admins see the controls and why they are shut. */
   const rowActions = (item: PendingSendItem): ReactElement => {
     const busy = actingOn === item.send.id;
@@ -111,16 +96,93 @@ export function ApprovalQueue(): ReactElement {
     );
   };
 
-  const lastReceivedLabel = (item: PendingSendItem): string =>
-    `${TEMPLATE_LABELS[item.lastSent!.templateRef]}${
-      item.lastSent!.type === 'delay' ? ' (delay)' : ''
-    } · ${formatDayShort(item.lastSent!.sentAt.slice(0, 10))}`;
+  const columns: Column<PendingSendItem>[] = [
+    {
+      id: 'scheduled',
+      title: 'Scheduled',
+      locked: true,
+      kind: 'date',
+      value: (i) => i.send.scheduledDate,
+      cell: (i) => (
+        <span className={overdue(i) ? 'rd-ink' : undefined}>
+          {formatDayShort(i.send.scheduledDate)}
+        </span>
+      ),
+    },
+    {
+      id: 'email',
+      title: 'Email',
+      kind: 'choice',
+      caption: 'EMAIL',
+      value: (i) => TEMPLATE_LABELS[i.send.templateRef],
+      cell: (i) => (
+        <span className="rd-ink">
+          {TEMPLATE_LABELS[i.send.templateRef]}
+          {i.send.type === 'delay' ? ' (delay)' : ''}
+        </span>
+      ),
+    },
+    {
+      id: 'subject',
+      title: 'Subject',
+      kind: 'text',
+      value: (i) => i.send.subject,
+      cell: (i) => <Cap>{i.send.subject}</Cap>,
+    },
+    {
+      id: 'release',
+      title: 'Release',
+      kind: 'choice',
+      caption: 'RELEASE',
+      value: (i) => i.release.title,
+      cell: (i) => i.release.title,
+    },
+    {
+      id: 'batch',
+      title: 'Batch',
+      defaultHidden: true,
+      kind: 'choice',
+      caption: 'BATCH',
+      value: (i) => (i.releaseBatchCount > 1 ? i.batch.name : null),
+      cell: (i) => (i.releaseBatchCount > 1 ? i.batch.name : <None />),
+    },
+    {
+      id: 'recipients',
+      title: 'Recipients',
+      n: true,
+      kind: 'number',
+      value: (i) => i.recipientCount,
+      cell: (i) => i.recipientCount,
+    },
+    {
+      id: 'lastReceived',
+      title: 'They last received',
+      kind: 'choice',
+      caption: 'THEY LAST RECEIVED',
+      value: (i) => (i.lastSent ? TEMPLATE_LABELS[i.lastSent.templateRef] : null),
+      cell: (i) =>
+        i.lastSent ? lastReceivedLabel(i) : <span className="rd-none">Nothing yet</span>,
+    },
+    {
+      id: 'status',
+      /* Locked: it is the column that says a send is overdue. */
+      title: 'Status',
+      locked: true,
+      kind: 'choice',
+      caption: 'STATUS',
+      value: (i) => (overdue(i) ? 'overdue' : i.send.status),
+      cell: (i) => sendStatusBadge(i.send),
+    },
+    {
+      id: 'actions',
+      title: '',
+      locked: true,
+      cell: (i) => rowActions(i),
+    },
+  ];
 
   return (
-    /* The columns control sits in the PAGE head, not the card's: the kit's own
-       note is that a picker governs a screen rather than a table, and where a
-       screen has one table the two placements are the same place. */
-    <Page title="Approval queue" actions={columns.menu}>
+    <Page title="Approval queue">
       <Tabs
         tabs={[
           { key: 'pending', label: queue.data ? `Pending (${pending.length})` : 'Pending' },
@@ -130,77 +192,28 @@ export function ApprovalQueue(): ReactElement {
         onPick={setTab}
         label="Queue"
       />
-      <Card>
-        {queue.data === null ? (
+      {queue.data === null ? (
+        <Card>
           <Skeleton rows={6} />
-        ) : shown.length === 0 ? (
-          <Empty>
-            {tab === 'pending'
+        </Card>
+      ) : (
+        <DataTable
+          key={tab}
+          table={`approval-${tab}`}
+          noun="send"
+          searchPlaceholder="Search subjects, releases, collectors"
+          columns={columns}
+          rows={shown}
+          rowKey={(i) => i.send.id}
+          onRowClick={(i) => setPreview(i)}
+          empty={
+            tab === 'pending'
               ? 'Nothing waiting for approval. New and rescheduled comms plans land here before anything can send.'
-              : 'Nothing on hold. Sends an admin has parked appear here until released back to pending.'}
-          </Empty>
-        ) : (
-          <>
-            <div className="rd-scroll">
-              <table className="rd-t rd-t27 rd-fit rd-tpad">
-                <thead>
-                  <tr>{columns.head}</tr>
-                </thead>
-                <tbody>
-                  {shown.map((item) => {
-                    const overdue =
-                      item.send.status === 'pending_approval' && item.send.scheduledDate < today();
-                    return (
-                      <tr
-                        key={item.send.id}
-                        className="rd-rowlink"
-                        onClick={() => setPreview(item)}
-                      >
-                        <td className={overdue ? 'rd-ink' : undefined}>
-                          {formatDayShort(item.send.scheduledDate)}
-                        </td>
-                        {columns.show('email') ? (
-                          <td className="rd-ink">
-                            {TEMPLATE_LABELS[item.send.templateRef]}
-                            {item.send.type === 'delay' ? ' (delay)' : ''}
-                          </td>
-                        ) : null}
-                        {columns.show('subject') ? (
-                          <td>
-                            <Cap>{item.send.subject}</Cap>
-                          </td>
-                        ) : null}
-                        {columns.show('release') ? <td>{item.release.title}</td> : null}
-                        {columns.show('batch') ? (
-                          <td>{item.releaseBatchCount > 1 ? item.batch.name : <None />}</td>
-                        ) : null}
-                        {columns.show('recipients') ? (
-                          <td className="n">{item.recipientCount}</td>
-                        ) : null}
-                        {columns.show('lastReceived') ? (
-                          <td>
-                            {item.lastSent ? (
-                              lastReceivedLabel(item)
-                            ) : (
-                              <span className="rd-none">Nothing yet</span>
-                            )}
-                          </td>
-                        ) : null}
-                        <td>{sendStatusBadge(item.send)}</td>
-                        <td>{rowActions(item)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <Foot>
-              {plural(shown.length, 'send')} · approving a future-dated send queues it for the day;
-              approving an overdue one releases it in the next run
-            </Foot>
-          </>
-        )}
-      </Card>
+              : 'Nothing on hold. Sends an admin has parked appear here until released back to pending.'
+          }
+          foot="approving a future-dated send queues it for the day; approving an overdue one releases it in the next run"
+        />
+      )}
 
       <Dialog
         open={preview !== null}

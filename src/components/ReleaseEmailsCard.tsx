@@ -11,7 +11,9 @@ import {
 import { today } from '../logic/dates';
 import { TEMPLATE_LABELS } from '../ui/format';
 import { useApp } from '../ui/AppContext';
-import { Bar, Cap, Card, CardHead, Dialog, None, Pill, RowAct } from '../ui/rd';
+import { Bar, Cap, Dialog, None, Pill, RowAct } from '../ui/rd';
+import { DataTable } from '../ui/DataTable';
+import type { Column } from '../ui/DataTable';
 import Field from '../rd/components/Field';
 import { EmailPreview } from './EmailPreview';
 import { ImagePicker } from './ImagePicker';
@@ -135,90 +137,116 @@ export function ReleaseEmailsPanel({
     }
   };
 
+  const columns: Column<EmailRow>[] = [
+    {
+      id: 'email',
+      title: 'Email',
+      locked: true,
+      kind: 'text',
+      value: (row) => row.label,
+      cell: (row) => (
+        <span className={release.disabledTemplates.includes(row.ref) ? 'rd-mut' : 'rd-ink'}>
+          {row.label}
+        </span>
+      ),
+    },
+    {
+      id: 'image',
+      title: 'Image',
+      kind: 'choice',
+      caption: 'IMAGE',
+      value: (row) => release.templateImages[row.slot] ?? 'Master default',
+      cell: (row) =>
+        release.disabledTemplates.includes(row.ref) ? (
+          <None />
+        ) : (
+          <button
+            type="button"
+            className="rd-chip rd-chip-sm"
+            onClick={() => setPickingSlot({ slot: row.slot, label: row.label })}
+          >
+            {release.templateImages[row.slot] ?? 'Master default'}
+          </button>
+        ),
+    },
+    {
+      id: 'copy',
+      title: 'Copy',
+      locked: true,
+      kind: 'choice',
+      caption: 'COPY',
+      order: ['Customised', 'Default', 'Off'],
+      value: (row) =>
+        !row.copyRow
+          ? null
+          : release.disabledTemplates.includes(row.ref)
+            ? 'Off'
+            : release.templateOverrides[row.ref]
+              ? 'Customised'
+              : 'Default',
+      cell: (row) =>
+        !row.copyRow ? (
+          <span className="rd-none">Shares On track copy</span>
+        ) : release.disabledTemplates.includes(row.ref) ? (
+          <Pill tone="violet">Off</Pill>
+        ) : release.templateOverrides[row.ref] ? (
+          <Pill tone="blue">Customised</Pill>
+        ) : (
+          <Pill tone="grey">Default</Pill>
+        ),
+    },
+    {
+      id: 'subject',
+      title: 'Subject',
+      kind: 'text',
+      value: (row) =>
+        release.disabledTemplates.includes(row.ref) || !row.copyRow
+          ? null
+          : patchTokens(effectiveTemplate(release, row.ref).subject, fields),
+      cell: (row) =>
+        release.disabledTemplates.includes(row.ref) || !row.copyRow ? (
+          <None />
+        ) : (
+          <Cap>{patchTokens(effectiveTemplate(release, row.ref).subject, fields)}</Cap>
+        ),
+    },
+    {
+      id: 'actions',
+      title: '',
+      locked: true,
+      cell: (row) => {
+        const disabled = release.disabledTemplates.includes(row.ref);
+        const canToggle = row.ref !== 'pp-dispatch' && row.ref !== 'pp-delay';
+        if (!row.copyRow) return null;
+        return (
+          <div className="rd-rowacts">
+            {!disabled ? <RowAct onClick={() => setEditingRef(row.ref)}>Edit copy</RowAct> : null}
+            {canToggle ? (
+              <RowAct onClick={() => void toggle(row.ref, disabled)}>
+                {disabled ? 'Switch on' : 'Switch off'}
+              </RowAct>
+            ) : null}
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
-    <Card>
-      <CardHead
+    <>
+      <DataTable
+        table="release-emails"
         title="Emails for this release"
-        actions={
-          unset > 0 ? (
-            <span className="rd-none">
-              {unset} still on the master image
-            </span>
-          ) : undefined
+        noun="email"
+        searchPlaceholder="Search these emails"
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.slot}
+        empty="This release sends no emails."
+        headActions={
+          unset > 0 ? <span className="rd-none">{unset} still on the master image</span> : undefined
         }
       />
-      <div className="rd-scroll">
-        <table className="rd-t rd-t27 rd-fit rd-tpad">
-          <thead>
-            <tr>
-              <th scope="col">Email</th>
-              <th scope="col">Image</th>
-              <th scope="col">Copy</th>
-              <th scope="col">Subject</th>
-              <th scope="col" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => {
-              const disabled = release.disabledTemplates.includes(row.ref);
-              const customised = Boolean(release.templateOverrides[row.ref]);
-              const template = effectiveTemplate(release, row.ref);
-              const canToggle = row.ref !== 'pp-dispatch' && row.ref !== 'pp-delay';
-              const picked = release.templateImages[row.slot];
-              return (
-                <tr key={row.slot} className={disabled ? 'rd-mut' : undefined}>
-                  <td className={disabled ? undefined : 'rd-ink'}>{row.label}</td>
-                  <td>
-                    {disabled ? (
-                      <None />
-                    ) : (
-                      <button
-                        type="button"
-                        className="rd-chip rd-chip-sm"
-                        onClick={() => setPickingSlot({ slot: row.slot, label: row.label })}
-                      >
-                        {picked ?? 'Master default'}
-                      </button>
-                    )}
-                  </td>
-                  <td>
-                    {!row.copyRow ? (
-                      <span className="rd-none">Shares On track copy</span>
-                    ) : disabled ? (
-                      <Pill tone="violet">Off</Pill>
-                    ) : customised ? (
-                      <Pill tone="blue">Customised</Pill>
-                    ) : (
-                      <Pill tone="grey">Default</Pill>
-                    )}
-                  </td>
-                  <td>
-                    {disabled || !row.copyRow ? (
-                      <None />
-                    ) : (
-                      <Cap>{patchTokens(template.subject, fields)}</Cap>
-                    )}
-                  </td>
-                  <td>
-                    {row.copyRow ? (
-                      <div className="rd-rowacts">
-                        {!disabled ? (
-                          <RowAct onClick={() => setEditingRef(row.ref)}>Edit copy</RowAct>
-                        ) : null}
-                        {canToggle ? (
-                          <RowAct onClick={() => void toggle(row.ref, disabled)}>
-                            {disabled ? 'Switch on' : 'Switch off'}
-                          </RowAct>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
       <ReleaseEmailEditModal
         release={release}
         templateRef={editingRef}
@@ -235,7 +263,7 @@ export function ReleaseEmailsPanel({
           if (pickingSlot) void pickImage(pickingSlot.slot, name);
         }}
       />
-    </Card>
+    </>
   );
 }
 

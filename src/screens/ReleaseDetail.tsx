@@ -22,7 +22,6 @@ import {
   CardHead,
   Dialog,
   Empty,
-  Foot,
   None,
   Page,
   Pill,
@@ -31,10 +30,9 @@ import {
   Stack,
 } from '../ui/rd';
 import Tabs from '../rd/components/Tabs';
-import BulkBar from '../rd/components/BulkBar';
-import RowTick from '../rd/components/RowTick';
 import usePicked from '../rd/components/usePicked';
-import { useGridPin } from '../rd/components/useGridPin';
+import { DataTable } from '../ui/DataTable';
+import type { Column } from '../ui/DataTable';
 import { PlanTable } from '../components/PlanTable';
 import { BatchHistoryTimeline } from '../components/BatchHistoryTimeline';
 import { RescheduleModal } from '../components/RescheduleModal';
@@ -46,7 +44,6 @@ import { ImportCsvModal } from '../components/ImportCsvModal';
 import { AllocationImportModal } from '../components/AllocationImportModal';
 import { ReleaseEmailsPanel } from '../components/ReleaseEmailsCard';
 import { ReleaseOrdersTable } from '../components/ReleaseOrdersTable';
-import { useColumns } from '../ui/useColumns';
 
 export function ReleaseDetail(): ReactElement {
   const { releaseId } = useParams<{ releaseId: string }>();
@@ -299,7 +296,7 @@ function BatchSection({
       image for, which is the one thing worth interrupting somebody about. */
   onDateChanged: () => void;
 }): ReactElement {
-  const { data, showToast, userName } = useApp();
+  const { data, showToast } = useApp();
   const release = detail.release;
   const batchOrders = useMemo(
     () => detail.orders.filter((o) => o.batchId === batch.id),
@@ -326,22 +323,111 @@ function BatchSection({
   const batchLabel = singleBatch ? null : batch.name;
 
   const picked = usePicked();
-  // Ruling 9's bar replaces the header row; the grid is held still for as long
-  // as a selection lasts so ticking a box moves nothing.
-  const pin = useGridPin(picked.size > 0);
 
-  const orderColumns = useColumns('orders', [
-    { id: 'order', title: 'Order', locked: true },
-    { id: 'collector', title: 'Collector' },
-    { id: 'contact', title: 'Contact' },
-    { id: 'item', title: 'Item' },
-    { id: 'frame', title: 'Frame' },
-    { id: 'glass', title: 'Glass', defaultHidden: true },
-    { id: 'mount', title: 'Mount', defaultHidden: true },
-    { id: 'edition', title: 'Edition' },
-    { id: 'ordered', title: 'Ordered' },
-    { id: 'actions', title: '', locked: true },
-  ]);
+  const orderColumns: Column<Order>[] = [
+    {
+      id: 'order',
+      title: 'Order',
+      locked: true,
+      kind: 'text',
+      value: (o) => o.shopifyOrderName,
+      cell: (o) => <span className="rd-ink">{o.shopifyOrderName}</span>,
+    },
+    {
+      id: 'collector',
+      title: 'Collector',
+      kind: 'text',
+      value: (o) => o.collectorName,
+      cell: (o) => <Cap>{o.collectorName}</Cap>,
+    },
+    {
+      id: 'contact',
+      title: 'Contact',
+      /* Locked: it carries the "no email" and "no HubSpot contact" flags, and
+         a list you can hide the warnings on is a list that stops warning you. */
+      locked: true,
+      kind: 'text',
+      value: (o) => o.email,
+      cell: (o) => (
+        <span className="rd-rowflags">
+          {o.email ? <Cap>{o.email}</Cap> : <Pill tone="red">No email</Pill>}
+          {o.email && !o.hubspotContactId ? <Pill tone="amber">No HubSpot contact</Pill> : null}
+        </span>
+      ),
+    },
+    {
+      id: 'item',
+      title: 'Item',
+      kind: 'choice',
+      caption: 'ITEM',
+      value: (o) => o.variant,
+      cell: (o) => o.variant || <None />,
+    },
+    {
+      id: 'frame',
+      title: 'Frame',
+      kind: 'choice',
+      caption: 'FRAME',
+      value: (o) => allocationField(o.allocations, (a) => a.frameFinish),
+      cell: (o) => allocationField(o.allocations, (a) => a.frameFinish) ?? <None />,
+    },
+    {
+      id: 'glass',
+      title: 'Glass',
+      defaultHidden: true,
+      kind: 'choice',
+      caption: 'GLASS',
+      value: (o) => allocationField(o.allocations, (a) => a.glass),
+      cell: (o) => allocationField(o.allocations, (a) => a.glass) ?? <None />,
+    },
+    {
+      id: 'mount',
+      title: 'Mount',
+      defaultHidden: true,
+      kind: 'choice',
+      caption: 'MOUNT',
+      value: (o) => allocationField(o.allocations, (a) => a.mountingType),
+      cell: (o) => allocationField(o.allocations, (a) => a.mountingType) ?? <None />,
+    },
+    {
+      id: 'country',
+      title: 'Country',
+      defaultHidden: true,
+      kind: 'choice',
+      caption: 'COUNTRY',
+      value: (o) => o.country,
+      cell: (o) => o.country ?? <None />,
+    },
+    {
+      id: 'edition',
+      title: 'Edition',
+      kind: 'text',
+      value: (o) => editionSummary(o.allocations),
+      cell: (o) =>
+        editionSummary(o.allocations) ?? (
+          <span className="rd-none">{hasAllocations ? 'Not allocated' : '–'}</span>
+        ),
+    },
+    {
+      id: 'ordered',
+      title: 'Ordered',
+      kind: 'date',
+      value: (o) => o.orderDate,
+      cell: (o) => formatDayShort(o.orderDate),
+    },
+    {
+      id: 'actions',
+      title: '',
+      locked: true,
+      cell: (o) => (
+        <div className="rd-rowacts">
+          <RowAct danger onClick={() => setRemovingOrder(o)}>
+            Remove
+          </RowAct>
+        </div>
+      ),
+    },
+  ];
 
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [promiseOpen, setPromiseOpen] = useState(false);
@@ -425,145 +511,41 @@ function BatchSection({
           onCancel={(send) => setCancellingSend(send)}
         />
 
-        <Card>
-          <CardHead
-            title={
+        <DataTable
+          table="batch-orders"
+          title="Orders"
+          noun="order"
+          searchPlaceholder="Search orders, collectors, editions"
+          columns={orderColumns}
+          rows={activeOrders}
+          rowKey={(o) => o.id}
+          empty="No orders in this batch."
+          headActions={
+            hasAllocations ? (
+              <span className="rd-none">
+                Warehouse allocation: {allocatedCount} of {activeOrders.length}
+                {allocatedCount < activeOrders.length ? ' — re-import the sheet for the rest' : ''}
+              </span>
+            ) : undefined
+          }
+          select={{
+            picked,
+            label: (o) => `${o.shopifyOrderName} — ${o.collectorName}`,
+            actions: batch.promiseDate
+              ? [{ label: 'Change delivery date', onClick: () => setRescheduleOpen(true) }]
+              : [],
+          }}
+          foot={
+            removedOrders.length > 0 ? (
               <>
-                Orders
-                {hasAllocations ? (
-                  <span className="rd-sub">
-                    Warehouse allocation: {allocatedCount} of {activeOrders.length}
-                    {allocatedCount < activeOrders.length
-                      ? ' — re-import the sheet for the rest'
-                      : ''}
-                  </span>
-                ) : null}
+                {removedOrders.length} removed:{' '}
+                {removedOrders
+                  .map((o) => `${o.shopifyOrderName} (${o.removedReason ?? 'removed'})`)
+                  .join(', ')}
               </>
-            }
-            actions={orderColumns.menu}
-          />
-          <div className="rd-scroll">
-            <table
-              className="rd-t rd-t27 rd-fit rd-tpad rd-tsel"
-              ref={pin.ref}
-              style={pin.style}
-            >
-              {pin.cols}
-              <thead>
-                {picked.size > 0 ? (
-                  <BulkBar
-                    count={picked.size}
-                    columns={orderColumns.count + 1}
-                    actions={
-                      batch.promiseDate
-                        ? [
-                            {
-                              label: 'Change delivery date',
-                              onClick: () => setRescheduleOpen(true),
-                            },
-                          ]
-                        : []
-                    }
-                  />
-                ) : (
-                  <tr>
-                    <th aria-hidden />
-                    {orderColumns.head}
-                  </tr>
-                )}
-              </thead>
-              <tbody>
-                {activeOrders.length === 0 ? (
-                  <tr>
-                    <td className="rd-prose" colSpan={orderColumns.count + 1}>
-                      No orders yet
-                    </td>
-                  </tr>
-                ) : (
-                  activeOrders.map((order) => {
-                    const edition = editionSummary(order.allocations);
-                    const frame = allocationField(order.allocations, (a) => a.frameFinish);
-                    const glass = allocationField(order.allocations, (a) => a.glass);
-                    const mount = allocationField(order.allocations, (a) => a.mountingType);
-                    return (
-                      <tr key={order.id}>
-                        <td>
-                          <RowTick
-                            id={order.id}
-                            on={picked.has(order.id)}
-                            label={order.shopifyOrderName}
-                            onPress={picked.press}
-                          />
-                        </td>
-                        <td className="rd-ink">{order.shopifyOrderName}</td>
-                        {orderColumns.show('collector') ? (
-                          <td>
-                            <Cap>{order.collectorName}</Cap>
-                          </td>
-                        ) : null}
-                        {orderColumns.show('contact') ? (
-                          <td>
-                            {order.email ? <Cap>{order.email}</Cap> : <None />}
-                            {!order.email ? <Pill tone="red">No email</Pill> : null}
-                            {order.email && !order.hubspotContactId ? (
-                              <Pill tone="amber">No HubSpot contact</Pill>
-                            ) : null}
-                          </td>
-                        ) : null}
-                        {orderColumns.show('item') ? (
-                          <td>
-                            {order.variant ? (
-                              <Cap>{order.variant}</Cap>
-                            ) : (
-                              <None />
-                            )}
-                          </td>
-                        ) : null}
-                        {orderColumns.show('frame') ? <td>{frame ?? <None />}</td> : null}
-                        {orderColumns.show('glass') ? <td>{glass ?? <None />}</td> : null}
-                        {orderColumns.show('mount') ? <td>{mount ?? <None />}</td> : null}
-                        {orderColumns.show('edition') ? (
-                          <td>
-                            {edition ??
-                              (hasAllocations ? (
-                                <span className="rd-mut">Not allocated</span>
-                              ) : (
-                                <None />
-                              ))}
-                          </td>
-                        ) : null}
-                        {orderColumns.show('ordered') ? (
-                          <td>{formatDayShort(order.orderDate)}</td>
-                        ) : null}
-                        <td>
-                          <div className="rd-rowacts">
-                            <RowAct danger onClick={() => setRemovingOrder(order)}>
-                              Remove
-                            </RowAct>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-          {removedOrders.length > 0 ? (
-            <Foot>
-              {removedOrders.map((order) => (
-                <div key={order.id}>
-                  <Pill tone="grey" small>
-                    Removed
-                  </Pill>{' '}
-                  {order.shopifyOrderName} · {order.collectorName} —{' '}
-                  {order.removedReason ?? 'removed'}
-                  {order.removedBy ? ` (by ${userName(order.removedBy)})` : ''}
-                </div>
-              ))}
-            </Foot>
-          ) : null}
-        </Card>
+            ) : undefined
+          }
+        />
 
         <Card>
           <CardHead title={singleBatch ? 'History' : 'Batch history'} />

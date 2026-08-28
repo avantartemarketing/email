@@ -5,19 +5,9 @@ import { formatDateTime, formatDay } from '../logic/dates';
 import { TEMPLATE_LABELS, plural, sendStatusBadge } from '../ui/format';
 import { useApp, useCrumb } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
-import {
-  Bar,
-  Btn,
-  Cap,
-  Card,
-  CardHead,
-  CellLink,
-  Dialog,
-  KV,
-  Page,
-  Pill,
-  Skeleton,
-} from '../ui/rd';
+import { Bar, Btn, Cap, Card, CardHead, CellLink, Dialog, KV, None, Page, Pill, Skeleton } from '../ui/rd';
+import { DataTable } from '../ui/DataTable';
+import type { Column } from '../ui/DataTable';
 import { EmailPreview } from '../components/EmailPreview';
 import { EditSendModal } from '../components/EditSendModal';
 
@@ -129,6 +119,57 @@ export function SendDetail(): ReactElement {
       ),
     });
 
+  const recipientColumns: Column<(typeof recipientRows)[number]>[] = [
+    {
+      id: 'name',
+      title: 'Collector',
+      locked: true,
+      kind: 'text',
+      value: (r) => r.name,
+      cell: (r) => <span className="rd-ink">{r.name}</span>,
+    },
+    { id: 'email', title: 'Email', kind: 'text', value: (r) => r.email, cell: (r) => <Cap>{r.email}</Cap> },
+    {
+      id: 'contact',
+      title: 'HubSpot contact',
+      kind: 'text',
+      value: (r) => r.contact,
+      cell: (r) => r.contact,
+    },
+    {
+      id: 'sendId',
+      title: 'HubSpot send ID',
+      defaultHidden: true,
+      kind: 'text',
+      value: (r) => r.sendId,
+      cell: (r) => r.sendId,
+    },
+    {
+      id: 'status',
+      title: 'Status',
+      /* Locked: it is the column that says a delivery failed. */
+      locked: true,
+      kind: 'choice',
+      caption: 'STATUS',
+      value: (r) => (r.failed ? (sent ? 'Failed' : 'Flagged') : sent ? 'Delivered' : 'Ready'),
+      cell: (r) =>
+        r.failed ? (
+          <Pill tone="red">{sent ? 'Failed' : 'Flagged'}</Pill>
+        ) : sent ? (
+          <Pill tone="green">Delivered</Pill>
+        ) : (
+          <Pill tone="blue">Ready</Pill>
+        ),
+    },
+    {
+      id: 'reason',
+      title: 'Reason',
+      kind: 'text',
+      value: (r) => r.error ?? null,
+      cell: (r) => (r.error ? <Cap>{r.error}</Cap> : <None />),
+    },
+  ];
+
   return (
     <Page
       title={TEMPLATE_LABELS[send.templateRef]}
@@ -186,55 +227,20 @@ export function SendDetail(): ReactElement {
           />
         </Card>
 
-        <Card>
-          <CardHead
-            title={
-              sent
-                ? `Recipients (${recipientRows.length})`
-                : `Will send to ${plural(recipientRows.length, 'collector')} currently in ${batch.name}`
-            }
-          />
-          <div className="rd-scroll">
-            <table className="rd-t rd-t27 rd-fit rd-tpad">
-              <thead>
-                <tr>
-                  <th scope="col">Collector</th>
-                  <th scope="col">Email</th>
-                  <th scope="col">HubSpot contact</th>
-                  <th scope="col">HubSpot send ID</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Reason</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recipientRows.map((row) => (
-                  <tr key={row.key}>
-                    <td className="rd-ink">{row.name}</td>
-                    <td>{row.email}</td>
-                    <td>{row.contact}</td>
-                    <td>{row.sendId}</td>
-                    <td>
-                      {row.failed ? (
-                        <Pill tone="red">{sent ? 'Failed' : 'Flagged'}</Pill>
-                      ) : sent ? (
-                        <Pill tone="green">Delivered</Pill>
-                      ) : (
-                        <Pill tone="blue">Ready</Pill>
-                      )}
-                    </td>
-                    <td>
-                      {row.error ? (
-                        <Cap>{row.error}</Cap>
-                      ) : (
-                        <span className="rd-none">–</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+        <DataTable
+          table="send-recipients"
+          noun="recipient"
+          searchPlaceholder="Search recipients"
+          title={
+            sent
+              ? `Recipients (${recipientRows.length})`
+              : `Will send to ${plural(recipientRows.length, 'collector')} currently in ${batch.name}`
+          }
+          columns={recipientColumns}
+          rows={recipientRows}
+          rowKey={(r) => r.key}
+          empty="No recipients — every order in this batch has been removed."
+        />
       </div>
 
       <EditSendModal

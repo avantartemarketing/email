@@ -1,32 +1,30 @@
 /**
  * The releases list — the app's front door.
  *
- * A ticked table in the kit's vocabulary: `usePicked` owns the set and the
- * shift-range, `RowTick` owns the gesture, `BulkBar` REPLACES the header row
- * while a selection is live (ruling 9) and `useGridPin` holds the
- * content-sized grid still across that swap, so ticking a box moves nothing.
+ * A ticked table in the kit's vocabulary, drawn by `DataTable`: `usePicked`
+ * owns the set and the shift-range, the bulk bar REPLACES the header row while
+ * a selection is live (ruling 9), and the grid is pinned across that swap so
+ * ticking a box moves nothing.
  */
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { UpcomingSendInfo } from '../types';
+import type { ReleaseSummary, UpcomingSendInfo } from '../types';
 import { formatDayShort } from '../logic/dates';
 import { TEMPLATE_LABELS, plural, releaseStatusBadge } from '../ui/format';
 import { useApp } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
-import { useColumns } from '../ui/useColumns';
-import { Btn, Cap, Card, Foot, None, Page, Pill, Skeleton } from '../ui/rd';
+import { Btn, Cap, Card, None, Page, Pill, Skeleton } from '../ui/rd';
+import { DataTable } from '../ui/DataTable';
+import type { Column } from '../ui/DataTable';
 import Menu from '../rd/components/Menu';
-import BulkBar from '../rd/components/BulkBar';
-import RowTick from '../rd/components/RowTick';
 import usePicked from '../rd/components/usePicked';
-import useGridPin from '../rd/components/useGridPin';
 import { NewReleaseModal } from '../components/NewReleaseModal';
 
 /**
- * The next-send cell: just the date at rest; clicking it opens the next
- * three sends — which email, which batch, how many collectors — each a
- * link into its send detail.
+ * The next-send cell: just the date at rest; clicking it opens the next three
+ * sends — which email, which batch, how many collectors — each a link into its
+ * send detail.
  *
  * The kit's `Menu` and not a popover of our own: its panel is a portal, and a
  * panel drawn as a child of the chip is clipped the moment the chip sits in a
@@ -63,140 +61,139 @@ export function ReleasesIndex(): ReactElement {
   const navigate = useNavigate();
   const [newReleaseOpen, setNewReleaseOpen] = useState(false);
   const releases = useAsync(() => data.listReleases(), []);
-
-  const columns = useColumns('releases', [
-    { id: 'release', title: 'Release', locked: true },
-    { id: 'artist', title: 'Artist' },
-    { id: 'edition', title: 'Edition size', n: true, defaultHidden: true },
-    { id: 'status', title: 'Status' },
-    { id: 'orders', title: 'Orders', n: true },
-    { id: 'batches', title: 'Batches', n: true },
-    { id: 'next', title: 'Next send' },
-    { id: 'overdue', title: 'Overdue' },
-    { id: 'pending', title: 'Pending approval' },
-  ]);
+  const picked = usePicked();
 
   const rows = releases.data ?? [];
-  const picked = usePicked();
-  const pin = useGridPin(picked.size > 0);
+
+  const columns: Column<ReleaseSummary>[] = [
+    {
+      id: 'release',
+      title: 'Release',
+      locked: true,
+      kind: 'text',
+      value: (r) => r.release.title,
+      cell: (r) => <Cap>{r.release.title}</Cap>,
+    },
+    {
+      id: 'artist',
+      title: 'Artist',
+      kind: 'choice',
+      caption: 'ARTIST',
+      value: (r) => r.release.artist,
+      cell: (r) => <Cap>{r.release.artist}</Cap>,
+    },
+    {
+      id: 'kind',
+      title: 'Type',
+      kind: 'choice',
+      caption: 'PRODUCT TYPE',
+      defaultHidden: true,
+      value: (r) => r.release.productKind,
+      groupLabel: (key) => (key === 'print' ? 'Print' : 'Sculpture'),
+      cell: (r) => (r.release.productKind === 'print' ? 'Print' : 'Sculpture'),
+    },
+    {
+      id: 'edition',
+      title: 'Edition size',
+      n: true,
+      defaultHidden: true,
+      kind: 'number',
+      value: (r) => r.release.editionSize,
+      cell: (r) => r.release.editionSize ?? <None />,
+    },
+    {
+      id: 'status',
+      title: 'Status',
+      kind: 'choice',
+      caption: 'STATUS',
+      order: ['active', 'completed'],
+      value: (r) => r.release.status,
+      groupLabel: (key) => (key === 'active' ? 'Active' : 'Completed'),
+      cell: (r) => releaseStatusBadge(r.release.status),
+    },
+    {
+      id: 'orders',
+      title: 'Orders',
+      n: true,
+      kind: 'number',
+      value: (r) => r.orderCount,
+      cell: (r) => r.orderCount,
+    },
+    {
+      id: 'batches',
+      title: 'Batches',
+      n: true,
+      kind: 'number',
+      value: (r) => r.batchCount,
+      cell: (r) => (r.batchCount > 1 ? r.batchCount : <None />),
+    },
+    {
+      id: 'next',
+      title: 'Next send',
+      kind: 'date',
+      value: (r) => r.upcomingSends[0]?.scheduledDate,
+      cell: (r) => (
+        <NextSendCell
+          upcoming={r.upcomingSends}
+          onOpenSend={(sendId) => navigate(`/sends/${sendId}`)}
+        />
+      ),
+    },
+    {
+      id: 'overdue',
+      title: 'Overdue',
+      /* Locked: this is the column that says something is late, and a list you
+         can hide the warnings on is a list that stops warning you. */
+      locked: true,
+      n: true,
+      kind: 'number',
+      value: (r) => r.overdueCount,
+      cell: (r) => (r.overdueCount > 0 ? <Pill tone="red">{r.overdueCount}</Pill> : <None />),
+    },
+    {
+      id: 'pending',
+      title: 'Pending approval',
+      n: true,
+      kind: 'number',
+      value: (r) => r.pendingApprovalCount,
+      cell: (r) =>
+        r.pendingApprovalCount > 0 ? <Pill tone="amber">{r.pendingApprovalCount}</Pill> : <None />,
+    },
+  ];
 
   return (
     <Page
       title="Releases"
       actions={
-        <>
-          {columns.menu}
-          <Btn kind="pri" onClick={() => setNewReleaseOpen(true)}>
-            New release
-          </Btn>
-        </>
+        <Btn kind="pri" onClick={() => setNewReleaseOpen(true)}>
+          New release
+        </Btn>
       }
     >
-      <Card>
-        {releases.data === null ? (
+      {releases.data === null ? (
+        <Card>
           <Skeleton rows={6} />
-        ) : (
-          <>
-            <div className="rd-scroll">
-              <table
-                className="rd-t rd-t27 rd-fit rd-tpad rd-tsel"
-                ref={pin.ref}
-                style={pin.style}
-              >
-                {pin.cols}
-                <thead>
-                  {picked.size > 0 ? (
-                    <BulkBar count={picked.size} columns={columns.count + 1} actions={[]} />
-                  ) : (
-                    <tr>
-                      <th aria-hidden />
-                      {columns.head}
-                    </tr>
-                  )}
-                </thead>
-                <tbody>
-                  {rows.length === 0 ? (
-                    <tr>
-                      <td className="rd-prose" colSpan={columns.count + 1}>
-                        No releases yet.
-                      </td>
-                    </tr>
-                  ) : (
-                    rows.map((summary) => {
-                      const { release } = summary;
-                      return (
-                        <tr
-                          key={release.id}
-                          className="rd-rowlink"
-                          onClick={() => navigate(`/releases/${release.id}`)}
-                        >
-                          <td onClick={(e) => e.stopPropagation()}>
-                            <RowTick
-                              id={release.id}
-                              on={picked.has(release.id)}
-                              label={release.title}
-                              onPress={picked.press}
-                            />
-                          </td>
-                          <td className="rd-ink">
-                            <Cap>{release.title}</Cap>
-                          </td>
-                          {columns.show('artist') ? (
-                            <td>
-                              <Cap>{release.artist}</Cap>
-                            </td>
-                          ) : null}
-                          {columns.show('edition') ? (
-                            <td className="n">{release.editionSize ?? <None />}</td>
-                          ) : null}
-                          {columns.show('status') ? (
-                            <td>{releaseStatusBadge(release.status)}</td>
-                          ) : null}
-                          {columns.show('orders') ? (
-                            <td className="n">{summary.orderCount}</td>
-                          ) : null}
-                          {columns.show('batches') ? (
-                            <td className="n">
-                              {summary.batchCount > 1 ? summary.batchCount : <None />}
-                            </td>
-                          ) : null}
-                          {columns.show('next') ? (
-                            <td onClick={(e) => e.stopPropagation()}>
-                              <NextSendCell
-                                upcoming={summary.upcomingSends}
-                                onOpenSend={(sendId) => navigate(`/sends/${sendId}`)}
-                              />
-                            </td>
-                          ) : null}
-                          {columns.show('overdue') ? (
-                            <td>
-                              {summary.overdueCount > 0 ? (
-                                <Pill tone="red">{summary.overdueCount}</Pill>
-                              ) : (
-                                <None />
-                              )}
-                            </td>
-                          ) : null}
-                          {columns.show('pending') ? (
-                            <td>
-                              {summary.pendingApprovalCount > 0 ? (
-                                <Pill tone="amber">{summary.pendingApprovalCount}</Pill>
-                              ) : (
-                                <None />
-                              )}
-                            </td>
-                          ) : null}
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <Foot>{plural(rows.length, 'release')}</Foot>
-          </>
-        )}
-      </Card>
+        </Card>
+      ) : (
+        <DataTable
+          table="releases"
+          noun="release"
+          searchPlaceholder="Search releases and artists"
+          columns={columns}
+          rows={rows}
+          rowKey={(r) => r.release.id}
+          onRowClick={(r) => navigate(`/releases/${r.release.id}`)}
+          empty="No releases yet."
+          select={{
+            picked,
+            label: (r) => r.release.title,
+            /* Nothing acts on a selection of releases yet — the ticks are here
+               because a list of releases is a list somebody counts. The bar
+               says what is ticked and offers nothing it cannot do. */
+            actions: [],
+          }}
+        />
+      )}
       <NewReleaseModal open={newReleaseOpen} onClose={() => setNewReleaseOpen(false)} />
     </Page>
   );

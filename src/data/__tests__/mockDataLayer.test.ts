@@ -36,7 +36,15 @@ describe('seeded world — releases index', () => {
     const fl = await releaseByTitle('Falling Light');
     // Framed + Unframed flows, plus two splits from the framed flow.
     expect(fl.batchCount).toBe(4);
-    expect(fl.orderCount).toBe(25); // 26 imported, 1 refunded
+    /* A real release runs to hundreds of collectors, and the fixture does too.
+       The count is asserted as an INVARIANT rather than as a number: the total
+       is the active orders, so the refunded one is excluded and nothing else
+       is. A magic number here breaks every time the world grows, which teaches
+       people to update the number rather than read the assertion. */
+    const flDetail = await layer.getRelease(fl.release.id);
+    expect(fl.orderCount).toBe(flDetail.orders.filter((o) => !o.removed).length);
+    expect(flDetail.orders.some((o) => o.removed)).toBe(true);
+    expect(fl.orderCount).toBeGreaterThan(200);
     expect(fl.pendingApprovalCount).toBeGreaterThan(0);
     expect(fl.overdueCount).toBeGreaterThan(0);
     expect(fl.nextScheduledSend).not.toBeNull();
@@ -52,7 +60,9 @@ describe('seeded world — releases index', () => {
 
   it('Night Garden has orders in framed/unframed batches but no plan yet', async () => {
     const ng = await releaseByTitle('Night Garden');
-    expect(ng.orderCount).toBe(7);
+    const ngDetail = await layer.getRelease(ng.release.id);
+    expect(ng.orderCount).toBe(ngDetail.orders.filter((o) => !o.removed).length);
+    expect(ng.orderCount).toBeGreaterThan(100);
     expect(ng.batchCount).toBe(2);
     expect(ng.nextScheduledSend).toBeNull();
   });
@@ -159,10 +169,14 @@ describe('seeded world — approval queue', () => {
 describe('live behaviour through the interface', () => {
   it('re-importing the same CSV creates no duplicates', async () => {
     const { release } = await releaseByTitle('Night Garden');
+    const before = (await releaseByTitle('Night Garden')).orderCount;
     const summary = await layer.importOrders(release.id, NIGHT_GARDEN_CSV);
     expect(summary.newOrders).toBe(0);
-    expect(summary.duplicatesSkipped).toBe(8); // 7 orders + in-file dupe row
-    expect((await releaseByTitle('Night Garden')).orderCount).toBe(7);
+    /* Every row in the file is a duplicate, the in-file repeat included — so
+       the skip count is the row count and the release is unchanged. Stated
+       against the file rather than as a number, because the file grew. */
+    expect(summary.duplicatesSkipped).toBe(summary.rowsParsed);
+    expect((await releaseByTitle('Night Garden')).orderCount).toBe(before);
   });
 
   it('operators cannot approve; admins can', async () => {
