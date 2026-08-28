@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { viteSingleFile } from 'vite-plugin-singlefile';
@@ -27,22 +27,38 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
  */
 function inlineInter() {
   const FONT = 'public/fonts/InterVariable.woff2';
-  const uri = `data:font/woff2;base64,${readFileSync(FONT).toString('base64')}`;
-  let hit = false;
+  const OUT = 'dist-artifact/index.html';
   return {
     name: 'inline-inter',
-    enforce: 'post' as const,
-    generateBundle(_options: unknown, bundle: Record<string, { type: string; source?: unknown }>) {
-      for (const file of Object.values(bundle)) {
-        if (file.type !== 'asset' || typeof file.source !== 'string') continue;
-        if (!file.source.includes('/fonts/InterVariable.woff2')) continue;
-        file.source = file.source.replaceAll('/fonts/InterVariable.woff2', uri);
-        hit = true;
-      }
-    },
+    /* On the WRITTEN file, not on the bundle.
+       In the bundle the stylesheet exists twice by this point: the CSS asset,
+       and the copy `vite-plugin-singlefile` has already inlined into the HTML.
+       Rewriting the bundle hit the asset — which by then nothing referenced —
+       and left the HTML asking for `/fonts/InterVariable.woff2`, a path that
+       does not exist inside a single file. The build reported success and the
+       page rendered in a system face, which is the silent failure the kit
+       names: "every measurement in the system becomes a measurement of a
+       different font". Found on 28 Aug 2026 by opening the built file and
+       asking `document.fonts.check`. There is only one file at this point, so
+       there is nothing left to patch the wrong copy of. */
     closeBundle() {
-      // A silent miss here is the whole fault this plugin exists to prevent.
-      if (!hit) throw new Error('inline-inter: the font URL was never found in the built CSS');
+      const uri = `data:font/woff2;base64,${readFileSync(FONT).toString('base64')}`;
+      const html = readFileSync(OUT, 'utf8');
+      /* The WHOLE url, leading `./` included. Vite rewrites the stylesheet's
+         absolute `/fonts/...` to a relative `./fonts/...` on the way out, so
+         replacing the absolute form alone left the dot in front of the data
+         URI — `url(.data:font/woff2;...)`, which is not a URL. The build
+         succeeded, the file was the right size, and the page rendered in a
+         system face. Found 28 Aug 2026 the same way as the first miss: by
+         opening the built file and asking. */
+      const url = /\.?\/fonts\/InterVariable\.woff2/g;
+      if (!url.test(html)) throw new Error(`inline-inter: no font URL to replace in ${OUT}`);
+      url.lastIndex = 0;
+      const patched = html.replace(url, uri);
+      if (patched.includes('/fonts/InterVariable.woff2')) {
+        throw new Error('inline-inter: a font URL survived the replacement');
+      }
+      writeFileSync(OUT, patched);
     },
   };
 }
