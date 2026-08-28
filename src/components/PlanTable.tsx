@@ -160,7 +160,7 @@ export function PlanTable({
         <div style={{ padding: 'var(--p-space-200) var(--p-space-400) var(--p-space-300)' }}>
           <Text as="p" variant="bodySm" tone="subdued">
             {cancelled.length} cancelled send{cancelled.length === 1 ? '' : 's'} superseded by
-            reschedules — full history on the right.
+            reschedules — full history below.
           </Text>
         </div>
       ) : null}

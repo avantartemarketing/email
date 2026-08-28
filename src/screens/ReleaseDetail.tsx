@@ -6,7 +6,6 @@ import {
   Card,
   IndexTable,
   InlineStack,
-  Layout,
   Modal,
   Page,
   SkeletonBodyText,
@@ -328,6 +327,14 @@ function BatchSection({
             </BlockStack>
           </Card>
 
+          <PlanTable
+            sends={batchSends}
+            inheritedSends={singleBatch ? [] : inheritedSends}
+            batchActiveOrderCount={activeOrders.length}
+            onEdit={(send) => setEditingSend(send)}
+            onCancel={(send) => setCancellingSend(send)}
+          />
+
           <Card padding="0">
             <div style={{ padding: 'var(--p-space-400) var(--p-space-400) var(--p-space-200)' }}>
               <InlineStack align="space-between" blockAlign="center" wrap gap="200">
@@ -463,27 +470,14 @@ function BatchSection({
             ) : null}
           </Card>
 
-          <Layout>
-            <Layout.Section>
-              <PlanTable
-                sends={batchSends}
-                inheritedSends={singleBatch ? [] : inheritedSends}
-                batchActiveOrderCount={activeOrders.length}
-                onEdit={(send) => setEditingSend(send)}
-                onCancel={(send) => setCancellingSend(send)}
-              />
-            </Layout.Section>
-            <Layout.Section variant="oneThird">
-              <Card>
-                <BlockStack gap="300">
-                  <Text as="h2" variant="headingSm">
-                    {singleBatch ? 'History' : 'Batch history'}
-                  </Text>
-                  <BatchHistoryTimeline events={batchEvents} />
-                </BlockStack>
-              </Card>
-            </Layout.Section>
-          </Layout>
+          <Card>
+            <BlockStack gap="300">
+              <Text as="h2" variant="headingSm">
+                {singleBatch ? 'History' : 'Batch history'}
+              </Text>
+              <BatchHistoryTimeline events={batchEvents} />
+            </BlockStack>
+          </Card>
 
       <RescheduleModal
         open={rescheduleOpen}

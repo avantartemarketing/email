@@ -22,6 +22,9 @@ it once absorbed.
   sent rows muted, split-inherited sends as "· before the split" rows.
   PlanTimeline is gone. If plan+history still feels busy later, options 4
   and 5 on that page are the fold-history-in follow-ups.
+- **Batch page order (Tom, 28 Aug):** promise card → comms plan table →
+  orders table → batch history, all full width. No more side-by-side
+  Layout/oneThird split.
 
 **Round-2 feedback (same day, after the round-2 artifact) is also applied:**
 - Print releases run **framed and unframed as separate batches** ("Framed" /
