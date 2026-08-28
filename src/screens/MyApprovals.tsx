@@ -22,6 +22,7 @@ import {
   Pill,
   RowAct,
   Skeleton,
+  Stack,
   Tag,
   Why,
 } from '../ui/rd';
@@ -234,9 +235,21 @@ export function MyApprovals(): ReactElement {
       locked: true,
       kind: 'date',
       value: (i) => i.send.scheduledDate,
+      /* The pill rides beside the date rather than in a column of its own.
+         "Overdue" is not a second fact — it is a property OF this date, which
+         is what `.rd-cellflex` exists for. As a column it spent 102px drawing
+         one mark on one row, and those 102px were the difference between the
+         urgent table fitting inside its card and scrolling across it. */
       cell: (i) => (
-        <span className={isOverdueApproval(i.send) ? 'rd-ink' : undefined}>
-          {formatDayShort(i.send.scheduledDate)}
+        <span className="rd-cellflex">
+          <span className={isOverdueApproval(i.send) ? 'rd-ink' : undefined}>
+            {formatDayShort(i.send.scheduledDate)}
+          </span>
+          {isOverdueApproval(i.send) ? (
+            <Pill tone="red" small>
+              Overdue
+            </Pill>
+          ) : null}
         </span>
       ),
     },
@@ -293,6 +306,11 @@ export function MyApprovals(): ReactElement {
     {
       id: 'recipients',
       title: 'Recipients',
+      /* Hidden in the urgent table only. The band above totals the collectors
+         this week reaches and the preview names them per send, so here it was
+         survey data on a table nobody surveys — and its width was part of what
+         pushed Approve off a laptop screen. */
+      defaultHidden: which === 'now',
       n: true,
       kind: 'number',
       value: (i) => i.recipientCount,
@@ -369,7 +387,11 @@ export function MyApprovals(): ReactElement {
           {
             id: 'overdue',
             title: 'Overdue',
-            locked: true,
+            /* Drawn beside the date now, so the column exists only to be
+               filtered and grouped by — which a hidden one still does, because
+               the view's fields come off the column list rather than off what
+               is on screen. */
+            defaultHidden: true,
             kind: 'choice',
             caption: 'OVERDUE',
             value: (i) => (isOverdueApproval(i.send) ? 'Overdue' : null),
@@ -402,6 +424,11 @@ export function MyApprovals(): ReactElement {
         </Bar>
       ) : null}
 
+      {/* Everything below is one stack at the standard card gap. Without it
+          the band and both cards butted straight into each other: `.rd-headrow`
+          zeroes the band's own margin because it is written to sit INSIDE a
+          stack, and a Card carries no margin of its own. Measured at 0px. */}
+      <Stack>
       {/* The two figures that decide whether to keep reading. Both partition
           the table below, so neither repeats a foot. */}
       <div className="rd-headrow">
@@ -427,11 +454,14 @@ export function MyApprovals(): ReactElement {
               {now.length > 0 ? (
                 <>
                   {now.length}
+                  {/* "to 8 collectors", not "8 collectors": a figure followed
+                      by another figure reads as one number, and "2 8 collectors"
+                      was landing as twenty-eight. */}
                   <span className="rd-vnote">
-                    {plural(
+                    {`to ${plural(
                       now.reduce((sum, i) => sum + i.recipientCount, 0),
                       'collector',
-                    )}
+                    )}`}
                   </span>
                 </>
               ) : (
@@ -486,6 +516,7 @@ export function MyApprovals(): ReactElement {
           />
         </>
       )}
+      </Stack>
 
       <Dialog
         open={preview !== null}
