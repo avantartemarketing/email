@@ -26,11 +26,12 @@ import { getDataLayer } from './data';
 import { AppContext } from './ui/AppContext';
 import type { AppContextValue } from './ui/AppContext';
 import { useAsync } from './ui/useAsync';
+import { needsApprovingNow } from './logic/approvals';
 import { Skeleton } from './ui/rd';
 import Menu from './rd/components/Menu';
 import { ReleasesIndex } from './screens/ReleasesIndex';
 import { ReleaseDetail } from './screens/ReleaseDetail';
-import { ApprovalQueue } from './screens/ApprovalQueue';
+import { MyApprovals } from './screens/MyApprovals';
 import { SendDetail } from './screens/SendDetail';
 
 export function AppRoot(): ReactElement {
@@ -90,6 +91,8 @@ function Shell({
   const [currentUser, setCurrentUser] = useState(initialUser);
   const [whoOpen, setWhoOpen] = useState(false);
   const [crumb, setCrumb] = useState<string | null>(null);
+  /* Bumped by refreshApprovals; the rail's badge is keyed on it. */
+  const [queueTick, setQueueTick] = useState(0);
   const [toast, setToast] = useState<{ content: string; error: boolean } | null>(null);
 
   const showToast = useCallback((content: string, isError = false) => {
@@ -113,6 +116,8 @@ function Shell({
     [data, showToast],
   );
 
+  const refreshApprovals = useCallback(() => setQueueTick((n) => n + 1), []);
+
   const userName = useCallback(
     (userId: string | undefined) => {
       if (!userId) return '—';
@@ -132,19 +137,23 @@ function Shell({
       showToast,
       userName,
       setCrumb,
+      refreshApprovals,
     }),
-    [data, currentUser, users, switchUser, showToast, userName],
+    [data, currentUser, users, switchUser, showToast, userName, refreshApprovals],
   );
 
-  // The queue's count rides on its nav row; refreshed on navigation.
+  /* The badge counts what is DUE, not what exists.
+     Eleven pending sends, two of which go out this week, is not "11 things to
+     do" — it is two, and nine to read about. A badge that counts the inventory
+     rather than the work is a badge somebody learns to ignore. */
   const queueCount = useAsync(
     async () =>
-      (await data.listApprovalQueue()).filter((i) => i.send.status === 'pending_approval').length,
-    [location.pathname],
+      (await data.listApprovalQueue()).filter((i) => needsApprovingNow(i.send)).length,
+    [location.pathname, queueTick],
   );
 
   const onReleases = location.pathname === '/' || location.pathname.startsWith('/releases');
-  const area = onReleases ? 'Releases' : 'Approval queue';
+  const area = onReleases ? 'Releases' : 'My approvals';
   const initials = currentUser.name
     .split(' ')
     .map((part) => part[0])
@@ -169,7 +178,7 @@ function Shell({
               to="/approvals"
               className={({ isActive }) => (isActive ? 'rd-navrow on' : 'rd-navrow')}
             >
-              Approval queue
+              My approvals
               {queueCount.data ? <span className="rd-navcount">{queueCount.data}</span> : null}
             </NavLink>
           </div>
@@ -225,7 +234,7 @@ function Shell({
             <Routes>
               <Route path="/" element={<ReleasesIndex />} />
               <Route path="/releases/:releaseId" element={<ReleaseDetail />} />
-              <Route path="/approvals" element={<ApprovalQueue />} />
+              <Route path="/approvals" element={<MyApprovals />} />
               <Route path="/sends/:sendId" element={<SendDetail />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

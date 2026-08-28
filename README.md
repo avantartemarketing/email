@@ -35,8 +35,8 @@ this with magic-link sign-in.
   queued), Batch 2 was split and delayed once (delay + framing sent, rest
   pending), Batch 3 was split two days ago and its delay notice is still
   unapproved — the overdue/attention state on the index.
-- **Vessel VIII** — sculpture, ~5-month window: on-track cadence with one send
-  held pending copy.
+- **Vessel VIII** — sculpture, ~5-month window: on-track cadence with one
+  update pushed back by its approver and one dropped.
 - **Blue Interval** — completed, full immutable send history (open any sent
   send to see recipients, HubSpot send IDs and two seeded delivery failures on
   Falling Light's signing email).
@@ -122,10 +122,15 @@ Rules encoded in the mock the same way Postgres will enforce them later:
 - A regenerated plan never repeats a milestone the batch already received
   (a split batch inherits its source batch's sent story); dispatch is the one
   legitimate repeat.
-- Send statuses: draft → pending approval → approved → sent (+ held /
-  cancelled). Only admins approve/hold. Editing an approved send resets it to
-  pending. Sent sends are immutable, with recipients, per-recipient HubSpot
-  send IDs and failures frozen on the record.
+- Send statuses: draft → pending approval → approved → sent (+ cancelled).
+  Only admins approve; anyone can move an unsent send's date or cancel it —
+  there is no hold. Editing an approved send resets it to pending. Sent sends
+  are immutable, with recipients, per-recipient HubSpot send IDs and failures
+  frozen on the record.
+- An email cannot be approved until a hero image is picked for its slot. There
+  is no master default — `logic/approvals.ts` splits the queue into what is due
+  inside a week and what is merely coming, and `logic/templates.ts` decides
+  which slots a release owes a picture for.
 - CSV re-uploads are always safe: dedupe on Shopify order name + line item,
   including removed orders (a cancelled order can't resurrect). Orders with no
   HubSpot contact or no email are imported and **flagged**, never dropped.

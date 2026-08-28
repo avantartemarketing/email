@@ -161,10 +161,50 @@ await screen('release detail · a flow', async () => {
   await page.waitForTimeout(400)
 })
 
-/* ---- 3 · the approval queue --------------------------------------------- */
-await screen('approval queue', async () => {
+/* ---- 3 · my approvals ---------------------------------------------------- */
+await screen('my approvals', async () => {
   await page.goto(`${BASE}/approvals`, { waitUntil: 'networkidle' })
 })
+
+/* The split is the screen's whole job, so it is the thing worth proving on the
+   render rather than in a unit test: every row is in exactly one of the two
+   tables, the urgent one holds nothing beyond the horizon, and the calm one
+   holds nothing inside it. A rule that lives in one function can still be read
+   by the wrong table. */
+{
+  const what = 'my approvals'
+  const split = await page.evaluate(() => {
+    const cards = [...document.querySelectorAll('.rd-card')].filter((c) =>
+      c.querySelector('table.rd-t27'),
+    )
+    const heads = cards.map((c) => c.querySelector('.rd-cardhd, .rd-cardhead')?.textContent ?? '')
+    const dates = cards.map((c) =>
+      [...c.querySelectorAll('tbody tr')].map((r) => r.querySelector('td:nth-child(2)')?.textContent ?? ''),
+    )
+    return { heads, dates }
+  })
+  if (split.heads.length !== 2) {
+    faults.push(`${what}: expected two tables, found ${split.heads.length}`)
+  } else {
+    if (!split.heads[0].includes('To approve now')) {
+      faults.push(`${what}: the first table is not "To approve now" (${split.heads[0].trim()})`)
+    }
+    if (!split.heads[1].includes('Coming up')) {
+      faults.push(`${what}: the second table is not "Coming up" (${split.heads[1].trim()})`)
+    }
+    const overlap = split.dates[0].filter((d) => split.dates[1].includes(d) && d.trim())
+    if (overlap.length > 0) {
+      faults.push(`${what}: ${overlap.length} send(s) drawn in both tables`)
+    }
+  }
+  // Hold is gone; nothing on this screen may still offer it.
+  const holdish = await page.evaluate(() =>
+    [...document.querySelectorAll('button, a')]
+      .map((el) => el.textContent?.trim() ?? '')
+      .filter((t) => /^(hold|release hold)$/i.test(t)),
+  )
+  if (holdish.length > 0) faults.push(`${what}: a "${holdish[0]}" control survived`)
+}
 
 /* ---- 4 · one send ------------------------------------------------------- */
 {

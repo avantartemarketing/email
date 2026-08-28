@@ -170,6 +170,40 @@ export function None(): ReactElement {
 }
 
 /**
+ * A REQUIRED thing nobody has chosen yet, and the control that chooses it.
+ *
+ * `None` says "there is none"; this says "there has to be one and it is not
+ * here". Two states that would otherwise look identical, told apart by SHAPE
+ * rather than by ink — the dashed outline is an invitation where the dash is a
+ * full stop.
+ *
+ * The class is the kit's own `.rd-ctag-none`, whose comment is the ruling this
+ * is built on: *"Nothing chosen yet — the dashed invitation. A dash would say
+ * 'there is none'; this says 'there could be one'."* Nothing wore it until
+ * now.
+ */
+export function NoneYet({
+  children,
+  onClick,
+}: {
+  children: ReactNode;
+  onClick: () => void;
+}): ReactElement {
+  return (
+    <button
+      type="button"
+      className="rd-ctag rd-ctag-none"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+/**
  * A long value in a table cell: one line, ellipsised at 27 characters, whole
  * again on hover and in the record the row opens.
  *

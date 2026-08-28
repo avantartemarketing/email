@@ -12,16 +12,20 @@ import { Bar, Dialog } from '../ui/rd';
  * looks like. The tile IS the answer: it carries the picture where there is
  * one, and the system's "nothing here yet" hatch where there is not.
  *
- * Phase 1's seeded names have no file behind them — they are the images the
- * HubSpot masters already carry, which live in HubSpot. Those draw the hatch
- * with their name on it, which says "this is the master's picture" rather than
- * pretending we hold it. Anything uploaded here is a real image and shows.
- * Phase 2 replaces the whole library with HubSpot's own.
+ * **There is no "use the master's image" tile.** The owner, 28 Aug 2026: "For
+ * the image selection, it shouldn't have a default." Picking one is the job,
+ * so the picker offers only pictures — an unpicked slot has no tile wearing
+ * `on`, which is the honest drawing of nothing chosen.
+ *
+ * Phase 1's seeded names have no file behind them: they are the names HubSpot
+ * holds pictures for, and we do not hold the files. Those draw the hatch with
+ * their name on it rather than pretending. Anything uploaded here is a real
+ * image and shows. Phase 2 replaces the whole library with HubSpot's own.
  */
 export function ImagePicker({
   open,
   slotLabel,
-  /** The name currently picked, or null for the master's own image. */
+  /** The name currently picked, or null when nothing has been chosen yet. */
   picked,
   onClose,
   onPick,
@@ -30,7 +34,7 @@ export function ImagePicker({
   slotLabel: string;
   picked: string | null;
   onClose: () => void;
-  onPick: (imageName: string | null) => void;
+  onPick: (imageName: string) => void;
 }): ReactElement {
   const { data, showToast } = useApp();
   const [images, setImages] = useState<LibraryImage[]>([]);
@@ -90,17 +94,8 @@ export function ImagePicker({
          word — picking a tile applies immediately, so this is the end of the
          job rather than an escape from it. */
       secondary={{ label: 'Done', onClick: onClose }}
-      danger={picked ? { label: 'Use the master image', onClick: () => onPick(null) } : undefined}
     >
       <div className="rd-imggrid">
-        <button
-          type="button"
-          className={picked === null ? 'rd-imgtile on' : 'rd-imgtile'}
-          onClick={() => onPick(null)}
-        >
-          <span className="rd-imgart rd-imgart-hatch" aria-hidden />
-          <span className="rd-imgname">Master default</span>
-        </button>
         {images.map((img) => (
           <button
             key={img.name}
@@ -128,9 +123,9 @@ export function ImagePicker({
         />
       </label>
 
-      <Bar tone="note" title="The hatched tiles are the HubSpot masters' own images">
-        They live in HubSpot, so there is no file to show here yet — anything you upload shows its
-        picture.
+      <Bar tone="note" title="The hatched tiles have no picture to show yet">
+        Those names live in HubSpot's own library, so there is no file here to draw — anything you
+        upload shows its picture.
       </Bar>
     </Dialog>
   );

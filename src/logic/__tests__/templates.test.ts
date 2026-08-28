@@ -5,7 +5,11 @@ import {
   buildTemplateFields,
   effectiveTemplate,
   imageSlotsForPlan,
+  missingImagesFor,
   missingOnTrackImages,
+  onTrackSlotsInPlay,
+  requiredImageSlots,
+  slotLabel,
   onTrackSlotsFor,
   onTrackSlotsNeeded,
   patchTokens,
@@ -205,6 +209,89 @@ describe('onTrackSlotsNeeded / missingOnTrackImages', () => {
       templateImages: Object.fromEntries(slots.map((s, i) => [s, `Picture ${i + 1}`])),
     };
     expect(missingOnTrackImages(filled, [{ promiseDate: '2027-06-01' }], '2026-06-01')).toEqual([]);
+  });
+});
+
+describe('requiredImageSlots / missingImagesFor — the no-default rule', () => {
+  const release = makeRelease();
+  const dated = [{ promiseDate: '2026-08-01' }];
+
+  it('asks for every email the release sends, not just the on-track run', () => {
+    const slots = requiredImageSlots(release, dated, [], '2026-06-01');
+    // The old missingOnTrackImages saw only the fillers, so a release could sit
+    // for weeks with no framing or dispatch picture and nothing said so.
+    expect(slots).toContain('pp-printing');
+    expect(slots).toContain('pp-signing');
+    expect(slots).toContain('pp-framing');
+    expect(slots).toContain('pp-dispatch');
+    expect(slots).toContain('pp-delay');
+    expect(slots).toContain('pp-ontrack-1');
+  });
+
+  it('owes nothing for a switched-off milestone, because it never sends', () => {
+    const off = makeRelease({ disabledTemplates: ['pp-framing'] });
+    expect(requiredImageSlots(off, dated, [], '2026-06-01')).not.toContain('pp-framing');
+  });
+
+  it('still owes the two that cannot be switched off', () => {
+    const off = makeRelease({
+      disabledTemplates: ['pp-printing', 'pp-signing', 'pp-framing', 'pp-ontrack'],
+    });
+    const slots = requiredImageSlots(off, dated, [], '2026-06-01');
+    expect(slots).toContain('pp-dispatch');
+    expect(slots).toContain('pp-delay');
+  });
+
+  it('keeps one on-track row when the filler is off, so it can be switched back on', () => {
+    /* The trap this closes: onTrackSlotsNeeded returns 0 for a disabled filler,
+       which deleted the very rows carrying the "Switch on" control. */
+    const off = makeRelease({ disabledTemplates: ['pp-ontrack'] });
+    expect(onTrackSlotsInPlay(off, dated, [], '2026-06-01')).toEqual(['pp-ontrack-1']);
+  });
+
+  it('holds a slot open for a queued send after the window has shortened', () => {
+    /* onTrackSlotsNeeded measures from TODAY, so a window that has merely got
+       closer asks for fewer slots than when the plan was built — while sends
+       against the longer one are still queued. Without this they would point
+       at a slot with no row, and nobody could give them an image or approve. */
+    const soon = [{ promiseDate: '2026-06-20' }];
+    const queued = [
+      { status: 'pending_approval' as const, imageSlot: 'pp-ontrack-3' as const },
+    ];
+    expect(onTrackSlotsNeeded(release, soon, '2026-06-01')).toBeLessThan(3);
+    expect(onTrackSlotsInPlay(release, soon, queued, '2026-06-01')).toEqual([
+      'pp-ontrack-1',
+      'pp-ontrack-2',
+      'pp-ontrack-3',
+    ]);
+  });
+
+  it('ignores a slot only a SENT send points at — that picture is history', () => {
+    const gone = [{ status: 'sent' as const, imageSlot: 'pp-ontrack-4' as const }];
+    expect(onTrackSlotsInPlay(release, [{ promiseDate: '2026-06-20' }], gone, '2026-06-01')).toEqual(
+      ['pp-ontrack-1'],
+    );
+  });
+
+  it('counts an empty name as missing, not as chosen', () => {
+    const blank = makeRelease({ templateImages: { 'pp-printing': '' } });
+    expect(missingImagesFor(blank, dated, [], '2026-06-01')).toContain('pp-printing');
+  });
+
+  it('goes quiet only when every owed slot has a picture', () => {
+    const slots = requiredImageSlots(release, dated, [], '2026-06-01');
+    const filled = makeRelease({
+      templateImages: Object.fromEntries(slots.map((s, i) => [s, `Picture ${i + 1}`])),
+    });
+    expect(missingImagesFor(filled, dated, [], '2026-06-01')).toEqual([]);
+  });
+});
+
+describe('slotLabel', () => {
+  it('numbers the on-track run and names everything else as the table does', () => {
+    expect(slotLabel('pp-ontrack-3')).toBe('On track 3');
+    expect(slotLabel('pp-framing')).toBe('Framing');
+    expect(slotLabel('pp-delay')).toBe('Delay notice');
   });
 });
 

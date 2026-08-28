@@ -186,12 +186,9 @@ export interface DataLayer {
   removeOrder(orderId: string, reason: string): Promise<void>;
 
   // --- approval queue ----------------------------------------------------
-  /** Pending and held sends across all releases, soonest first. */
+  /** Every send waiting on an approver, soonest first. */
   listApprovalQueue(): Promise<PendingSendItem[]>;
   approveSend(sendId: string): Promise<ScheduledSend>;
-  holdSend(sendId: string): Promise<ScheduledSend>;
-  /** Put a held send back into the pending queue. */
-  unholdSend(sendId: string): Promise<ScheduledSend>;
 
   // --- send detail -------------------------------------------------------
   getSendDetail(sendId: string): Promise<SendDetailView>;

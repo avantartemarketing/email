@@ -2,10 +2,25 @@ import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { formatDateTime, formatDay } from '../logic/dates';
+import { NO_IMAGE_YET } from '../logic/templates';
 import { TEMPLATE_LABELS, plural, sendStatusBadge } from '../ui/format';
 import { useApp, useCrumb } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
-import { Bar, Btn, Cap, Card, CardHead, CellLink, Dialog, KV, None, Page, Pill, Skeleton } from '../ui/rd';
+import {
+  Bar,
+  Btn,
+  Cap,
+  Card,
+  CardHead,
+  CellLink,
+  Dialog,
+  KV,
+  None,
+  Page,
+  Pill,
+  Skeleton,
+  Why,
+} from '../ui/rd';
 import { DataTable } from '../ui/DataTable';
 import type { Column } from '../ui/DataTable';
 import { EmailPreview } from '../components/EmailPreview';
@@ -46,14 +61,11 @@ export function SendDetail(): ReactElement {
   const sent = send.status === 'sent';
   const failures = send.recipients?.filter((r) => r.status === 'failed') ?? [];
 
-  const act = async (action: 'approve' | 'hold' | 'cancel') => {
+  const act = async (action: 'approve' | 'cancel') => {
     try {
       if (action === 'approve') {
         await data.approveSend(send.id);
         showToast('Approved — queued');
-      } else if (action === 'hold') {
-        await data.holdSend(send.id);
-        showToast('Held');
       } else {
         await data.cancelSend(send.id);
         showToast('Send cancelled');
@@ -105,7 +117,6 @@ export function SendDetail(): ReactElement {
       k: 'Approved',
       v: `${userName(send.approvedBy)}${send.approvedAt ? ` · ${formatDateTime(send.approvedAt)}` : ''}`,
     });
-  if (send.heldBy) facts.push({ k: 'Held by', v: userName(send.heldBy) });
   if (sent && send.sentAt) facts.push({ k: 'Sent', v: formatDateTime(send.sentAt) });
   if (send.hubspotEmailId) facts.push({ k: 'HubSpot email', v: send.hubspotEmailId });
   facts.push({ k: 'Created by', v: userName(send.createdBy) });
@@ -185,13 +196,21 @@ export function SendDetail(): ReactElement {
           {!sent && send.status !== 'cancelled' ? (
             <Btn onClick={() => setEditing(true)}>Edit</Btn>
           ) : null}
+          {/* Approve, or change it. There is no third parking state: the
+              owner, 28 Aug — "they can reschedule a send, or they can mark it
+              as cancelled". Both of those are already on this row. */}
           {send.status === 'pending_approval' && isAdmin ? (
-            <>
+            !send.imageName ? (
+              <Why says={NO_IMAGE_YET}>
+                <Btn kind="pri" disabled>
+                  Approve
+                </Btn>
+              </Why>
+            ) : (
               <Btn kind="pri" onClick={() => void act('approve')}>
                 Approve
               </Btn>
-              <Btn onClick={() => void act('hold')}>Hold</Btn>
-            </>
+            )
           ) : null}
           {!sent && send.status !== 'cancelled' ? (
             <Btn kind="link-danger" onClick={() => setConfirmingCancel(true)}>
@@ -226,6 +245,7 @@ export function SendDetail(): ReactElement {
             nextSteps={send.nextSteps}
             imageName={send.imageName}
             sampleRecipientName={recipientRows[0]?.name}
+            sent={sent}
           />
         </Card>
 

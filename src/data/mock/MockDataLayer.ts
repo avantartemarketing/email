@@ -41,10 +41,13 @@ import { generateMilestonePlan } from '../../logic/plan';
 import { inheritedSentStory, planReschedule, sentStoryForBatch } from '../../logic/reschedule';
 import {
   MASTER_TEMPLATES,
+  NO_IMAGE_YET,
+  UNSENT_STATUSES,
   buildNextSteps,
   buildTemplateFields,
   effectiveTemplate,
   imageSlotsForPlan,
+  onTrackSlot,
   releaseFillerTemplate,
   renderReleaseTemplate,
   sequenceForBatch,
@@ -72,7 +75,9 @@ interface Store {
   images: LibraryImage[];
 }
 
-const UNSENT: SendStatus[] = ['draft', 'pending_approval', 'approved', 'held'];
+/* One list, in the logic layer, so the slot predicate and this class cannot
+   disagree about which sends are still changeable. */
+const UNSENT: SendStatus[] = UNSENT_STATUSES;
 
 export class MockDataLayer implements DataLayer {
   readonly _store: Store;
@@ -264,7 +269,7 @@ export class MockDataLayer implements DataLayer {
     const summaries = [...this._store.releases.values()].map((release): ReleaseSummary => {
       const sends = this.releaseSends(release.id);
       const upcoming = sends
-        .filter((s) => UNSENT.includes(s.status) && s.status !== 'held')
+        .filter((s) => UNSENT.includes(s.status))
         .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
       const overdue = sends.filter(
         (s) =>
@@ -641,6 +646,12 @@ export class MockDataLayer implements DataLayer {
     imageName: string | null,
   ): Promise<Release> {
     const release = this.mustGet(this._store.releases, releaseId, 'release');
+    /* A name that is not in the library satisfies no gate — the send would go
+       out pointing at nothing. Now that a picked image is the ONLY image an
+       email has, an unchecked string is a silent blank hero. */
+    if (imageName && !this._store.images.some((i) => i.name === imageName)) {
+      throw new Error(`“${imageName}” is not in the image library`);
+    }
     if (imageName) release.templateImages[slot] = imageName;
     else delete release.templateImages[slot];
     // Upcoming sends drawing on this slot pick up the new image in place.
@@ -826,7 +837,18 @@ export class MockDataLayer implements DataLayer {
         reason_line: 'Production is taking longer than planned.',
       }),
     );
-    const imageSlot: ImageSlot = templateRef === 'pp-ontrack' ? 'pp-ontrack-1' : templateRef;
+    /* The next free on-track slot, not always the first. A hand-added on-track
+       send used to claim `pp-ontrack-1` whatever the plan was already on,
+       which meant two emails shared one picture — and, now that a refusal to
+       approve names the slot to go and fix, it would have named the wrong one. */
+    const imageSlot: ImageSlot =
+      templateRef === 'pp-ontrack'
+        ? onTrackSlot(
+            this.batchSends(batchId).filter(
+              (s) => s.templateRef === 'pp-ontrack' && s.status !== 'cancelled',
+            ).length + 1,
+          )
+        : templateRef;
     const send: ScheduledSend = {
       id: this._newId('send'),
       releaseId: release.id,
@@ -984,7 +1006,7 @@ export class MockDataLayer implements DataLayer {
 
   async listApprovalQueue(): Promise<PendingSendItem[]> {
     const items = [...this._store.sends.values()]
-      .filter((s) => s.status === 'pending_approval' || s.status === 'held')
+      .filter((s) => s.status === 'pending_approval')
       .sort(
         (a, b) =>
           a.scheduledDate.localeCompare(b.scheduledDate) || a.createdAt.localeCompare(b.createdAt),
@@ -1007,7 +1029,7 @@ export class MockDataLayer implements DataLayer {
   private requireAdmin(): User {
     const user = this.currentUser();
     if (user.role !== 'admin') {
-      throw new Error('Only admins can approve or hold sends');
+      throw new Error('Only admins can approve sends');
     }
     return user;
   }
@@ -1018,6 +1040,27 @@ export class MockDataLayer implements DataLayer {
     if (send.status !== 'pending_approval') {
       throw new Error(`Only pending sends can be approved (this one is ${send.status})`);
     }
+    /* THE image gate, and the only one.
+     *
+     * There is no default any more, so an email with no picture cannot go out
+     * — but the refusal belongs here rather than at any of the three places a
+     * send is BORN. Approval is where the choice stops being reversible;
+     * everything before it is fixable in one click, because
+     * `setReleaseEmailImage` backfills every unsent send on the slot and
+     * deliberately resets no approvals.
+     *
+     * Gating plan generation instead was tried on paper and rejected: the
+     * number of on-track slots is derived from the date being typed, so a
+     * refusal there can demand a slot whose ROW does not exist until the date
+     * is saved — an operator picks every image the tab offers and is still
+     * refused. It would also refuse to record a slipped delivery date over a
+     * missing picture, and the person who pays for that is the collector owed
+     * a delay notice.
+     *
+     * Approval is also the one funnel all three creation paths converge on:
+     * reschedule mints its sends already `pending_approval`, so a gate on
+     * submit-for-approval would never see them. */
+    if (!send.imageName) throw new Error(NO_IMAGE_YET);
     send.status = 'approved';
     send.approvedAt = this.now().toISOString();
     send.approvedBy = user.id;
@@ -1030,42 +1073,6 @@ export class MockDataLayer implements DataLayer {
     );
     return this.settle(send);
   }
-
-  async holdSend(sendId: string): Promise<ScheduledSend> {
-    const user = this.requireAdmin();
-    const send = this.mustGet(this._store.sends, sendId, 'send');
-    if (send.status !== 'pending_approval') {
-      throw new Error(`Only pending sends can be held (this one is ${send.status})`);
-    }
-    send.status = 'held';
-    send.heldAt = this.now().toISOString();
-    send.heldBy = user.id;
-    this._addEvent(send.releaseId, send.batchId, 'send_held', `“${send.subject}” held`, {
-      sendId: send.id,
-    });
-    return this.settle(send);
-  }
-
-  async unholdSend(sendId: string): Promise<ScheduledSend> {
-    this.requireAdmin();
-    const send = this.mustGet(this._store.sends, sendId, 'send');
-    if (send.status !== 'held') {
-      throw new Error(`Only held sends can be released (this one is ${send.status})`);
-    }
-    send.status = 'pending_approval';
-    send.heldAt = undefined;
-    send.heldBy = undefined;
-    this._addEvent(
-      send.releaseId,
-      send.batchId,
-      'send_released',
-      `“${send.subject}” released from hold — back in the pending queue`,
-      { sendId: send.id },
-    );
-    return this.settle(send);
-  }
-
-  // --- send detail -------------------------------------------------------
 
   async getSendDetail(sendId: string): Promise<SendDetailView> {
     const send = this.mustGet(this._store.sends, sendId, 'send');

@@ -179,7 +179,6 @@ export type SendStatus =
   | 'pending_approval'
   | 'approved'
   | 'sent'
-  | 'held'
   | 'cancelled';
 
 /**
@@ -230,8 +229,6 @@ export interface ScheduledSend {
   createdBy: string;
   approvedAt?: string;
   approvedBy?: string;
-  heldAt?: string;
-  heldBy?: string;
   /** Set once sent; from then on the record is immutable log. */
   sentAt?: string;
   /** ID of the cloned-and-published HubSpot email used for this send. */
@@ -250,8 +247,6 @@ export type BatchEventType =
   | 'plan_edited'
   | 'release_emails_edited'
   | 'send_approved'
-  | 'send_held'
-  | 'send_released'
   | 'send_sent';
 
 export interface BatchEvent {

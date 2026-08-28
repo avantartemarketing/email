@@ -1,6 +1,34 @@
-import type { Batch, ImageSlot, OnTrackSlot, Release, SendStep, TemplateRef } from '../types';
+import type {
+  Batch,
+  ImageSlot,
+  OnTrackSlot,
+  Release,
+  ScheduledSend,
+  SendStatus,
+  SendStep,
+  TemplateRef,
+} from '../types';
 import { addDays, formatDay, formatDayShort } from './dates';
 import { generateMilestonePlan } from './plan';
+
+/**
+ * What each email is called, everywhere. It lives here rather than in `ui/`
+ * because the logic layer needs it too — `slotLabel` names the slot a thrown
+ * message asks somebody to go and fix, and a rule that names a thing must name
+ * it the way the screen does. `ui/format.tsx` re-exports it, so no importer
+ * had to change.
+ */
+export const TEMPLATE_LABELS: Record<TemplateRef, string> = {
+  'pp-printing': 'Printing in progress',
+  'pp-signing': 'Signing',
+  'pp-framing': 'Framing',
+  'pp-dispatch': 'Preparing for dispatch',
+  'pp-ontrack': 'On track',
+  'pp-delay': 'Delay notice',
+};
+
+/** Statuses a send can still be changed in — everything before it went out. */
+export const UNSENT_STATUSES: SendStatus[] = ['draft', 'pending_approval', 'approved'];
 
 /**
  * Local mirrors of the six HubSpot master templates (`pp-*`). The real
@@ -303,11 +331,10 @@ export function onTrackSlotsNeeded(
  *
  * Pushing a delivery date out adds on-track sends — that is what the ≤5-week
  * rule does — and each new one arrives pointing at a slot nobody has chosen a
- * picture for, so it would go out on the master's image without anybody
- * deciding that. The owner asked for it to be said out loud at the moment the
- * date changes AND to stay said until it is fixed, which is why this is a
- * derived list rather than a flag: it stops being true when the images are
- * picked, and nothing has to remember to clear it.
+ * picture for. The owner asked for it to be said out loud at the moment the
+ * date changes, which is the one question this still answers: "did the dates
+ * just ask for more pictures?" It is deliberately narrower than
+ * `missingImagesFor`, which is what the page's band and the count read.
  */
 export function missingOnTrackImages(
   release: Release,
@@ -327,6 +354,108 @@ export function onTrackSlotsFor(
 ): OnTrackSlot[] {
   return Array.from({ length: onTrackSlotsNeeded(release, batches, todayIso) }, (_, i) =>
     onTrackSlot(i + 1),
+  );
+}
+
+/* ------------------------------------------------------------------------ *
+ * Which pictures a release owes
+ *
+ * The owner, 28 Aug 2026: "For the image selection, it shouldn't have a
+ * default." So `templateImages[slot]` stopped being an OVERRIDE of the
+ * HubSpot master's own picture and became the only answer there is. An unset
+ * slot is no longer a quiet fallback; it is unfinished setup, and the whole
+ * app now needs one shared answer to "which slots does this release owe a
+ * picture for", so the row list, the count, the warning band and the thing
+ * that refuses to approve cannot drift apart.
+ * ------------------------------------------------------------------------ */
+
+/** Said by the shut Approve control and thrown by the layer behind it. */
+export const NO_IMAGE_YET =
+  "This email has no image yet — pick one on the release's All emails tab, then approve.";
+
+/** `pp-ontrack-3` → "On track 3"; every other slot takes its template label. */
+export function slotLabel(slot: ImageSlot): string {
+  const nth = /^pp-ontrack-(\d+)$/.exec(slot);
+  return nth ? `On track ${nth[1]}` : TEMPLATE_LABELS[slot as TemplateRef];
+}
+
+/**
+ * The on-track run, extended to cover slots that queued sends already draw on.
+ *
+ * `onTrackSlotsNeeded` measures from TODAY to the promise date, so a window
+ * that has simply got shorter as time passed asks for fewer slots than it did
+ * when the plan was generated — while the sends generated against the longer
+ * window are still sitting in the queue pointing at the slots it dropped.
+ * Before "no default" that was harmless. Now it is a trap: such a send would
+ * point at a slot with no row on the emails tab, so nobody could give it a
+ * picture and nobody could approve it.
+ *
+ * Verified against the seeded world on 28 Aug 2026: Falling Light holds a
+ * pending send on `pp-ontrack-2` dated 3 Oct while its tab lists one row.
+ */
+export function onTrackSlotsInPlay(
+  release: Release,
+  batches: Pick<Batch, 'promiseDate' | 'fulfilment'>[],
+  sends: Pick<ScheduledSend, 'status' | 'imageSlot'>[],
+  todayIso: string,
+): OnTrackSlot[] {
+  if (!releaseFillerTemplate(release)) {
+    /* Switched off, so the release plans no fillers — but ONE row still has to
+       exist, or the control that switched it off has nowhere to switch it back
+       on from. The same argument `onTrackSlotsNeeded` already makes for a
+       release with no dates yet. */
+    return [onTrackSlot(1)];
+  }
+  let inUse = 0;
+  for (const send of sends) {
+    if (!UNSENT_STATUSES.includes(send.status)) continue;
+    const nth = /^pp-ontrack-(\d+)$/.exec(send.imageSlot ?? '');
+    if (nth) inUse = Math.max(inUse, Number(nth[1]));
+  }
+  return Array.from(
+    { length: Math.max(onTrackSlotsNeeded(release, batches, todayIso), inUse) },
+    (_, i) => onTrackSlot(i + 1),
+  );
+}
+
+/**
+ * Every slot this release owes a picture for, in the order the emails tab
+ * lists them. Switched-off milestones are already gone — they never send, so
+ * no picture is owed — but dispatch and the delay notice are always here,
+ * because neither can be switched off.
+ */
+export function requiredImageSlots(
+  release: Release,
+  batches: Pick<Batch, 'promiseDate' | 'fulfilment'>[],
+  sends: Pick<ScheduledSend, 'status' | 'imageSlot'>[],
+  todayIso: string,
+): ImageSlot[] {
+  const sequence = releaseSequenceFor(release);
+  const before = sequence.filter(
+    (ref) => ref !== 'pp-ontrack' && ref !== 'pp-dispatch',
+  ) as ImageSlot[];
+  return [
+    ...before,
+    ...onTrackSlotsInPlay(release, batches, sends, todayIso),
+    'pp-dispatch',
+    'pp-delay',
+  ];
+}
+
+/**
+ * Those with no picture chosen.
+ *
+ * Falsy rather than `undefined`: an empty name is as missing as no name, and
+ * this is the predicate a refusal to approve is written against.
+ */
+export function missingImagesFor(
+  release: Release,
+  batches: Pick<Batch, 'promiseDate' | 'fulfilment'>[],
+  sends: Pick<ScheduledSend, 'status' | 'imageSlot'>[],
+  todayIso: string,
+): ImageSlot[] {
+  return requiredImageSlots(release, batches, sends, todayIso).filter(
+    (slot) => !release.templateImages[slot],
   );
 }
 

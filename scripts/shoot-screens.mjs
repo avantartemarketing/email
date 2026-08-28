@@ -80,9 +80,10 @@ await page.getByText('On track 1', { exact: true }).waitFor();
 await shot('04-release-email-edit');
 
 // the image picker, with the library and the upload box
+// Falling Light's first row has a picked image, so the chip is the control.
 await page.locator('table.rd-t27 tbody tr').first().locator('.rd-chip-sm').first().click();
 await page.getByRole('dialog').waitFor();
-await page.getByText('Master default').first().waitFor();
+await page.getByText('The hatched tiles have no picture to show yet').first().waitFor();
 await shot('04b-image-picker', { fullPage: false });
 await page.getByRole('dialog').getByRole('button', { name: 'Done', exact: true }).click();
 
@@ -130,9 +131,9 @@ await page.getByRole('tab', { name: 'Overview' }).click();
 await page.getByRole('button', { name: 'Change delivery date' }).first().waitFor();
 await shot('09-release-nightgarden-batchless');
 
-// --- 6. approval queue ----------------------------------------------------
+// --- 6. my approvals ------------------------------------------------------
 await page.goto(BASE + '/approvals', { waitUntil: 'networkidle' });
-await page.getByRole('heading', { name: 'Approval queue' }).waitFor().catch(() => {});
+await page.getByRole('heading', { name: 'My approvals' }).waitFor().catch(() => {});
 await page.locator(ROW).first().waitFor();
 await shot('10-approval-queue');
 

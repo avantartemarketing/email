@@ -143,8 +143,8 @@ export function PlanTable({
       foot={
         cancelled.length > 0 ? (
           <>
-            {cancelled.length} cancelled send{cancelled.length === 1 ? '' : 's'} superseded by
-            reschedules — full history below
+            {cancelled.length} cancelled send{cancelled.length === 1 ? '' : 's'} — see the history
+            below for why
           </>
         ) : undefined
       }

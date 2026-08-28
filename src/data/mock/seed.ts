@@ -1,7 +1,15 @@
-import type { Batch, BatchFulfilment, ScheduledSend, SendRecipient } from '../../types';
+import type {
+  Batch,
+  BatchFulfilment,
+  ImageSlot,
+  ScheduledSend,
+  SendRecipient,
+} from '../../types';
 import { addDays, parseDay, today } from '../../logic/dates';
 import { buildDefaultDelayEmail } from '../../logic/reschedule';
+import { requiredImageSlots } from '../../logic/templates';
 import { MockDataLayer } from './MockDataLayer';
+
 import {
   BLUE_INTERVAL_CSV,
   FALLING_LIGHT_ALLOCATION_CSV,
@@ -11,6 +19,23 @@ import {
   USERS,
   VESSEL_VIII_CSV,
 } from './fixtures';
+
+/** Which of the library's pictures suits which email, for the seeded world. */
+const MILESTONE_IMAGES: Partial<Record<ImageSlot, string>> = {
+  'pp-printing': 'Studio — printing',
+  'pp-signing': 'Studio — signing',
+  'pp-framing': 'Framing bench',
+  'pp-dispatch': 'Packing & dispatch',
+  'pp-delay': 'Artist portrait',
+};
+
+/** Rotated across a release's on-track run so no collector sees a repeat. */
+const ON_TRACK_IMAGES = [
+  'Artwork detail',
+  'Behind the scenes',
+  'Artist at work',
+  'Artist portrait',
+];
 
 /**
  * Build the phase-1 mock world by REPLAYING history through the public
@@ -27,7 +52,7 @@ import {
  *     two days ago with its delay notice still unapproved — the overdue
  *     state). The warehouse allocation sheet is imported.
  *   - Vessel VIII: sculpture, long window, on-track cadence with custom
- *     "casting" copy, one held send.
+ *     "casting" copy, one update pushed back by its approver and one dropped.
  *   - Blue Interval: completed, framed and unframed flows both fully sent.
  *   - Night Garden: imported yesterday, no promise dates yet.
  */
@@ -131,6 +156,32 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
     }
   };
 
+  /**
+   * Pick a hero image for every slot a release owes one for.
+   *
+   * There is no master default any more, so this is setup work a real operator
+   * does before anything can be approved — and the seed has to do it too, or
+   * its own story cannot approve its own sends. Called AFTER the promise dates
+   * are set, because the dates decide how many on-track pictures a release
+   * needs; anything chosen by hand above is left alone.
+   *
+   * Night Garden deliberately never calls this. It is the release that has
+   * only just been imported, so it is where the unfinished state — "Not
+   * chosen", the warning band, the shut Submit — is actually visible.
+   */
+  const pickImagesFor = async (releaseId: string) => {
+    const release = layer._store.releases.get(releaseId)!;
+    const batches = [...layer._store.batches.values()].filter((b) => b.releaseId === releaseId);
+    const sends = [...layer._store.sends.values()].filter((s) => s.releaseId === releaseId);
+    let nth = 0;
+    for (const slot of requiredImageSlots(release, batches, sends, T)) {
+      const onTrack = slot.startsWith('pp-ontrack-');
+      const name = onTrack ? ON_TRACK_IMAGES[nth++ % ON_TRACK_IMAGES.length] : MILESTONE_IMAGES[slot];
+      if (release.templateImages[slot] || !name) continue;
+      await layer.setReleaseEmailImage(releaseId, slot, name);
+    }
+  };
+
   // --- Blue Interval — completed release, clean history -------------------
   clock(-120);
   await as('user-crm');
@@ -145,6 +196,7 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
   clock(-118);
   await layer.setPromiseDate(batchOf(blueInterval.id, 'unframed').id, addDays(T, -40));
   await layer.setPromiseDate(batchOf(blueInterval.id, 'framed').id, addDays(T, -30));
+  await pickImagesFor(blueInterval.id);
   clock(-117);
   await approveAndSendPlan(batchOf(blueInterval.id, 'unframed').id, () => true);
   await approveAndSendPlan(batchOf(blueInterval.id, 'framed').id, () => true);
@@ -173,6 +225,7 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
   clock(-58);
   await layer.setPromiseDate(flUnframed.id, addDays(T, 10));
   await layer.setPromiseDate(flFramed.id, addDays(T, 20));
+  await pickImagesFor(fallingLight.id);
   clock(-57);
   // Unframed: printing and signing out on schedule; dispatch queued.
   await approveAndSendPlan(flUnframed.id, (s) => s.templateRef !== 'pp-dispatch');
@@ -284,13 +337,22 @@ You can expect more updates along the way, but please don't hesitate to contact 
   await layer.setReleaseEmailImage(vessel.id, 'pp-ontrack-3', 'Behind the scenes');
   clock(-19);
   await layer.setPromiseDate(vBatch.id, addDays(T, 150));
+  await pickImagesFor(vessel.id);
   await layer.submitBatchPlanForApproval(vBatch.id);
   clock(-18);
   const vSends = findSends(vBatch.id);
   await layer.approveSend(vSends[0].id);
   markSent(layer, vSends[0].id, sentAt(vSends[0]));
-  // The third update is held pending sculpture-specific copy.
-  if (vSends[2]) await layer.holdSend(vSends[2].id);
+  /* The third update needed sculpture-specific copy, so its approver pushed
+     it back rather than parking it — there is no hold any more: an approver
+     either approves, moves the date, or cancels. */
+  if (vSends[2]) {
+    await layer.updateSend(vSends[2].id, {
+      scheduledDate: addDays(vSends[2].scheduledDate, 21),
+    });
+  }
+  // December's update is dropped — the studio is sending a printed card instead.
+  if (vSends[4]) await layer.cancelSend(vSends[4].id);
 
   // --- Night Garden — imported yesterday, no promise date yet ------------
   clock(-1);

@@ -12,6 +12,16 @@ export interface AppContextValue {
   userName: (userId: string | undefined) => string;
   /** The record the bar's path ends at — see `useCrumb`. */
   setCrumb: (label: string | null) => void;
+  /**
+   * Re-count the rail's approvals badge.
+   *
+   * The count used to refresh on navigation alone, which was survivable while
+   * it sat beside a screen called "Approval queue". It is not survivable on a
+   * page whose whole promise is that the number beside its name is the work
+   * you personally still owe: approving from that page left the badge stale
+   * until you navigated away and back.
+   */
+  refreshApprovals: () => void;
 }
 
 export const AppContext = createContext<AppContextValue | null>(null);

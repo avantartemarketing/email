@@ -14,9 +14,15 @@ import { renderForRecipient } from '../logic/templates';
  * set of tokens (`--rd-email-*`), and it sits on the desk a shade darker than
  * the page — the way a sheet of paper does.
  *
- * The hero image, icons and footer live in the HubSpot master. The preview
- * shows what is chosen rather than pretending we draw it; no image chosen is a
- * hatch, because nothing-here-yet is a state and an empty grey box is a gap.
+ * The icons and footer live in the HubSpot master. The preview shows the
+ * chosen hero rather than pretending we draw it; nothing chosen is a hatch,
+ * because nothing-here-yet is a state and an empty grey box is a gap.
+ *
+ * That hatch says two different things and has to say them differently. On an
+ * email nobody has finished setting up it is unfinished work — there is no
+ * default any more, so it cannot be approved like this. On one that has
+ * already gone out it is history: it left on whatever the master carried,
+ * back when a default existed. Hence `sent`.
  *
  * `{{first_name}}` is personalised per recipient at dispatch; the preview
  * substitutes a sample name so reviewers read real copy, not tokens.
@@ -28,6 +34,7 @@ export function EmailPreview({
   nextSteps,
   imageName,
   sampleRecipientName,
+  sent,
 }: {
   subject: string;
   headline?: string;
@@ -36,6 +43,8 @@ export function EmailPreview({
   /** The release's picked hero image for this send's slot, if any. */
   imageName?: string;
   sampleRecipientName?: string;
+  /** True for an email that already went out — see the note above. */
+  sent?: boolean;
 }): ReactElement {
   const sample = sampleRecipientName ?? 'Jane Smith';
   return (
@@ -48,7 +57,11 @@ export function EmailPreview({
         <div className="rd-mailpaper">
           <div className="rd-mailmark">AVANT ARTE</div>
           <div className="rd-mailhero">
-            {imageName ? `Hero image · ${imageName}` : 'Artist hero image — from the HubSpot master'}
+            {imageName
+              ? `Hero image · ${imageName}`
+              : sent
+                ? 'Sent on the HubSpot master\u2019s own image'
+                : 'No image picked yet'}
           </div>
           {headline ? <h1 className="rd-mailhead">{headline}</h1> : null}
           <div className="rd-mailbody">{renderForRecipient(body, sample)}</div>

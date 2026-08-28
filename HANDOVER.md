@@ -112,7 +112,61 @@ assertions that counted the old world now state the invariant instead.
   queue has by definition not been approved by anyone, and a column that is a
   dash on every row costs width and answers nothing.
 
-`npm test` → 126 green. `npm run build` clean. `check:screens` clean.
+**The image round (28 Aug, latest) — three asks, and the answer to a fourth:**
+
+- **There is no master default any more.** Tom: *"For the image selection, it
+  shouldn't have a default."* `templateImages[slot]` used to be an OVERRIDE of
+  the HubSpot master's own picture, so an unpicked slot was a silent fallback.
+  It is now the only answer there is, and an unpicked slot is unfinished setup.
+  - `logic/templates.ts` owns the rule: `requiredImageSlots` (which slots a
+    release owes a picture for) and `missingImagesFor` (which it has not got).
+    The row list, the count, the warning band and the refusal all read that one
+    list, so they cannot drift.
+  - The cell has three readings and the SHAPE carries them: a chip with the
+    name, the dashed `NoneYet` invitation reading *Not chosen*, and a plain
+    dash for a switched-off email that will never send. `NoneYet` is new in
+    `ui/rd.tsx` and wears the kit's `.rd-ctag-none`, which nothing wore before.
+  - **The gate is at `approveSend` and nowhere else.** Gating plan generation
+    was considered and rejected on the evidence: the on-track slot count is
+    derived from the date being typed, so a refusal there can demand a slot
+    whose row does not exist until the date is saved. It would also refuse to
+    record a slipped delivery date over a missing picture — and the person who
+    pays for that is the collector owed a delay notice. `Submit plan for
+    approval` is shut with a `Why` as the earlier, kinder catch.
+  - `onTrackSlotsInPlay` holds a slot open for a queued send after the window
+    has shortened. Without it a send can point at a slot with no row, which
+    nobody could fix and nobody could approve.
+  - The seed now picks its own images (`pickImagesFor`); **Night Garden
+    deliberately does not**, so the unfinished state is visible in the demo.
+
+- **My approvals** replaces the Approval queue. Tom: *"shows both live
+  approvals that need making now, and all future approvals that are coming up."*
+  `logic/approvals.ts` owns the split — pending and inside seven days is "now";
+  everything else is "coming up" — and the rail's badge reads the same
+  predicate, so the number beside the name is work owed rather than inventory.
+  Two tables, not one grouped one: grouping is user state that can be switched
+  off, and the two halves want different shapes (the urgent one has a tick
+  gutter, a bulk approve and three verbs; the calm one has none of them).
+  `prove-screens` now proves no send is drawn in both.
+
+- **Hold is gone.** Tom: *"they can reschedule a send, or they can mark it as
+  cancelled."* The `held` status, `heldBy`/`heldAt`, `holdSend`/`unholdSend`,
+  the Held tab and the violet Held pill are all removed; `ChangeSendDateModal`
+  and Cancel send are on the row in their place. The seeded held send is now
+  pushed back by its approver, and one Vessel VIII update is cancelled outright
+  so the demo has a deliberately cancelled send to show.
+
+- **"What does Switch off add?"** — it stays, because it does one thing nothing
+  else can: a hand-cancelled milestone COMES BACK on the next reschedule
+  (`remainingSequence` drops only SENT ones), where a switched-off one cannot.
+  It also strips the stage from other queued emails' "What happens next?" rows,
+  which `cancelSend` does not. But three things about it were wrong and are
+  fixed: "Off" has left the Copy column (it was a lifecycle answer in a column
+  about copy, and it hid a stored override); switching off On track no longer
+  deletes the row carrying its own "Switch on"; and it now confirms first,
+  naming how many queued sends across how many batches it will cancel.
+
+`npm test` → 144 green. `npm run build` clean. `check:screens` clean.
 
 **Artifacts live (publish with `url:` to update, never without):**
 - Prototype, Workbench-rd: https://claude.ai/code/artifact/ebfa534f-1267-4a64-99a5-7978167d3a9f

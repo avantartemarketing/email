@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
-import type { Batch, ImageSlot, Release, TemplateRef } from '../types';
+import type { Batch, ImageSlot, Release, ScheduledSend, TemplateRef } from '../types';
 import {
   MASTER_TEMPLATES,
+  TEMPLATE_LABELS,
   buildTemplateFields,
   effectiveTemplate,
-  onTrackSlotsFor,
+  missingImagesFor,
   patchTokens,
+  requiredImageSlots,
+  slotLabel,
 } from '../logic/templates';
 import { today } from '../logic/dates';
-import { TEMPLATE_LABELS } from '../ui/format';
+import { plural } from '../ui/format';
 import { useApp } from '../ui/AppContext';
-import { Bar, Cap, Dialog, None, Pill, RowAct } from '../ui/rd';
+import { Bar, Cap, Dialog, None, NoneYet, Pill, RowAct, Why } from '../ui/rd';
 import { DataTable } from '../ui/DataTable';
 import type { Column } from '../ui/DataTable';
 import Field from '../rd/components/Field';
@@ -41,56 +44,56 @@ interface EmailRow {
 }
 
 /**
- * The emails this release sends, in order, with one row per IMAGE — so the
- * on-track email contributes as many rows as its longest window needs.
+ * One row per IMAGE SLOT, from the same list the count, the band and the
+ * refusal to approve all read (`requiredImageSlots`).
  *
- * The owner's rule of 28 Aug 2026: "the email tab should populate depending on
- * the number of emails required for the longest dispatch date." A release with
- * a five-month batch needs more on-track pictures than one with a two-month
- * batch, and the setup screen should ask for exactly that many rather than a
- * fixed three.
+ * It used to hand-list the milestones here and take the on-track run as an
+ * argument, which meant this file and the logic layer each held an opinion
+ * about which emails a release sends. They agreed until a milestone was
+ * switched off — then the row list still showed it and the count still nagged
+ * about a picture for an email that would never go out. One list now.
+ *
+ * The owner's rule of 28 Aug 2026 still holds inside it: "the email tab should
+ * populate depending on the number of emails required for the longest dispatch
+ * date."
  */
-function rowsFor(release: Release, onTrackSlots: ImageSlot[]): EmailRow[] {
-  const onTrackRows: EmailRow[] = onTrackSlots.map((slot, i) => ({
-    slot,
-    ref: 'pp-ontrack',
-    label: `On track ${i + 1}`,
-    // The copy is one template, so it is edited once — on the first row.
-    copyRow: i === 0,
-  }));
-  if (release.productKind === 'sculpture') {
-    return [
-      ...onTrackRows,
-      { slot: 'pp-dispatch', ref: 'pp-dispatch', label: 'Preparing for dispatch', copyRow: true },
-      { slot: 'pp-delay', ref: 'pp-delay', label: 'Delay notice', copyRow: true },
-    ];
-  }
-  return [
-    { slot: 'pp-printing', ref: 'pp-printing', label: 'Printing in progress', copyRow: true },
-    { slot: 'pp-signing', ref: 'pp-signing', label: 'Signing', copyRow: true },
-    { slot: 'pp-framing', ref: 'pp-framing', label: 'Framing', copyRow: true },
-    ...onTrackRows,
-    { slot: 'pp-dispatch', ref: 'pp-dispatch', label: 'Preparing for dispatch', copyRow: true },
-    { slot: 'pp-delay', ref: 'pp-delay', label: 'Delay notice', copyRow: true },
-  ];
+function rowsFor(slots: ImageSlot[]): EmailRow[] {
+  let seenOnTrack = false;
+  return slots.map((slot) => {
+    const onTrack = slot.startsWith('pp-ontrack-');
+    const first = onTrack ? !seenOnTrack : true;
+    if (onTrack) seenOnTrack = true;
+    return {
+      slot,
+      ref: (onTrack ? 'pp-ontrack' : slot) as TemplateRef,
+      label: slotLabel(slot),
+      // The copy is one template, so it is edited once — on the first row.
+      copyRow: first,
+    };
+  });
 }
 
 export function ReleaseEmailsPanel({
   release,
   batches,
+  sends,
   onChanged,
 }: {
   release: Release;
   /** The release's batches — their dates decide how many on-track slots. */
   batches: Batch[];
+  /** Its sends — a queued one holds a slot open even after the dates shrink. */
+  sends: ScheduledSend[];
   onChanged: () => void;
 }): ReactElement {
   const { data, showToast } = useApp();
   const [editingRef, setEditingRef] = useState<TemplateRef | null>(null);
   const [pickingSlot, setPickingSlot] = useState<{ slot: ImageSlot; label: string } | null>(null);
+  /** The template a switch-off confirm is open for. */
+  const [switchingOff, setSwitchingOff] = useState<TemplateRef | null>(null);
 
-  const onTrackSlots = onTrackSlotsFor(release, batches, today());
-  const rows = rowsFor(release, onTrackSlots);
+  const slots = requiredImageSlots(release, batches, sends, today());
+  const rows = rowsFor(slots);
   /* The subject is shown as it will ARRIVE, not as it is stored: a column of
      `{{artist}}` tells a reviewer nothing about what a collector reads. The
      dates come from the earliest batch that has one — a release-level screen
@@ -100,21 +103,31 @@ export function ReleaseEmailsPanel({
     (a.promiseDate ?? '').localeCompare(b.promiseDate ?? ''),
   );
   const fields = buildTemplateFields(release, dated[0]?.promiseDate ?? today());
-  const unset = rows.filter((r) => !release.templateImages[r.slot]).length;
+  const missing = missingImagesFor(release, batches, sends, today());
 
-  const pickImage = async (slot: ImageSlot, imageName: string | null) => {
+  const pickImage = async (slot: ImageSlot, imageName: string) => {
     try {
       await data.setReleaseEmailImage(release.id, slot, imageName);
+      /* The last one is worth saying out loud: it is the moment the release
+         stops being blocked, and nothing else on the screen announces it. */
       showToast(
-        imageName
-          ? 'Image set — upcoming sends updated, approvals kept'
-          : 'Back to the master image for this email',
+        missing.length === 1 && missing[0] === slot
+          ? `All ${slots.length} images picked — these emails can be approved now`
+          : 'Image set — upcoming sends updated, approvals kept',
       );
       setPickingSlot(null);
       onChanged();
     } catch (err) {
       showToast(err instanceof Error ? err.message : String(err), true);
     }
+  };
+
+  /** How far a switch-off reaches, said BEFORE it happens rather than in a toast. */
+  const reachOf = (ref: TemplateRef): { sends: number; batches: number } => {
+    const hit = sends.filter(
+      (s) => s.templateRef === ref && s.status !== 'sent' && s.status !== 'cancelled',
+    );
+    return { sends: hit.length, batches: new Set(hit.map((s) => s.batchId)).size };
   };
 
   const toggle = async (ref: TemplateRef, enabled: boolean) => {
@@ -144,9 +157,20 @@ export function ReleaseEmailsPanel({
       locked: true,
       kind: 'text',
       value: (row) => row.label,
+      /* Whether the release sends this email at all lives HERE, beside the
+         name, because it is a fact about the row's identity. It used to be
+         said four times — muted ink, two dashes and a violet "Off" pill in the
+         Copy column — which put a lifecycle answer in a column that asks about
+         copy, and cost a customised-but-switched-off template its "Customised"
+         badge. One mark, in the column that owns the row. */
       cell: (row) => (
-        <span className={release.disabledTemplates.includes(row.ref) ? 'rd-mut' : 'rd-ink'}>
-          {row.label}
+        <span className="rd-cellflex">
+          <span className="rd-ellip">{row.label}</span>
+          {release.disabledTemplates.includes(row.ref) ? (
+            <Pill tone="grey" small>
+              Off
+            </Pill>
+          ) : null}
         </span>
       ),
     },
@@ -155,18 +179,29 @@ export function ReleaseEmailsPanel({
       title: 'Image',
       kind: 'choice',
       caption: 'IMAGE',
-      value: (row) => release.templateImages[row.slot] ?? 'Master default',
+      /* Three readings, and the filter agrees with the cell in all three.
+         It used to file a dashed switched-off cell under "Master default". */
+      value: (row) =>
+        release.disabledTemplates.includes(row.ref)
+          ? null
+          : (release.templateImages[row.slot] ?? 'Not chosen'),
       cell: (row) =>
         release.disabledTemplates.includes(row.ref) ? (
+          /* A dash, not an invitation: this email never sends, so no picture
+             is owed. That distinction is the whole reason `NoneYet` exists. */
           <None />
-        ) : (
+        ) : release.templateImages[row.slot] ? (
           <button
             type="button"
             className="rd-chip rd-chip-sm"
             onClick={() => setPickingSlot({ slot: row.slot, label: row.label })}
           >
-            {release.templateImages[row.slot] ?? 'Master default'}
+            {release.templateImages[row.slot]}
           </button>
+        ) : (
+          <NoneYet onClick={() => setPickingSlot({ slot: row.slot, label: row.label })}>
+            Not chosen
+          </NoneYet>
         ),
     },
     {
@@ -175,20 +210,17 @@ export function ReleaseEmailsPanel({
       locked: true,
       kind: 'choice',
       caption: 'COPY',
-      order: ['Customised', 'Default', 'Off'],
+      /* Customised or Default, and nothing else. "Off" was never a copy state
+         — it answered "does this email exist", displaced the answer this
+         column owes, and hid a stored override until you switched the row back
+         on. A switched-off row keeps showing what its copy IS, which is
+         exactly what you want to know before switching it on again. */
+      order: ['Customised', 'Default'],
       value: (row) =>
-        !row.copyRow
-          ? null
-          : release.disabledTemplates.includes(row.ref)
-            ? 'Off'
-            : release.templateOverrides[row.ref]
-              ? 'Customised'
-              : 'Default',
+        !row.copyRow ? null : release.templateOverrides[row.ref] ? 'Customised' : 'Default',
       cell: (row) =>
         !row.copyRow ? (
           <span className="rd-none">Shares On track copy</span>
-        ) : release.disabledTemplates.includes(row.ref) ? (
-          <Pill tone="violet">Off</Pill>
         ) : release.templateOverrides[row.ref] ? (
           <Pill tone="blue">Customised</Pill>
         ) : (
@@ -222,15 +254,24 @@ export function ReleaseEmailsPanel({
           <div className="rd-rowacts">
             {!disabled ? <RowAct onClick={() => setEditingRef(row.ref)}>Edit copy</RowAct> : null}
             {canToggle ? (
-              <RowAct onClick={() => void toggle(row.ref, disabled)}>
-                {disabled ? 'Switch on' : 'Switch off'}
-              </RowAct>
+              disabled ? (
+                /* Switching back on is not the mirror of switching off: no
+                   cancelled send returns, so the row says so rather than
+                   letting somebody expect one. */
+                <Why says="Future plans will include it again. Sends already cancelled do not come back.">
+                  <RowAct onClick={() => void toggle(row.ref, true)}>Switch on</RowAct>
+                </Why>
+              ) : (
+                <RowAct onClick={() => setSwitchingOff(row.ref)}>Switch off</RowAct>
+              )
             ) : null}
           </div>
         );
       },
     },
   ];
+
+  const offReach = switchingOff ? reachOf(switchingOff) : { sends: 0, batches: 0 };
 
   return (
     <>
@@ -243,8 +284,12 @@ export function ReleaseEmailsPanel({
         rows={rows}
         rowKey={(row) => row.slot}
         empty="This release sends no emails."
+        /* Shown finished as well as unfinished. A caption that only appears
+           while something is wrong never tells you the job is done. */
         headActions={
-          unset > 0 ? <span className="rd-none">{unset} still on the master image</span> : undefined
+          <span className="rd-none">
+            {`Images: ${slots.length - missing.length} of ${slots.length} picked`}
+          </span>
         }
       />
       <ReleaseEmailEditModal
@@ -263,6 +308,37 @@ export function ReleaseEmailsPanel({
           if (pickingSlot) void pickImage(pickingSlot.slot, name);
         }}
       />
+
+      {/* Switching off reaches every batch at once and cancels queued sends.
+          Cancelling ONE send already opens a dialogue naming it, so the bigger
+          act had less friction than the smaller one, and its reach was stated
+          only afterwards, in a toast that disappears. */}
+      <Dialog
+        open={switchingOff !== null}
+        size="sm"
+        title={switchingOff ? `Switch off “${TEMPLATE_LABELS[switchingOff]}”?` : ''}
+        onClose={() => setSwitchingOff(null)}
+        primary={{
+          label: 'Switch it off',
+          destructive: true,
+          onClick: () => {
+            if (switchingOff) void toggle(switchingOff, false);
+            setSwitchingOff(null);
+          },
+        }}
+        secondary={{ label: 'Keep it', onClick: () => setSwitchingOff(null) }}
+      >
+        <Bar tone="warn" title="It drops out of every future plan for this release">
+          {offReach.sends > 0
+            ? `${plural(offReach.sends, 'queued send')} across ${plural(
+                offReach.batches,
+                'batch',
+                'batches',
+              )} will be cancelled, and other emails stop promising the stage. `
+            : 'No sends are queued for it yet. '}
+          Switching it back on later does not bring cancelled sends back.
+        </Bar>
+      </Dialog>
     </>
   );
 }

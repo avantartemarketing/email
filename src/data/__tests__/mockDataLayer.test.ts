@@ -152,12 +152,11 @@ describe('seeded world — Falling Light detail', () => {
 });
 
 describe('seeded world — approval queue', () => {
-  it('lists pending and held sends across releases, soonest first', async () => {
+  it('lists every send waiting on an approver, soonest first', async () => {
     const queue = await layer.listApprovalQueue();
     expect(queue.length).toBeGreaterThan(4);
     const dates = queue.map((i) => i.send.scheduledDate);
     expect([...dates].sort()).toEqual(dates);
-    expect(queue.some((i) => i.send.status === 'held')).toBe(true);
     expect(queue.some((i) => i.release.title === 'Falling Light')).toBe(true);
     expect(queue.some((i) => i.release.title === 'Vessel VIII')).toBe(true);
     for (const item of queue) {
@@ -188,6 +187,48 @@ describe('live behaviour through the interface', () => {
     const approved = await layer.approveSend(pending.send.id);
     expect(approved.status).toBe('approved');
     expect(approved.approvedBy).toBe('user-tom');
+  });
+
+  it('refuses to approve an email with no image, and lets you fix it in place', async () => {
+    /* The whole point of dropping the master default: an email with no
+       picture is unfinished, not "fine, it will use the fallback". The
+       refusal sits at approval because that is where the choice stops being
+       reversible — everything before it is one click to fix. */
+    const { release } = await releaseByTitle('Falling Light');
+    const detail = await layer.getRelease(release.id);
+    const send = detail.sends.find((s) => s.status === 'pending_approval')!;
+    const slot = send.imageSlot!;
+    const was = detail.release.templateImages[slot];
+
+    await layer.setReleaseEmailImage(release.id, slot, null);
+    await expect(layer.approveSend(send.id)).rejects.toThrow(/no image yet/);
+
+    // Picking one backfills the queued send in place — no re-submission.
+    await layer.setReleaseEmailImage(release.id, slot, was ?? 'Artwork detail');
+    const approved = await layer.approveSend(send.id);
+    expect(approved.status).toBe('approved');
+    expect(approved.imageName).toBeTruthy();
+  });
+
+  it('refuses an image name that is not in the library', async () => {
+    const { release } = await releaseByTitle('Falling Light');
+    await expect(
+      layer.setReleaseEmailImage(release.id, 'pp-printing', 'Not A Real Picture'),
+    ).rejects.toThrow(/not in the image library/);
+  });
+
+  it('a hand-added on-track send takes the next free slot, not always the first', async () => {
+    /* It used to hardcode pp-ontrack-1, so two on-track emails shared one
+       picture — and now that a refusal names the slot to go and fix, it
+       would have named the wrong one. */
+    const { release } = await releaseByTitle('Vessel VIII');
+    const detail = await layer.getRelease(release.id);
+    const batch = detail.batches[0];
+    const before = detail.sends.filter(
+      (s) => s.batchId === batch.id && s.templateRef === 'pp-ontrack' && s.status !== 'cancelled',
+    ).length;
+    const added = await layer.addSend(batch.id, 'pp-ontrack', addDays(today(), 30));
+    expect(added.imageSlot).toBe(`pp-ontrack-${before + 1}`);
   });
 
   it('editing an approved send resets it to pending', async () => {
@@ -227,9 +268,9 @@ describe('live behaviour through the interface', () => {
     for (const id of sentBefore) {
       expect(after.sends.find((s) => s.id === id)?.status).toBe('sent');
     }
-    // Old pending/held plan cancelled; new plan pending, delay first.
+    // The old pending plan is cancelled; the new one is pending, delay first.
     expect(
-      after.sends.filter((s) => s.status === 'held' || s.status === 'approved'),
+      after.sends.filter((s) => s.status === 'approved'),
     ).toHaveLength(0);
     const pending = after.sends.filter((s) => s.status === 'pending_approval');
     expect(pending.some((s) => s.type === 'delay')).toBe(true);

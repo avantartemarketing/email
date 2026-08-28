@@ -7,27 +7,18 @@
  * kind and a batch's framed/unframed flow are taxonomy and take tags; every
  * status here takes a pill. Each tone is the role its token names, so nothing
  * is tinted by taste: blue is scheduled, amber wants somebody, green is done,
- * violet is waiting on something, red is late, grey is at rest.
+ * red is late, grey is at rest.
  */
 import type { ReactElement } from 'react';
-import type {
-  BatchFulfilment,
-  ProductKind,
-  ReleaseStatus,
-  ScheduledSend,
-  TemplateRef,
-} from '../types';
+import type { BatchFulfilment, ProductKind, ReleaseStatus, ScheduledSend } from '../types';
 import { today } from '../logic/dates';
 import { Pill, Tag } from './rd';
 
-export const TEMPLATE_LABELS: Record<TemplateRef, string> = {
-  'pp-printing': 'Printing in progress',
-  'pp-signing': 'Signing',
-  'pp-framing': 'Framing',
-  'pp-dispatch': 'Preparing for dispatch',
-  'pp-ontrack': 'On track',
-  'pp-delay': 'Delay notice',
-};
+/* The words live in `logic/templates.ts` now, because the logic layer names
+   slots too — a refusal that says "pick an image for Signing" has to use the
+   same word the row does. Re-exported here so every screen's import is
+   unchanged. */
+export { TEMPLATE_LABELS } from '../logic/templates';
 
 export function isOverdue(send: ScheduledSend, todayDay = today()): boolean {
   return (
@@ -53,8 +44,6 @@ export function sendStatusBadge(send: ScheduledSend): ReactElement {
       return <Pill tone="blue">Queued</Pill>;
     case 'sent':
       return <Pill tone="green">Sent</Pill>;
-    case 'held':
-      return <Pill tone="violet">Held</Pill>;
     case 'cancelled':
       return <Pill tone="grey">Cancelled</Pill>;
   }

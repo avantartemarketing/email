@@ -10,7 +10,7 @@ import type {
 } from '../types';
 import { formatDayShort, today } from '../logic/dates';
 import { inheritedSentStory } from '../logic/reschedule';
-import { missingOnTrackImages, shipWindowShort } from '../logic/templates';
+import { missingImagesFor, missingOnTrackImages, shipWindowShort } from '../logic/templates';
 import { TEMPLATE_LABELS, plural, productKindTag, releaseStatusBadge } from '../ui/format';
 import { useApp, useCrumb } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
@@ -28,6 +28,7 @@ import {
   RowAct,
   Skeleton,
   Stack,
+  Why,
 } from '../ui/rd';
 import Tabs from '../rd/components/Tabs';
 import usePicked from '../rd/components/usePicked';
@@ -60,14 +61,21 @@ export function ReleaseDetail(): ReactElement {
   // The shell's path ends at the record this screen is showing.
   useCrumb(detail.data?.release.title);
 
+  /* Two different questions, deliberately two different functions.
+     The BAND asks "does this release owe any pictures at all", which is every
+     slot it sends. The DIALOGUE asks "did the date I just changed ask for
+     MORE", which is only the on-track run — the one thing a date change adds. */
   const missingImages = detail.data
+    ? missingImagesFor(detail.data.release, detail.data.batches, detail.data.sends, today())
+    : [];
+  const missingFromDate = detail.data
     ? missingOnTrackImages(detail.data.release, detail.data.batches, today())
     : [];
   useEffect(() => {
     if (!dateJustChanged) return;
     setDateJustChanged(false);
-    if (missingImages.length > 0) setImageGapOpen(true);
-  }, [dateJustChanged, missingImages.length]);
+    if (missingFromDate.length > 0) setImageGapOpen(true);
+  }, [dateJustChanged, missingFromDate.length]);
 
   if (detail.error) {
     return (
@@ -159,13 +167,11 @@ export function ReleaseDetail(): ReactElement {
             tone="warn"
             title={
               missingImages.length === 1
-                ? 'One on-track email has no image'
-                : `${missingImages.length} on-track emails have no image`
+                ? 'One email has no image'
+                : `${missingImages.length} emails have no image`
             }
           >
-            This release's longest dispatch window needs{' '}
-            {plural(missingImages.length, 'more update')} than there are pictures for, so{' '}
-            {missingImages.length === 1 ? 'it goes' : 'they go'} out on the master's image.
+            There is no default — an email cannot be approved until its image is picked.
             <button type="button" className="rd-inline-pill" onClick={() => setSelectedTab(1)}>
               Pick images
             </button>
@@ -186,6 +192,7 @@ export function ReleaseDetail(): ReactElement {
         <ReleaseEmailsPanel
           release={d.release}
           batches={d.batches}
+          sends={d.sends}
           onChanged={() => detail.reload()}
         />
       ) : d.orders.length === 0 ? (
@@ -250,12 +257,12 @@ export function ReleaseDetail(): ReactElement {
       >
         <p>
           The new window is long enough to need{' '}
-          {plural(missingImages.length, 'more on-track update')} — collectors hear from us at
+          {plural(missingFromDate.length, 'more on-track update')} — collectors hear from us at
           least every five weeks, so a longer wait is more emails.
         </p>
         <p>
-          {missingImages.length === 1 ? 'It has' : 'They have'} no image picked yet and would go
-          out on the HubSpot master's own picture.
+          {missingFromDate.length === 1 ? 'It has' : 'They have'} no image yet, and an email with
+          no image cannot be approved. The date is saved either way.
         </p>
       </Dialog>
     </Page>
@@ -318,6 +325,9 @@ function BatchSection({
     [detail.events, batch.id],
   );
   const draftCount = batchSends.filter((s) => s.status === 'draft').length;
+  const draftsWithNoImage = batchSends.filter(
+    (s) => s.status === 'draft' && !s.imageName,
+  ).length;
   /* The soonest email this batch still owes somebody — the third question a
      batch raises, after when it ships and who is in it. */
   const nextSend = batchSends
@@ -532,9 +542,20 @@ function BatchSection({
               </Btn>
             )}
             {draftCount > 0 ? (
-              <Btn onClick={() => void submitPlan()}>
-                {`Submit plan for approval (${draftCount})`}
-              </Btn>
+              /* Caught here as well as at approval. Approval is the gate, but
+                 an operator who submits ten sends and then meets ten refusals
+                 one at a time has been told the same thing ten times, late. */
+              draftsWithNoImage > 0 ? (
+                <Why
+                  says={`${plural(draftsWithNoImage, 'of these emails has', 'of these emails have')} no image yet — pick them on the All emails tab.`}
+                >
+                  <Btn disabled>{`Submit plan for approval (${draftCount})`}</Btn>
+                </Why>
+              ) : (
+                <Btn onClick={() => void submitPlan()}>
+                  {`Submit plan for approval (${draftCount})`}
+                </Btn>
+              )
             ) : null}
             <Btn onClick={() => setAddSendOpen(true)} disabled={!batch.promiseDate}>
               Add send
