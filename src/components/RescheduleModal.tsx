@@ -205,9 +205,9 @@ export function RescheduleModal({
           {selectedOrders.length === 0 ? (
             <Bar tone="fail">No orders selected.</Bar>
           ) : isSubset ? (
-            <Bar tone="note">
-              <b>This selection splits {groupName}.</b> It gets its own promise date and comms
-              plan; the {batchActiveOrderCount - selectedOrders.length} remaining order
+            <Bar tone="note" title={`This selection splits ${groupName}`}>
+              It gets its own promise date and comms plan; the{' '}
+              {batchActiveOrderCount - selectedOrders.length} remaining order
               {batchActiveOrderCount - selectedOrders.length === 1 ? ' keeps' : 's keep'} the
               current plan.
             </Bar>
@@ -238,9 +238,8 @@ export function RescheduleModal({
           </div>
           {dateError ? <Bar tone="fail">{dateError}</Bar> : null}
           {!isLaterThanCurrent && dateValid ? (
-            <Bar tone="warn">
-              <b>The new date is earlier than the current promise.</b> That is allowed, but the
-              email copy assumes a delay — check it in the next step.
+            <Bar tone="warn" title="The new date is earlier than the current promise">
+              That is allowed, but the email copy assumes a delay — check it in the next step.
             </Bar>
           ) : null}
         </>

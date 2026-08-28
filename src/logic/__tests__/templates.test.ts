@@ -14,6 +14,7 @@ import {
   renderReleaseTemplate,
   renderTemplate,
   sequenceForBatch,
+  shipWindowShort,
   shipWindowText,
 } from '../templates';
 
@@ -149,6 +150,20 @@ describe('sequenceForBatch', () => {
       'pp-dispatch',
     ]);
     expect(sequenceForBatch(release, {})).toEqual(releaseSequenceFor(release));
+  });
+});
+
+describe('shipWindowShort', () => {
+  it('says the month once when both ends share it', () => {
+    expect(shipWindowShort('2026-09-17')).toBe('17 – 24 Sept 2026');
+  });
+
+  it('says both months when the window crosses one', () => {
+    expect(shipWindowShort('2026-09-28')).toBe('28 Sept – 5 Oct 2026');
+  });
+
+  it('says both years when the window crosses one', () => {
+    expect(shipWindowShort('2026-12-29')).toBe('29 Dec 2026 – 5 Jan 2027');
   });
 });
 

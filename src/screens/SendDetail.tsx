@@ -203,10 +203,12 @@ export function SendDetail(): ReactElement {
     >
       <div className="rd-stack">
         {failures.length > 0 ? (
-          <Bar tone="fail">
-            <b>{plural(failures.length, 'recipient')} could not be delivered.</b> They are listed
-            below with the reason; fix the missing email or HubSpot contact and retry from here
-            once sending is live.
+          <Bar
+            tone="fail"
+            title={`${plural(failures.length, 'recipient')} could not be delivered`}
+          >
+            They are listed below with the reason; fix the missing email or HubSpot contact and
+            retry from here once sending is live.
           </Bar>
         ) : null}
 

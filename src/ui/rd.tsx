@@ -286,27 +286,39 @@ export function CellLink({
  */
 export function Bar({
   tone,
+  title,
   children,
 }: {
   tone: 'warn' | 'fail' | 'note';
-  children: ReactNode;
+  /**
+   * What is wrong, in a few words, on its own line.
+   *
+   * The owner, 28 Aug 2026: *"I preferred the Shopify way of having a header
+   * and the subcopy for warnings."* He is right, and the reason is legible in
+   * the shot he sent: a bold lead run inline with its explanation reads as one
+   * long sentence that happens to start heavily, so the thing you need at a
+   * glance — WHAT is wrong — is not the thing the eye lands on. A heading and
+   * a paragraph are two ranks, and rank is what a band is for.
+   *
+   * A band with a title and no body is fine; a band with a body and no title
+   * is a note rather than a warning, and reads as one.
+   */
+  title?: ReactNode;
+  children?: ReactNode;
 }): ReactElement {
-  if (tone === 'note') {
-    return (
-      <div className="rd-notebar">
-        <span className="rd-notedot" aria-hidden>
-          ●
-        </span>
-        <div>{children}</div>
-      </div>
-    );
-  }
+  const dot =
+    tone === 'fail' ? 'rd-faildot' : tone === 'note' ? 'rd-notedot' : 'rd-warndot';
+  const box =
+    tone === 'note' ? 'rd-notebar' : tone === 'fail' ? 'rd-warnbar rd-failbar' : 'rd-warnbar';
   return (
-    <div className={tone === 'fail' ? 'rd-warnbar rd-failbar' : 'rd-warnbar'}>
-      <span className={tone === 'fail' ? 'rd-faildot' : 'rd-warndot'} aria-hidden>
+    <div className={box}>
+      <span className={dot} aria-hidden>
         ●
       </span>
-      <div>{children}</div>
+      <div className="rd-barlines">
+        {title ? <div className="rd-bartitle">{title}</div> : null}
+        {children ? <div className="rd-barcopy">{children}</div> : null}
+      </div>
     </div>
   );
 }

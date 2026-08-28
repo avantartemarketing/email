@@ -87,6 +87,67 @@ export function fulfilmentTag(fulfilment: BatchFulfilment | undefined): ReactEle
   );
 }
 
+/**
+ * A frame finish, with the finish itself shown.
+ *
+ * The owner asked for "a little colour icon next to it (black, white, etc.)".
+ * The swatch is the thing somebody scanning the column is actually after —
+ * BLACK and DARK BROWN are two words that start differently and look almost
+ * the same in a list, and two dots do not. The word stays: colour never
+ * carries meaning alone, and a swatch on its own would be unreadable to
+ * anyone who cannot separate them.
+ *
+ * The colours are the FINISHES, not this product's palette — the same
+ * category as the flags, and for the same reason they are not tokens: they
+ * are a picture of a physical thing. An unknown finish gets the word and no
+ * swatch rather than a guessed colour.
+ */
+const FINISH: Record<string, string> = {
+  BLACK: '#1b1b1b',
+  WHITE: '#f4f2ee',
+  'NATURAL OAK': '#c9a227',
+  OAK: '#c9a227',
+  'DARK BROWN': '#5a3a24',
+  WALNUT: '#5a3a24',
+  MAPLE: '#e0cba8',
+  GREEN: '#2f4f3a',
+  'FOREST GREEN': '#2f4f3a',
+  NAVY: '#1f2a44',
+  SILVER: '#c3c6c9',
+  GOLD: '#b9962e',
+  BRASS: '#b08d3f',
+  ASH: '#d8cfc0',
+};
+
+export function frameFinishTag(finish: string | null | undefined): ReactElement | null {
+  if (!finish) return null;
+  const swatch = FINISH[finish.trim().toUpperCase()];
+  return (
+    <span className="rd-ctag rd-ctag-stone rd-swatchtag">
+      {swatch ? (
+        <span className="rd-swatch" style={{ background: swatch }} aria-hidden />
+      ) : null}
+      {finish}
+    </span>
+  );
+}
+
+/** What is physically being made — Framed, Print Only. Taxonomy, so a tag. */
+export function fulfilmentValueTag(value: string | null | undefined): ReactElement | null {
+  if (!value) return null;
+  return /framed/i.test(value) && !/unframed/i.test(value) ? (
+    <Tag tone="steel">{value}</Tag>
+  ) : (
+    <Tag tone="stone">{value}</Tag>
+  );
+}
+
+/** A spec value that is one of a short fixed list — glass, mounting. */
+export function specTag(value: string | null | undefined): ReactElement | null {
+  if (!value) return null;
+  return <Tag tone="slate">{value}</Tag>;
+}
+
 export function plural(count: number, singular: string, pluralForm?: string): string {
   return `${count} ${count === 1 ? singular : (pluralForm ?? `${singular}s`)}`;
 }

@@ -685,3 +685,135 @@
   gap: 6px;
   white-space: nowrap;
 }
+
+/* ---------- A band's two ranks ----------
+   The owner, 28 Aug 2026, on a warning whose bold lead ran inline with its
+   explanation: "I preferred the Shopify way of having a header and the subcopy
+   for warnings." What that shape buys is rank — the heading answers WHAT is
+   wrong at a glance, and the paragraph under it answers what to do about it.
+   Run together they are one long sentence that happens to start heavily, and
+   the eye has to read it to find out whether it matters.
+
+   The heading takes the band's own ink at emphasis weight rather than a size
+   of its own: rank comes from ink, then size, and a band is four lines tall at
+   most. */
+.rd-barlines {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.rd-bartitle {
+  font-weight: var(--rd-weight-emphasis);
+}
+.rd-barcopy {
+  /* One step down in ink, which is the whole of the distinction: the band's
+     own colour still carries the tone. */
+  opacity: 0.86;
+}
+
+/* ---------- A tag that carries a swatch ----------
+   The owner, 28 Aug 2026: a frame finish wants "a little colour icon next to
+   it (black, white, etc.)". BLACK and DARK BROWN are two words that look
+   almost the same scanned down a column; two dots do not. The word stays
+   beside it — colour never carries meaning alone — so the swatch is an index
+   to the word rather than a replacement for it.
+
+   The disc takes a hairline ring for the same reason the kit's flag does: a
+   white finish on a white row would otherwise read as a missing swatch. */
+.rd-swatchtag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.rd-swatch {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: var(--rd-radius-pill);
+  box-shadow: var(--rd-flag-hairline);
+}
+
+/* A cell whose word opens something OUTSIDE this app — a Shopify order. It is
+   a link and says so at rest, because the thing it does (leaving) is not what
+   the rest of the table's words do. */
+.rd-extlink {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: var(--rd-link);
+  cursor: pointer;
+  text-decoration: none;
+}
+.rd-extlink:hover,
+.rd-extlink:focus-visible {
+  text-decoration: underline;
+}
+
+/* A row you pick from a short list inside a dialogue — which batch, which
+   flow. A radio in every respect that matters, drawn as a row because the
+   thing being chosen has two facts (its name and its date) and a radio's own
+   label has room for one. The chosen one is an object, the rest are rows:
+   ruling 96's argument again. */
+.rd-pickrow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--rd-border);
+  border-radius: var(--rd-radius-control);
+  background: var(--rd-card);
+  cursor: pointer;
+  text-align: left;
+}
+.rd-pickrow:hover:not(.on) {
+  border-color: var(--rd-field-border);
+}
+.rd-pickrow.on {
+  border-color: var(--rd-primary);
+  box-shadow: 0 0 0 1px var(--rd-primary);
+  cursor: default;
+}
+.rd-pickname {
+  font: var(--rd-weight-emphasis) var(--rd-size-cell) var(--rd-font-text);
+  color: var(--rd-ink);
+}
+.rd-picknote {
+  margin-left: auto;
+  font: var(--rd-weight-body) var(--rd-size-caption) var(--rd-font-text);
+  color: var(--rd-ink-muted);
+}
+
+/* ---------- A screen's own head row ----------
+   The band of figures on the left, the controls that act on them on the right,
+   on one line. The controls stay put as the band grows: three KPIs and four
+   are the same row, which is what stops a wide card putting one figure at one
+   end and its buttons at the other. */
+.rd-headrow {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.rd-headrow .rd-kband {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+  /* As many as there are, not always three: a batch answers three questions
+     and a release could answer four. */
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+.rd-headrow .rd-headacts {
+  margin-left: 0;
+  flex: none;
+  /* Level with the figures rather than with the labels above them. */
+  padding-top: 22px;
+}
+/* A second fact riding beside a KPI's own — "4 selected", the name of the
+   email a date belongs to. Quieter and on the same line, because it qualifies
+   the figure rather than being one. */
+.rd-vnote {
+  margin-left: 8px;
+  font: var(--rd-weight-body) var(--rd-size-caption) var(--rd-font-text);
+  color: var(--rd-ink-muted);
+}

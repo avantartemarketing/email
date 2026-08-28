@@ -152,6 +152,24 @@ export interface DataLayer {
    */
   addImage(name: string, dataUrl: string): Promise<LibraryImage[]>;
 
+  /**
+   * Mark several orders cancelled at once, with one reason.
+   *
+   * The same act as `removeOrder` and the same rules — the collector stops
+   * receiving anything, sent emails stay in the log, nothing is refunded in
+   * Shopify — done to a selection. A refund run usually arrives as a list, and
+   * doing it one row at a time is where a row gets missed.
+   */
+  removeOrders(orderIds: string[], reason: string): Promise<number>;
+  /**
+   * Move orders into another batch of the same release.
+   *
+   * Not a reschedule: the target batch's promise date and comms plan already
+   * exist and are not touched. It is the answer to "this collector asked to go
+   * with the framed run" — a correction, where a reschedule is a new promise.
+   */
+  moveOrdersToBatch(orderIds: string[], batchId: string): Promise<number>;
+
   // --- batches and plans -------------------------------------------------
   /**
    * First-time promise date: stores it and generates the milestone plan as

@@ -128,9 +128,9 @@ export function ImagePicker({
         />
       </label>
 
-      <Bar tone="note">
-        <b>The hatched tiles are the HubSpot masters' own images.</b> They live in HubSpot, so
-        there is no file to show here yet — anything you upload shows its picture.
+      <Bar tone="note" title="The hatched tiles are the HubSpot masters' own images">
+        They live in HubSpot, so there is no file to show here yet — anything you upload shows its
+        picture.
       </Bar>
     </Dialog>
   );

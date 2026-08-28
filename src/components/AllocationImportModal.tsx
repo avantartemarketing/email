@@ -64,8 +64,8 @@ export function AllocationImportModal({
               ]}
             />
             {summary.unmatchedOrderNumbers.length > 0 ? (
-              <Bar tone="note">
-                <b>Not found here:</b> {summary.unmatchedOrderNumbers.slice(0, 8).join(', ')}
+              <Bar tone="note" title="Not found here">
+                {summary.unmatchedOrderNumbers.slice(0, 8).join(', ')}
                 {summary.unmatchedOrderNumbers.length > 8 ? ', …' : ''}. They belong to another
                 release, or their orders have not been imported yet.
               </Bar>

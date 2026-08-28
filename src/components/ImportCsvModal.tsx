@@ -70,8 +70,7 @@ export function ImportCsvModal({
               ]}
             />
             {summary.missingEmail > 0 || summary.missingHubspotContact > 0 ? (
-              <Bar tone="warn">
-                <b>Some orders cannot receive email yet.</b>{' '}
+              <Bar tone="warn" title="Some orders cannot receive email yet">
                 {summary.missingEmail > 0
                   ? `${plural(summary.missingEmail, 'order')} with no email address. `
                   : ''}

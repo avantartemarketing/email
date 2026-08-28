@@ -1,12 +1,26 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { PendingSendItem } from '../types';
+import type { SendDetailView } from '../data/DataLayer';
 import { formatDayShort, today } from '../logic/dates';
 import { TEMPLATE_LABELS, plural, sendStatusBadge } from '../ui/format';
 import { useApp } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
-import { Btn, Cap, Card, CellLink, Dialog, None, Page, Skeleton, Why } from '../ui/rd';
+import {
+  Btn,
+  Cap,
+  Card,
+  CellLink,
+  Dialog,
+  Facts,
+  None,
+  Page,
+  Pill,
+  Skeleton,
+  Tag,
+  Why,
+} from '../ui/rd';
 import { DataTable } from '../ui/DataTable';
 import type { Column } from '../ui/DataTable';
 import Tabs from '../rd/components/Tabs';
@@ -22,12 +36,41 @@ import { EmailPreview } from '../components/EmailPreview';
  * last time", and everything else can be put away.
  */
 export function ApprovalQueue(): ReactElement {
-  const { data, isAdmin, showToast } = useApp();
+  const { data, isAdmin, showToast, userName } = useApp();
   const navigate = useNavigate();
   const queue = useAsync(() => data.listApprovalQueue(), []);
   const [tab, setTab] = useState<'pending' | 'held'>('pending');
   const [preview, setPreview] = useState<PendingSendItem | null>(null);
   const [actingOn, setActingOn] = useState<string | null>(null);
+  /* The last email these collectors received, shown where it is asked for
+     rather than on a screen you have to navigate to and come back from. The
+     queue row carries only the DATE and the send's id, so the email itself is
+     fetched when the popup opens. */
+  const [lastFor, setLastFor] = useState<PendingSendItem | null>(null);
+  const [lastEmail, setLastEmail] = useState<SendDetailView | null>(null);
+
+  useEffect(() => {
+    const sendId = lastFor?.lastSent?.sendId;
+    if (!sendId) {
+      setLastEmail(null);
+      return;
+    }
+    let live = true;
+    setLastEmail(null);
+    void data
+      .getSendDetail(sendId)
+      .then((detail) => {
+        if (live) setLastEmail(detail);
+      })
+      .catch((err: unknown) => {
+        if (!live) return;
+        showToast(err instanceof Error ? err.message : String(err), true);
+        setLastFor(null);
+      });
+    return () => {
+      live = false;
+    };
+  }, [lastFor, data, showToast]);
 
   const items = queue.data ?? [];
   const pending = items.filter((i) => i.send.status === 'pending_approval');
@@ -140,11 +183,11 @@ export function ApprovalQueue(): ReactElement {
     {
       id: 'batch',
       title: 'Batch',
-      defaultHidden: true,
       kind: 'choice',
       caption: 'BATCH',
       value: (i) => (i.releaseBatchCount > 1 ? i.batch.name : null),
-      cell: (i) => (i.releaseBatchCount > 1 ? i.batch.name : <None />),
+      cell: (i) =>
+        i.releaseBatchCount > 1 ? <Tag tone="teal">{i.batch.name}</Tag> : <None />,
     },
     {
       id: 'recipients',
@@ -156,22 +199,64 @@ export function ApprovalQueue(): ReactElement {
     },
     {
       id: 'lastReceived',
-      title: 'They last received',
-      kind: 'choice',
-      caption: 'THEY LAST RECEIVED',
-      value: (i) => (i.lastSent ? TEMPLATE_LABELS[i.lastSent.templateRef] : null),
+      /* Just the date. The owner, 28 Aug: "change column to just 'Last
+         received' and just put date. When you click date, it shows the last
+         email they received in a popup." Which email it was is one fact too
+         many for a column being scanned for recency — and it is a question
+         with a better answer than a truncated label, since the email itself
+         is one click away. */
+      title: 'Last received',
+      kind: 'date',
+      value: (i) => i.lastSent?.sentAt.slice(0, 10),
       cell: (i) =>
-        i.lastSent ? lastReceivedLabel(i) : <span className="rd-none">Nothing yet</span>,
+        i.lastSent ? (
+          <CellLink onClick={() => setLastFor(i)}>
+            {formatDayShort(i.lastSent.sentAt.slice(0, 10))}
+          </CellLink>
+        ) : (
+          <span className="rd-none">Nothing yet</span>
+        ),
+    },
+    {
+      id: 'who',
+      /*
+       * Who is on the hook for the row.
+       *
+       * The owner asked the queue to "show the approver", and the honest
+       * version of that differs by tab: a send in the PENDING tab has not
+       * been approved by anyone — that is what makes it pending — so a column
+       * headed "Approved by" would be a dash on every row, which is a column
+       * that costs width and answers nothing. What a reviewer actually wants
+       * before approving is who put it in front of them, and after a hold,
+       * who parked it. So the column is one column with the name the tab
+       * makes true.
+       */
+      title: tab === 'held' ? 'Held by' : 'Submitted by',
+      kind: 'choice',
+      caption: tab === 'held' ? 'HELD BY' : 'SUBMITTED BY',
+      value: (i) => {
+        const who = tab === 'held' ? i.send.heldBy : i.send.createdBy;
+        return who ? userName(who) : null;
+      },
+      cell: (i) => {
+        const who = tab === 'held' ? i.send.heldBy : i.send.createdBy;
+        return who ? userName(who) : <None />;
+      },
     },
     {
       id: 'status',
-      /* Locked: it is the column that says a send is overdue. */
-      title: 'Status',
+      /* Only the exception is drawn. Every row in the Pending tab is pending,
+         so a "Pending approval" pill on all ten of them is a column that says
+         the same thing ten times and hides the one row that is late. The
+         owner: "change Status to just Overdue". Locked, because it is the
+         column that carries the warning. */
+      title: 'Overdue',
       locked: true,
       kind: 'choice',
-      caption: 'STATUS',
-      value: (i) => (overdue(i) ? 'overdue' : i.send.status),
-      cell: (i) => sendStatusBadge(i.send),
+      caption: 'OVERDUE',
+      value: (i) => (overdue(i) ? 'Overdue' : null),
+      cell: (i) =>
+        overdue(i) ? <Pill tone="red">Overdue</Pill> : <None />,
     },
     {
       id: 'actions',
@@ -298,6 +383,56 @@ export function ApprovalQueue(): ReactElement {
               nextSteps={preview.send.nextSteps}
               imageName={preview.send.imageName}
             />
+          </>
+        ) : null}
+      </Dialog>
+
+      <Dialog
+        open={lastFor !== null}
+        size="lg"
+        onClose={() => setLastFor(null)}
+        title={
+          lastFor?.lastSent
+            ? `Last received — ${formatDayShort(lastFor.lastSent.sentAt.slice(0, 10))}`
+            : 'Last received'
+        }
+        secondary={
+          lastFor?.lastSent
+            ? {
+                label: 'Open send detail',
+                onClick: () => {
+                  navigate(`/sends/${lastFor.lastSent!.sendId}`);
+                  setLastFor(null);
+                },
+              }
+            : undefined
+        }
+      >
+        {lastFor?.lastSent ? (
+          <>
+            <Facts
+              items={[
+                {
+                  label: 'Email',
+                  value: `${TEMPLATE_LABELS[lastFor.lastSent.templateRef]}${
+                    lastFor.lastSent.type === 'delay' ? ' (delay)' : ''
+                  }`,
+                },
+                { label: 'Went out on', value: lastFor.lastSent.batchName },
+                { label: 'Release', value: lastFor.release.title },
+              ]}
+            />
+            {lastEmail ? (
+              <EmailPreview
+                subject={lastEmail.send.subject}
+                headline={lastEmail.send.headline}
+                body={lastEmail.send.body}
+                nextSteps={lastEmail.send.nextSteps}
+                imageName={lastEmail.send.imageName}
+              />
+            ) : (
+              <Skeleton rows={6} />
+            )}
           </>
         ) : null}
       </Dialog>

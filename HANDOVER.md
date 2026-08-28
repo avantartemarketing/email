@@ -77,11 +77,48 @@ assertions that counted the old world now state the invariant instead.
 - New order fields: `country` and `shopifyTags`, read from Shipping/Billing
   Country and Tags, carried across continuation rows, both optional.
 
-`npm test` → 123 green. `npm run build` clean.
+**Tom's table-texture round (28 Aug, latest) is in:**
+- **Warnings went back to the Shopify shape** he preferred: a bold line saying
+  what is wrong, then the detail underneath. `Bar` takes a `title` now, and all
+  eleven call sites were rewritten to lead with the fault rather than with a
+  paragraph.
+- **Lozenges in the tables.** Fulfilment, glass, mounting, batch and frame
+  finish are tags, not bare words — `fulfilmentValueTag`, `specTag`,
+  `frameFinishTag` in `src/ui/format.tsx`. The frame finish carries a colour
+  swatch beside the word (never instead of it); an unknown finish gets the word
+  and no swatch rather than a guessed colour.
+- **Country is a flag**, drawn as inline SVG in `src/ui/Flag.tsx`. The kit's
+  own `Flag` loads `/flags/<iso>.png`, which resolves to nothing in a
+  single-file artifact and fails *silently* — the exact shape of bug the font
+  produced twice. Thirteen countries drawn; a fourteenth is one line.
+- **The order number is blue and opens Shopify** (`.rd-extlink`).
+- **All orders has bulk actions**: mark cancelled (reason required, they drop
+  out of every future send), move to another batch, and set a new promise date.
+  The last one reuses the whole reschedule flow — so picking part of a batch
+  splits it, exactly as it does from the batch tab. A selection spanning
+  several batches is asked which batch's date is changing, one at a time,
+  because a promise date belongs to one batch and doing three silently would
+  send three different delay emails from one click.
+- **The promised-dispatch bar was redrawn.** "From 17 Sept" is gone; the
+  promise reads as the window it always was (`shipWindowShort`), beside the two
+  facts that were missing — collectors in the batch, and the next email — with
+  the actions level with the figures. Four alternatives were drawn and rejected
+  on the record: see the studies artifact below.
+- **Approval queue**: Status became **Overdue** and draws only the exception —
+  a "Pending approval" pill on all ten rows hid the one that was late. Last
+  received is a date, and clicking it opens the email itself in a popup rather
+  than navigating away. Batch is visible. The who-column is named by tab —
+  *Submitted by* on Pending, *Held by* on Held — because a send in the pending
+  queue has by definition not been approved by anyone, and a column that is a
+  dash on every row costs width and answers nothing.
+
+`npm test` → 126 green. `npm run build` clean. `check:screens` clean.
 
 **Artifacts live (publish with `url:` to update, never without):**
 - Prototype, Workbench-rd: https://claude.ai/code/artifact/ebfa534f-1267-4a64-99a5-7978167d3a9f
 - Before/after review: https://claude.ai/code/artifact/f4e228af-af0a-4f6c-9ca7-b111503fb81f
+- Dispatch bar studies (five options, drawn in the real system):
+  https://claude.ai/code/artifact/dada54e1-0a78-4fbe-ae76-4388d5ee3cfa
 - Prototype, Polaris (kept deliberately, as the "before"):
   https://claude.ai/code/artifact/597f2ef2-8557-4fc7-9b6e-3ced09fa9aac
 - The Five Screens (round 2, Polaris): https://claude.ai/code/artifact/175468ca-3af9-4b54-bc18-7443ae935ea0

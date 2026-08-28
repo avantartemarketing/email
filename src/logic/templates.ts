@@ -1,5 +1,5 @@
 import type { Batch, ImageSlot, OnTrackSlot, Release, SendStep, TemplateRef } from '../types';
-import { addDays, formatDay } from './dates';
+import { addDays, formatDay, formatDayShort } from './dates';
 import { generateMilestonePlan } from './plan';
 
 /**
@@ -33,6 +33,29 @@ export const SHIP_WINDOW_DAYS = 7;
 
 export function shipWindowText(promiseDateIso: string): string {
   return `${formatDay(promiseDateIso)} and ${formatDay(addDays(promiseDateIso, SHIP_WINDOW_DAYS))}`;
+}
+
+/**
+ * The same window, short enough to be a figure — "17 – 24 Sept 2026".
+ *
+ * `shipWindowText` is written for the inside of a sentence ("we expect to ship
+ * between X and Y") and is too long to read as a value. This is the window
+ * drawn AS a window, which is what let the batch header drop its "From": a
+ * promise date is the start of a seven-day window, and a range says so
+ * without a preposition doing the work.
+ *
+ * What is shared is said once — the month where both ends fall in it, the year
+ * where both fall in that. A range that repeats "Sept 2026" twice is a range
+ * nobody reads to the end of.
+ */
+export function shipWindowShort(promiseDateIso: string): string {
+  const from = promiseDateIso;
+  const to = addDays(promiseDateIso, SHIP_WINDOW_DAYS);
+  const a = formatDayShort(from).split(' '); // ["17", "Sept", "2026"]
+  const b = formatDayShort(to).split(' ');
+  if (a[2] !== b[2]) return `${formatDayShort(from)} – ${formatDayShort(to)}`;
+  if (a[1] !== b[1]) return `${a[0]} ${a[1]} – ${b[0]} ${b[1]} ${b[2]}`;
+  return `${a[0]} – ${b[0]} ${b[1]} ${b[2]}`;
 }
 
 export interface MasterTemplate {

@@ -683,6 +683,76 @@ export class MockDataLayer implements DataLayer {
     return this.listImages();
   }
 
+  async removeOrders(orderIds: string[], reason: string): Promise<number> {
+    const user = this.currentUser();
+    const why = reason.trim() || 'Removed';
+    const touched: Order[] = [];
+    for (const id of orderIds) {
+      const order = this._store.orders.get(id);
+      /* Already removed is not an error: a selection can include a row
+         somebody else cancelled while this one was being made. */
+      if (!order || order.removed) continue;
+      order.removed = true;
+      order.removedAt = this.now().toISOString();
+      order.removedBy = user.id;
+      order.removedReason = why;
+      touched.push(order);
+    }
+    /* One event per batch touched, not one per order: a batch's history is
+       read as a story, and forty lines saying the same thing is not one. */
+    const byBatch = new Map<string, Order[]>();
+    for (const o of touched) {
+      const list = byBatch.get(o.batchId);
+      if (list) list.push(o);
+      else byBatch.set(o.batchId, [o]);
+    }
+    for (const [batchId, orders] of byBatch) {
+      this._addEvent(
+        orders[0].releaseId,
+        batchId,
+        'order_removed',
+        `${orders.length} order${orders.length === 1 ? '' : 's'} cancelled — ${why}`,
+        { orderIds: orders.map((o) => o.id), reason: why },
+      );
+    }
+    return this.settle(touched.length);
+  }
+
+  async moveOrdersToBatch(orderIds: string[], batchId: string): Promise<number> {
+    const target = this.mustGet(this._store.batches, batchId, 'batch');
+    const moved: Order[] = [];
+    const fromCounts = new Map<string, number>();
+    for (const id of orderIds) {
+      const order = this._store.orders.get(id);
+      if (!order || order.removed || order.batchId === batchId) continue;
+      if (order.releaseId !== target.releaseId) {
+        throw new Error('An order can only move between batches of its own release');
+      }
+      fromCounts.set(order.batchId, (fromCounts.get(order.batchId) ?? 0) + 1);
+      order.batchId = batchId;
+      moved.push(order);
+    }
+    if (moved.length > 0) {
+      for (const [from, count] of fromCounts) {
+        this._addEvent(
+          target.releaseId,
+          from,
+          'orders_split',
+          `${count} order${count === 1 ? '' : 's'} moved to ${target.name}`,
+          { orderIds: moved.map((o) => o.id) },
+        );
+      }
+      this._addEvent(
+        target.releaseId,
+        batchId,
+        'orders_split',
+        `${moved.length} order${moved.length === 1 ? '' : 's'} moved in`,
+        { orderIds: moved.map((o) => o.id) },
+      );
+    }
+    return this.settle(moved.length);
+  }
+
   // --- batches and plans -------------------------------------------------
 
   async setPromiseDate(batchId: string, promiseDate: string): Promise<void> {

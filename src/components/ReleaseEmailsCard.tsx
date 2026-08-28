@@ -351,19 +351,17 @@ function ReleaseEmailEditModal({
         { label: 'Cancel', onClick: onClose },
       ]}
     >
-      <Bar tone="note">
-        {isDelay ? (
-          <>
-            <b>Pre-fills every future delay email for this release.</b> Delay notices are written
-            per reschedule; this copy is their starting point.
-          </>
-        ) : (
-          <>
-            <b>Applies to every batch of this release.</b> Upcoming sends built from this email are
-            re-rendered; approved ones return to the approval queue. Sends someone edited by hand
-            keep their words, and tokens like {'{{ship_window}}'} are filled per batch.
-          </>
-        )}
+      <Bar
+        tone="note"
+        title={
+          isDelay
+            ? 'Pre-fills every future delay email for this release'
+            : 'Applies to every batch of this release'
+        }
+      >
+        {isDelay
+          ? 'Delay notices are written per reschedule; this copy is their starting point.'
+          : `Upcoming sends built from this email are re-rendered; approved ones return to the approval queue. Sends someone edited by hand keep their words, and tokens like {{ship_window}} are filled per batch.`}
       </Bar>
       <div className="rd-fields">
         <Field label="Subject" value={subject} onChange={setSubject} />

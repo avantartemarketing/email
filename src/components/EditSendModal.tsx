@@ -74,8 +74,8 @@ export function EditSendModal({
       secondary={{ label: 'Cancel', onClick: onClose }}
     >
       {send?.status === 'approved' ? (
-        <Bar tone="warn">
-          <b>This send is already approved.</b> Saving moves it back to pending approval.
+        <Bar tone="warn" title="This send is already approved">
+          Saving moves it back to pending approval.
         </Bar>
       ) : null}
       <div className="rd-fields">

@@ -8,10 +8,10 @@ import type {
   ReleaseDetail as ReleaseDetailData,
   ScheduledSend,
 } from '../types';
-import { formatDay, formatDayShort, today } from '../logic/dates';
+import { formatDayShort, today } from '../logic/dates';
 import { inheritedSentStory } from '../logic/reschedule';
-import { missingOnTrackImages } from '../logic/templates';
-import { plural, productKindTag, releaseStatusBadge } from '../ui/format';
+import { missingOnTrackImages, shipWindowShort } from '../logic/templates';
+import { TEMPLATE_LABELS, plural, productKindTag, releaseStatusBadge } from '../ui/format';
 import { useApp, useCrumb } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
 import {
@@ -138,8 +138,7 @@ export function ReleaseDetail(): ReactElement {
     >
       <Stack>
         {flaggedNoEmail.length > 0 || flaggedNoContact.length > 0 ? (
-          <Bar tone="warn">
-            <b>Some orders can't receive email yet.</b>{' '}
+          <Bar tone="warn" title="Some orders can't receive email yet">
             {flaggedNoEmail.length > 0
               ? `${plural(flaggedNoEmail.length, 'order')} with no email address (${flaggedNoEmail
                   .map((o) => o.shopifyOrderName)
@@ -156,12 +155,14 @@ export function ReleaseDetail(): ReactElement {
         ) : null}
 
         {missingImages.length > 0 ? (
-          <Bar tone="warn">
-            <b>
-              {missingImages.length === 1
-                ? 'One on-track email has no image.'
-                : `${missingImages.length} on-track emails have no image.`}
-            </b>{' '}
+          <Bar
+            tone="warn"
+            title={
+              missingImages.length === 1
+                ? 'One on-track email has no image'
+                : `${missingImages.length} on-track emails have no image`
+            }
+          >
             This release's longest dispatch window needs{' '}
             {plural(missingImages.length, 'more update')} than there are pictures for, so{' '}
             {missingImages.length === 1 ? 'it goes' : 'they go'} out on the master's image.
@@ -180,7 +181,7 @@ export function ReleaseDetail(): ReactElement {
       </Stack>
 
       {showingOrders ? (
-        <ReleaseOrdersTable orders={d.orders} batches={d.batches} />
+        <ReleaseOrdersTable detail={d} onChanged={() => detail.reload()} />
       ) : showingEmails ? (
         <ReleaseEmailsPanel
           release={d.release}
@@ -317,6 +318,11 @@ function BatchSection({
     [detail.events, batch.id],
   );
   const draftCount = batchSends.filter((s) => s.status === 'draft').length;
+  /* The soonest email this batch still owes somebody — the third question a
+     batch raises, after when it ships and who is in it. */
+  const nextSend = batchSends
+    .filter((s) => s.status !== 'sent' && s.status !== 'cancelled')
+    .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate))[0];
   const allocatedCount = activeOrders.filter((o) => o.allocations && o.allocations.length > 0).length;
   const hasAllocations = detail.orders.some((o) => o.allocations && o.allocations.length > 0);
   // "This batch" in copy; the batch name only exists once there are several.
@@ -464,44 +470,77 @@ function BatchSection({
   return (
     <>
       <Stack>
-        {/* The card head's own row (`CardHead`'s markup), leading with the date
-            as a figure rather than with a section name: the label under it is
-            what the head would otherwise have said twice. */}
-        <Card>
-          <div className="rd-cardhead">
-            <div>
-              <div className="rd-lede">
-                {batch.promiseDate ? `From ${formatDay(batch.promiseDate)}` : 'Not set'}
+        {/* ---------- What this batch has been promised ----------
+            A band of three, not one figure in a wide card. The owner, 28 Aug:
+            the old one "doesn't seem v well designed — we don't need 'From',
+            and it feels cramped." Both faults had one cause: a card whose job
+            was to hold ONE fact, so the fact sat alone at one end and the
+            buttons at the other with a gulf between them.
+
+            So it answers the three questions a batch actually raises — when it
+            ships, who is in it, and what is queued — in the kit's own KPI band.
+            "From" goes because the window is drawn as a window: a promise date
+            is the START of a 7-day dispatch window, and a range says that
+            without a preposition doing the work. */}
+        <div className="rd-headrow">
+          <div className="rd-kband">
+            <div className="rd-kpi">
+              <div className="rd-l">Dispatch window</div>
+              <div className="rd-v">
+                {batch.promiseDate ? shipWindowShort(batch.promiseDate) : 'Not set'}
               </div>
-              <div className="rd-ledelab">Promised dispatch</div>
             </div>
-            <div className="rd-cardacts">
-              {batch.promiseDate ? (
-                <Btn
-                  kind="pri"
-                  onClick={() => setRescheduleOpen(true)}
-                  disabled={activeOrders.length === 0}
-                >
-                  {picked.size > 0 && picked.size < activeOrders.length
-                    ? `Change delivery date (${picked.size})`
-                    : 'Change delivery date'}
-                </Btn>
-              ) : (
-                <Btn kind="pri" onClick={() => setPromiseOpen(true)}>
-                  Set promise date
-                </Btn>
-              )}
-              {draftCount > 0 ? (
-                <Btn onClick={() => void submitPlan()}>
-                  {`Submit plan for approval (${draftCount})`}
-                </Btn>
-              ) : null}
-              <Btn onClick={() => setAddSendOpen(true)} disabled={!batch.promiseDate}>
-                Add send
-              </Btn>
+            <div className="rd-kpi">
+              <div className="rd-l">Collectors in this batch</div>
+              <div className="rd-v">
+                {activeOrders.length}
+                {picked.size > 0 ? (
+                  <span className="rd-vnote">{picked.size} selected</span>
+                ) : removedOrders.length > 0 ? (
+                  <span className="rd-vnote">{removedOrders.length} cancelled</span>
+                ) : null}
+              </div>
+            </div>
+            <div className="rd-kpi">
+              <div className="rd-l">Next email</div>
+              <div className="rd-v">
+                {nextSend ? (
+                  formatDayShort(nextSend.scheduledDate)
+                ) : (
+                  <span className="rd-none">Nothing queued</span>
+                )}
+                {nextSend ? (
+                  <span className="rd-vnote">{TEMPLATE_LABELS[nextSend.templateRef]}</span>
+                ) : null}
+              </div>
             </div>
           </div>
-        </Card>
+          <div className="rd-headacts">
+            {batch.promiseDate ? (
+              <Btn
+                kind="pri"
+                onClick={() => setRescheduleOpen(true)}
+                disabled={activeOrders.length === 0}
+              >
+                {picked.size > 0 && picked.size < activeOrders.length
+                  ? `Change delivery date (${picked.size})`
+                  : 'Change delivery date'}
+              </Btn>
+            ) : (
+              <Btn kind="pri" onClick={() => setPromiseOpen(true)}>
+                Set promise date
+              </Btn>
+            )}
+            {draftCount > 0 ? (
+              <Btn onClick={() => void submitPlan()}>
+                {`Submit plan for approval (${draftCount})`}
+              </Btn>
+            ) : null}
+            <Btn onClick={() => setAddSendOpen(true)} disabled={!batch.promiseDate}>
+              Add send
+            </Btn>
+          </div>
+        </div>
 
         <PlanTable
           sends={batchSends}
