@@ -7,6 +7,7 @@ import type {
   ImageSlot,
   ImportSummary,
   LastSentInfo,
+  LibraryImage,
   Order,
   PendingSendItem,
   Release,
@@ -47,6 +48,7 @@ import {
   releaseFillerTemplate,
   renderReleaseTemplate,
   sequenceForBatch,
+  IMAGE_OPTIONS,
 } from '../../logic/templates';
 
 /**
@@ -66,6 +68,8 @@ interface Store {
   orders: Map<string, Order>;
   sends: Map<string, ScheduledSend>;
   events: BatchEvent[];
+  /** The email picker's library — seeded names, plus anything uploaded. */
+  images: LibraryImage[];
 }
 
 const UNSENT: SendStatus[] = ['draft', 'pending_approval', 'approved', 'held'];
@@ -88,6 +92,7 @@ export class MockDataLayer implements DataLayer {
       orders: new Map(),
       sends: new Map(),
       events: [],
+      images: IMAGE_OPTIONS.map((name) => ({ name })),
     };
     this.hubspotDirectory = hubspotDirectory;
   }
@@ -396,6 +401,8 @@ export class MockDataLayer implements DataLayer {
         hubspotContactId,
         variant: item.variant || (release.productKind === 'sculpture' ? 'Sculpture' : ''),
         orderDate: item.orderDate,
+        country: item.country,
+        shopifyTags: item.shopifyTags,
         removed: false,
       };
       this._store.orders.set(order.id, order);
@@ -645,6 +652,35 @@ export class MockDataLayer implements DataLayer {
       send.imageName = imageName ?? undefined;
     }
     return this.settle(release);
+  }
+
+  /**
+   * The image library.
+   *
+   * Seeded from the names the HubSpot masters already use — those have no file
+   * behind them in phase 1, so they carry no `url` and the picker draws a
+   * hatch. Anything added here is a real data URI and draws the picture.
+   */
+  async listImages(): Promise<LibraryImage[]> {
+    await this.settle(null);
+    return this._store.images.map((img) => ({ ...img }));
+  }
+
+  async addImage(name: string, dataUrl: string): Promise<LibraryImage[]> {
+    const trimmed = name.trim();
+    if (!trimmed) throw new Error('An image needs a name');
+    if (!dataUrl.startsWith('data:image/')) throw new Error('That file is not an image');
+    /* A second image with the same name would make the picked name ambiguous
+       — `templateImages` stores the NAME, so two files called "Artist
+       portrait" are one slot pointing at either. Numbered rather than
+       refused: somebody uploading a second studio shot should not have to
+       invent a filename to get it in. */
+    let unique = trimmed;
+    for (let n = 2; this._store.images.some((i) => i.name === unique); n += 1) {
+      unique = `${trimmed} (${n})`;
+    }
+    this._store.images.push({ name: unique, url: dataUrl, uploaded: true });
+    return this.listImages();
   }
 
   // --- batches and plans -------------------------------------------------

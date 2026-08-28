@@ -281,11 +281,18 @@
    The kit draws `.rd-dialog`, its scrim and its foot, and leaves the head and
    body to the screen. Stated once here so eight dialogues cannot each invent a
    padding. */
+/* Sticky for the same reason the foot is: a dialogue tall enough to scroll
+   must not lose the thing that says what it is. The head and the foot are the
+   two rows that stay; everything between them is the dialogue's content. */
 .rd-dialoghd {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--rd-card);
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 16px 20px 4px;
+  padding: 16px 20px 8px;
   font: var(--rd-weight-emphasis) var(--rd-size-hero) / 1.3 var(--rd-font-display);
   color: var(--rd-ink);
 }
@@ -410,6 +417,9 @@
   color: inherit;
   cursor: pointer;
   text-align: left;
+  /* An anchor is a link and would carry the browser's underline into a table
+     of them. The hover rule below is where a link says what it is. */
+  text-decoration: none;
 }
 .rd-cellink:hover {
   color: var(--rd-link);
@@ -599,4 +609,69 @@
   text-align: center;
   font-size: var(--rd-email-foot);
   color: var(--rd-ink-muted);
+}
+
+/* ---------- The image picker ----------
+   Choosing a picture is choosing a picture, so the tile carries one. A grid
+   rather than a menu of filenames: the seeded names are the HubSpot masters'
+   own images and nobody remembers which is which by its words.
+
+   The tile's own frame is the meter's radius, not a card's — it is an image
+   thumb, which is the role that token already names. */
+.rd-imggrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 10px;
+  margin: 4px 0 12px;
+}
+.rd-imgtile {
+  display: block;
+  padding: 6px;
+  border: 1px solid var(--rd-border);
+  border-radius: var(--rd-radius-inset);
+  background: var(--rd-card);
+  cursor: pointer;
+  text-align: left;
+}
+.rd-imgtile:hover {
+  border-color: var(--rd-field-border);
+  box-shadow: var(--rd-shadow-control);
+}
+/* The chosen one is an object, the rest are tiles — ruling 96's argument, and
+   a RING rather than a thicker border so nothing moves on selection. */
+.rd-imgtile.on {
+  border-color: var(--rd-primary);
+  box-shadow: 0 0 0 1px var(--rd-primary);
+  cursor: default;
+}
+.rd-imgart {
+  display: block;
+  width: 100%;
+  height: 84px;
+  object-fit: cover;
+  border-radius: var(--rd-radius-meter);
+  background: var(--rd-inset);
+}
+/* No file behind this name — the hatch, because nothing-here-yet is a STATE
+   and an empty grey box is a gap. */
+.rd-imgart-hatch {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--rd-hatch-b),
+    var(--rd-hatch-b) 7px,
+    var(--rd-hatch-a) 7px,
+    var(--rd-hatch-a) 14px
+  );
+}
+.rd-imgname {
+  display: block;
+  margin-top: 6px;
+  font: var(--rd-weight-emphasis) var(--rd-size-label) / 1.35 var(--rd-font-text);
+  color: var(--rd-ink-ui);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rd-imgtile.on .rd-imgname {
+  color: var(--rd-ink);
 }

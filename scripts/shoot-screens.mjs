@@ -64,14 +64,27 @@ await page.keyboard.press('Escape');
 
 // --- 2. release detail: Falling Light framed flow -------------------------
 await page.getByText('Falling Light').first().click();
-await page.getByRole('tab', { name: /^Framed \(/ }).waitFor();
+await page.getByRole('tab', { name: /^All orders/ }).waitFor();
+await page.waitForTimeout(400);
+// the first tab: every order on the release, one row per print
+await shot('00-release-all-orders');
+
+// a flow tab: promise date, comms plan, orders, history
+await page.getByRole('tab', { name: /^Framed \(/ }).click();
 await page.waitForTimeout(400);
 await shot('03-release-emails-card');
 
-// the Emails tab: image slots + copy status per email
-await page.getByRole('tab', { name: 'Emails' }).click();
+// All emails: an image per slot, sized by the longest window
+await page.getByRole('tab', { name: 'All emails' }).click();
 await page.getByText('On track 1', { exact: true }).waitFor();
 await shot('04-release-email-edit');
+
+// the image picker, with the library and the upload box
+await page.locator('table.rd-t27 tbody tr').first().locator('.rd-chip-sm').first().click();
+await page.getByRole('dialog').waitFor();
+await page.getByText('Master default').first().waitFor();
+await shot('04b-image-picker', { fullPage: false });
+await page.getByRole('dialog').getByRole('button', { name: 'Done', exact: true }).click();
 
 // Framed 3 — the overdue split batch, with inherited story in the plan
 await page.getByRole('tab', { name: /^Framed 3/ }).click();
@@ -112,6 +125,8 @@ await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true
 // --- 5. batchless release (Vessel VIII, sculpture) ------------------------
 await goHome();
 await page.getByText('Vessel VIII').first().click();
+// A release that never split shows "Overview" where a print shows its flows.
+await page.getByRole('tab', { name: 'Overview' }).click();
 await page.getByRole('button', { name: 'Change delivery date' }).first().waitFor();
 await shot('09-release-nightgarden-batchless');
 
@@ -131,7 +146,8 @@ await page.keyboard.press('Escape');
 // --- 7. send detail -------------------------------------------------------
 await goHome();
 await page.getByText('Falling Light').first().click();
-await page.getByRole('tab', { name: /^Framed \(/ }).waitFor();
+await page.getByRole('tab', { name: /^Framed \(/ }).click();
+await page.waitForTimeout(400);
 await page.getByRole('button', { name: 'Signing', exact: true }).click();
 await page.getByText('Email as sent').waitFor();
 await shot('12-send-detail-sent');

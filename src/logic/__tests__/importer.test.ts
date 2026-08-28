@@ -31,9 +31,43 @@ describe('parseShopifyOrderExport', () => {
         email: 'jane@example.com',
         collectorName: 'Jane Smith',
         orderDate: '2026-05-14',
+        country: null,
+        shopifyTags: [],
         row: 1,
       },
     ]);
+  });
+
+  /* Both columns are optional — the header above has neither, and an export cut
+     down by hand often does not. An order with no tags is ordinary, not a
+     fault, so the absence must parse rather than report. */
+  it('reads shipping country and tags, and carries them onto continuation rows', () => {
+    const header =
+      'Name,Email,Created at,Lineitem quantity,Lineitem name,Billing Name,Shipping Country,Tags';
+    const result = parseShopifyOrderExport(
+      [
+        header,
+        '#AA1010,rosa@example.com,2026-05-14 11:00:00 +0100,1,Falling Light - Framed,Rosa Delgado,Spain,"vip,repeat-collector"',
+        ',,,1,Falling Light - Unframed,,,',
+      ].join('\n'),
+    );
+    expect(result.issues).toEqual([]);
+    expect(result.items).toHaveLength(2);
+    expect(result.items[0].country).toBe('Spain');
+    expect(result.items[0].shopifyTags).toEqual(['vip', 'repeat-collector']);
+    // The continuation row is the same order, so it is the same country and tags.
+    expect(result.items[1].country).toBe('Spain');
+    expect(result.items[1].shopifyTags).toEqual(['vip', 'repeat-collector']);
+  });
+
+  it('falls back to billing country when there is no shipping country', () => {
+    const result = parseShopifyOrderExport(
+      [
+        'Name,Email,Created at,Lineitem quantity,Lineitem name,Billing Name,Billing Country',
+        '#AA1011,leo@example.com,2026-05-14 11:00:00 +0100,1,Falling Light - Framed,Leo Marchetti,Italy',
+      ].join('\n'),
+    );
+    expect(result.items[0].country).toBe('Italy');
   });
 
   it('carries order-level fields onto continuation rows of multi-line-item orders', () => {

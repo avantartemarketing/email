@@ -52,6 +52,8 @@ function makeOrder(id: string, overrides: Partial<Order> = {}): Order {
     hubspotContactId: `hs-${id}`,
     variant: 'Framed',
     orderDate: '2026-05-02',
+    country: 'United Kingdom',
+    shopifyTags: [],
     removed: false,
     ...overrides,
   };

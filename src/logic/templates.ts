@@ -1,5 +1,6 @@
-import type { Batch, ImageSlot, Release, SendStep, TemplateRef } from '../types';
+import type { Batch, ImageSlot, OnTrackSlot, Release, SendStep, TemplateRef } from '../types';
 import { addDays, formatDay } from './dates';
+import { generateMilestonePlan } from './plan';
 
 /**
  * Local mirrors of the six HubSpot master templates (`pp-*`). The real
@@ -236,7 +237,75 @@ export function sequenceForBatch(
  * Image slots, in the order the release-emails screen lists them. The
  * on-track email gets three so a long plan's fillers rotate pictures.
  */
-export const ONTRACK_IMAGE_SLOTS: ImageSlot[] = ['pp-ontrack-1', 'pp-ontrack-2', 'pp-ontrack-3'];
+export const onTrackSlot = (n: number): OnTrackSlot => `pp-ontrack-${n}`;
+
+/**
+ * How many on-track slots a release needs: as many as its LONGEST dispatch
+ * window will send.
+ *
+ * The owner's rule, 28 Aug 2026 — "the email tab should populate depending on
+ * the number of emails required for the longest dispatch date". A release runs
+ * several batches at several dates, and the set of images has to cover the one
+ * that sends the most; sizing to the shortest would leave the longest batch
+ * short of a picture halfway through its plan.
+ *
+ * Counted from the plan the app would actually generate, not from the number
+ * of weeks: the plan is what decides where a filler goes, and a second
+ * calculation of that would be a second answer.
+ *
+ * Never fewer than one, so a release with no dates yet still has something to
+ * set up against.
+ */
+export function onTrackSlotsNeeded(
+  release: Release,
+  batches: Pick<Batch, 'promiseDate' | 'fulfilment'>[],
+  todayIso: string,
+): number {
+  const filler = releaseFillerTemplate(release);
+  if (!filler) return 0;
+  let most = 0;
+  for (const batch of batches) {
+    if (!batch.promiseDate) continue;
+    const plan = generateMilestonePlan(todayIso, batch.promiseDate, release.productKind, {
+      sequence: sequenceForBatch(release, batch),
+      fillerTemplate: filler,
+    });
+    most = Math.max(most, plan.filter((step) => step.templateRef === 'pp-ontrack').length);
+  }
+  return Math.max(most, 1);
+}
+
+/**
+ * On-track slots the dates now need that have no image picked.
+ *
+ * Pushing a delivery date out adds on-track sends — that is what the ≤5-week
+ * rule does — and each new one arrives pointing at a slot nobody has chosen a
+ * picture for, so it would go out on the master's image without anybody
+ * deciding that. The owner asked for it to be said out loud at the moment the
+ * date changes AND to stay said until it is fixed, which is why this is a
+ * derived list rather than a flag: it stops being true when the images are
+ * picked, and nothing has to remember to clear it.
+ */
+export function missingOnTrackImages(
+  release: Release,
+  batches: Pick<Batch, 'promiseDate' | 'fulfilment'>[],
+  todayIso: string,
+): OnTrackSlot[] {
+  return onTrackSlotsFor(release, batches, todayIso).filter(
+    (slot) => !release.templateImages[slot],
+  );
+}
+
+/** The slots themselves, in order: `pp-ontrack-1` … `pp-ontrack-N`. */
+export function onTrackSlotsFor(
+  release: Release,
+  batches: Pick<Batch, 'promiseDate' | 'fulfilment'>[],
+  todayIso: string,
+): OnTrackSlot[] {
+  return Array.from({ length: onTrackSlotsNeeded(release, batches, todayIso) }, (_, i) =>
+    onTrackSlot(i + 1),
+  );
+}
 
 /** Phase-1 stand-ins for the HubSpot image library. */
 export const IMAGE_OPTIONS: string[] = [
@@ -251,16 +320,20 @@ export const IMAGE_OPTIONS: string[] = [
 ];
 
 /**
- * Assign an image slot to each planned step: milestones use their own slot;
- * on-track fillers cycle through the three on-track slots in order.
+ * Assign an image slot to each planned step: a milestone uses its own slot,
+ * and the nth on-track filler uses the nth on-track slot.
+ *
+ * It used to cycle three slots round with a modulo, which meant a plan with
+ * five fillers showed a collector the same two pictures twice. There are as
+ * many slots as the longest window needs now (`onTrackSlotsNeeded`), so the
+ * nth filler simply takes the nth slot and nobody sees a repeat.
  */
 export function imageSlotsForPlan(refs: TemplateRef[]): ImageSlot[] {
   let ontrackCount = 0;
   return refs.map((ref) => {
     if (ref === 'pp-ontrack') {
-      const slot = ONTRACK_IMAGE_SLOTS[ontrackCount % ONTRACK_IMAGE_SLOTS.length];
       ontrackCount += 1;
-      return slot;
+      return onTrackSlot(ontrackCount);
     }
     return ref as ImageSlot;
   });

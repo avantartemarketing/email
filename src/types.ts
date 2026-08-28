@@ -35,20 +35,41 @@ export interface ReleaseTemplateOverride {
 }
 
 /**
- * Image slots a release fills for its emails. Milestone emails have one
- * slot each; the on-track email has three, cycled across a plan's filler
- * sends so collectors never get the same picture twice in a row. Phase 1
- * stores a picked image name; phase 2 swaps in HubSpot image URLs.
+ * Image slots a release fills for its emails.
+ *
+ * A milestone email has one slot. The on-track email has AS MANY as the
+ * release's longest dispatch window needs — a five-month window sends more
+ * "still on track" updates than a two-month one, and each gets its own
+ * picture rather than cycling three round, so no collector sees the same
+ * image twice on one release. `onTrackSlotsNeeded` in `logic/templates.ts`
+ * is where the count comes from; it is a function of the dates, which is why
+ * the number is not fixed here.
+ *
+ * Phase 1 stores a picked image name; phase 2 swaps in HubSpot image URLs.
  */
+export type OnTrackSlot = `pp-ontrack-${number}`;
+
 export type ImageSlot =
   | 'pp-printing'
   | 'pp-signing'
   | 'pp-framing'
   | 'pp-dispatch'
-  | 'pp-ontrack-1'
-  | 'pp-ontrack-2'
-  | 'pp-ontrack-3'
-  | 'pp-delay';
+  | 'pp-delay'
+  | OnTrackSlot;
+
+/**
+ * One image in the library the email picker chooses from.
+ *
+ * `url` is absent for the names the HubSpot masters already carry — phase 1
+ * has no file for those, and the picker says so with a hatch rather than
+ * drawing a broken thumbnail.
+ */
+export interface LibraryImage {
+  name: string;
+  url?: string;
+  /** True for something a person added here rather than a seeded name. */
+  uploaded?: boolean;
+}
 
 export interface Release {
   id: string;
@@ -105,6 +126,10 @@ export interface Order {
   /** Parsed variant, e.g. "Framed" / "Unframed" / "Sculpture". */
   variant: string;
   orderDate: string;
+  /** Shipping country from the export, falling back to billing. */
+  country: string | null;
+  /** Shopify order tags, as exported (comma-separated there, split here). */
+  shopifyTags: string[];
   /** Warehouse edition allocation rows, set by the allocation CSV import. */
   allocations?: OrderAllocation[];
   removed: boolean;

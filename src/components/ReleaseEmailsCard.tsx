@@ -1,13 +1,20 @@
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
-import type { ImageSlot, Release, TemplateRef } from '../types';
-import { IMAGE_OPTIONS, MASTER_TEMPLATES, effectiveTemplate } from '../logic/templates';
+import type { Batch, ImageSlot, Release, TemplateRef } from '../types';
+import {
+  MASTER_TEMPLATES,
+  buildTemplateFields,
+  effectiveTemplate,
+  onTrackSlotsFor,
+  patchTokens,
+} from '../logic/templates';
+import { today } from '../logic/dates';
 import { TEMPLATE_LABELS } from '../ui/format';
 import { useApp } from '../ui/AppContext';
 import { Bar, Cap, Card, CardHead, Dialog, None, Pill, RowAct } from '../ui/rd';
-import Menu from '../rd/components/Menu';
 import Field from '../rd/components/Field';
 import { EmailPreview } from './EmailPreview';
+import { ImagePicker } from './ImagePicker';
 
 /**
  * The release's email set, its own tab on the release page.
@@ -31,14 +38,27 @@ interface EmailRow {
   copyRow: boolean;
 }
 
-const MASTER_IMAGE = '__master__';
-
-function rowsFor(release: Release): EmailRow[] {
+/**
+ * The emails this release sends, in order, with one row per IMAGE — so the
+ * on-track email contributes as many rows as its longest window needs.
+ *
+ * The owner's rule of 28 Aug 2026: "the email tab should populate depending on
+ * the number of emails required for the longest dispatch date." A release with
+ * a five-month batch needs more on-track pictures than one with a two-month
+ * batch, and the setup screen should ask for exactly that many rather than a
+ * fixed three.
+ */
+function rowsFor(release: Release, onTrackSlots: ImageSlot[]): EmailRow[] {
+  const onTrackRows: EmailRow[] = onTrackSlots.map((slot, i) => ({
+    slot,
+    ref: 'pp-ontrack',
+    label: `On track ${i + 1}`,
+    // The copy is one template, so it is edited once — on the first row.
+    copyRow: i === 0,
+  }));
   if (release.productKind === 'sculpture') {
     return [
-      { slot: 'pp-ontrack-1', ref: 'pp-ontrack', label: 'On track 1', copyRow: true },
-      { slot: 'pp-ontrack-2', ref: 'pp-ontrack', label: 'On track 2', copyRow: false },
-      { slot: 'pp-ontrack-3', ref: 'pp-ontrack', label: 'On track 3', copyRow: false },
+      ...onTrackRows,
       { slot: 'pp-dispatch', ref: 'pp-dispatch', label: 'Preparing for dispatch', copyRow: true },
       { slot: 'pp-delay', ref: 'pp-delay', label: 'Delay notice', copyRow: true },
     ];
@@ -47,9 +67,7 @@ function rowsFor(release: Release): EmailRow[] {
     { slot: 'pp-printing', ref: 'pp-printing', label: 'Printing in progress', copyRow: true },
     { slot: 'pp-signing', ref: 'pp-signing', label: 'Signing', copyRow: true },
     { slot: 'pp-framing', ref: 'pp-framing', label: 'Framing', copyRow: true },
-    { slot: 'pp-ontrack-1', ref: 'pp-ontrack', label: 'On track 1', copyRow: true },
-    { slot: 'pp-ontrack-2', ref: 'pp-ontrack', label: 'On track 2', copyRow: false },
-    { slot: 'pp-ontrack-3', ref: 'pp-ontrack', label: 'On track 3', copyRow: false },
+    ...onTrackRows,
     { slot: 'pp-dispatch', ref: 'pp-dispatch', label: 'Preparing for dispatch', copyRow: true },
     { slot: 'pp-delay', ref: 'pp-delay', label: 'Delay notice', copyRow: true },
   ];
@@ -57,21 +75,40 @@ function rowsFor(release: Release): EmailRow[] {
 
 export function ReleaseEmailsPanel({
   release,
+  batches,
   onChanged,
 }: {
   release: Release;
+  /** The release's batches — their dates decide how many on-track slots. */
+  batches: Batch[];
   onChanged: () => void;
 }): ReactElement {
   const { data, showToast } = useApp();
   const [editingRef, setEditingRef] = useState<TemplateRef | null>(null);
-  const [openSlot, setOpenSlot] = useState<string | null>(null);
+  const [pickingSlot, setPickingSlot] = useState<{ slot: ImageSlot; label: string } | null>(null);
 
-  const rows = rowsFor(release);
+  const onTrackSlots = onTrackSlotsFor(release, batches, today());
+  const rows = rowsFor(release, onTrackSlots);
+  /* The subject is shown as it will ARRIVE, not as it is stored: a column of
+     `{{artist}}` tells a reviewer nothing about what a collector reads. The
+     dates come from the earliest batch that has one — a release-level screen
+     has no single date, and the tokens that need one are the same shape
+     whichever batch fills them. */
+  const dated = batches.filter((b) => b.promiseDate).sort((a, b) =>
+    (a.promiseDate ?? '').localeCompare(b.promiseDate ?? ''),
+  );
+  const fields = buildTemplateFields(release, dated[0]?.promiseDate ?? today());
+  const unset = rows.filter((r) => !release.templateImages[r.slot]).length;
 
-  const pickImage = async (slot: ImageSlot, value: string) => {
+  const pickImage = async (slot: ImageSlot, imageName: string | null) => {
     try {
-      await data.setReleaseEmailImage(release.id, slot, value === MASTER_IMAGE ? null : value);
-      showToast('Image set — upcoming sends updated, approvals kept');
+      await data.setReleaseEmailImage(release.id, slot, imageName);
+      showToast(
+        imageName
+          ? 'Image set — upcoming sends updated, approvals kept'
+          : 'Back to the master image for this email',
+      );
+      setPickingSlot(null);
       onChanged();
     } catch (err) {
       showToast(err instanceof Error ? err.message : String(err), true);
@@ -98,14 +135,18 @@ export function ReleaseEmailsPanel({
     }
   };
 
-  const imageChoices = [
-    { key: MASTER_IMAGE, label: 'Master default' },
-    ...IMAGE_OPTIONS.map((name) => ({ key: name, label: name })),
-  ];
-
   return (
     <Card>
-      <CardHead title="Emails for this release" />
+      <CardHead
+        title="Emails for this release"
+        actions={
+          unset > 0 ? (
+            <span className="rd-none">
+              {unset} still on the master image
+            </span>
+          ) : undefined
+        }
+      />
       <div className="rd-scroll">
         <table className="rd-t rd-t27 rd-fit rd-tpad">
           <thead>
@@ -131,19 +172,13 @@ export function ReleaseEmailsPanel({
                     {disabled ? (
                       <None />
                     ) : (
-                      <Menu
-                        chipClass="rd-chip rd-chip-sm"
-                        chip={picked ?? 'Master default'}
-                        open={openSlot === row.slot}
-                        setOpen={(v) => setOpenSlot(v ? row.slot : null)}
-                        heading={`Image for ${row.label}`}
-                        items={imageChoices.map((c) => ({
-                          key: c.key,
-                          label: c.label,
-                          on: (picked ?? MASTER_IMAGE) === c.key,
-                        }))}
-                        onPick={(value) => void pickImage(row.slot, value)}
-                      />
+                      <button
+                        type="button"
+                        className="rd-chip rd-chip-sm"
+                        onClick={() => setPickingSlot({ slot: row.slot, label: row.label })}
+                      >
+                        {picked ?? 'Master default'}
+                      </button>
                     )}
                   </td>
                   <td>
@@ -161,7 +196,7 @@ export function ReleaseEmailsPanel({
                     {disabled || !row.copyRow ? (
                       <None />
                     ) : (
-                      <Cap>{template.subject}</Cap>
+                      <Cap>{patchTokens(template.subject, fields)}</Cap>
                     )}
                   </td>
                   <td>
@@ -187,8 +222,18 @@ export function ReleaseEmailsPanel({
       <ReleaseEmailEditModal
         release={release}
         templateRef={editingRef}
+        fields={fields}
         onClose={() => setEditingRef(null)}
         onSaved={onChanged}
+      />
+      <ImagePicker
+        open={pickingSlot !== null}
+        slotLabel={pickingSlot?.label ?? ''}
+        picked={(pickingSlot && release.templateImages[pickingSlot.slot]) ?? null}
+        onClose={() => setPickingSlot(null)}
+        onPick={(name) => {
+          if (pickingSlot) void pickImage(pickingSlot.slot, name);
+        }}
       />
     </Card>
   );
@@ -197,11 +242,14 @@ export function ReleaseEmailsPanel({
 function ReleaseEmailEditModal({
   release,
   templateRef,
+  fields,
   onClose,
   onSaved,
 }: {
   release: Release;
   templateRef: TemplateRef | null;
+  /** Release-level token values, so the preview reads as it will arrive. */
+  fields: Record<string, string | undefined>;
   onClose: () => void;
   onSaved: () => void;
 }): ReactElement {
@@ -294,7 +342,15 @@ function ReleaseEmailEditModal({
         <Field label="Headline" value={headline} onChange={setHeadline} />
         <Field label="Body" value={body} onChange={setBody} multiline deep />
       </div>
-      <EmailPreview subject={subject} headline={headline} body={body} imageName={previewImage} />
+      {/* The form keeps the tokens — they are patched per batch at send time —
+          and the preview resolves them, so what is edited and what arrives are
+          both on screen and neither pretends to be the other. */}
+      <EmailPreview
+        subject={patchTokens(subject, fields)}
+        headline={patchTokens(headline, fields)}
+        body={patchTokens(body, fields)}
+        imageName={previewImage}
+      />
     </Dialog>
   );
 }

@@ -5,6 +5,9 @@ import {
   buildTemplateFields,
   effectiveTemplate,
   imageSlotsForPlan,
+  missingOnTrackImages,
+  onTrackSlotsFor,
+  onTrackSlotsNeeded,
   patchTokens,
   releaseSequenceFor,
   renderForRecipient,
@@ -149,8 +152,52 @@ describe('sequenceForBatch', () => {
   });
 });
 
+describe('onTrackSlotsNeeded / missingOnTrackImages', () => {
+  const release = makeRelease();
+
+  it('sizes the slots to the LONGEST window, not the first or the shortest', () => {
+    const short = onTrackSlotsNeeded(release, [{ promiseDate: '2026-07-01' }], '2026-06-01');
+    const long = onTrackSlotsNeeded(release, [{ promiseDate: '2027-06-01' }], '2026-06-01');
+    expect(long).toBeGreaterThan(short);
+    // Both batches at once must come out as the longer of the two.
+    expect(
+      onTrackSlotsNeeded(
+        release,
+        [{ promiseDate: '2026-07-01' }, { promiseDate: '2027-06-01' }],
+        '2026-06-01',
+      ),
+    ).toBe(long);
+  });
+
+  it('always offers at least one, so a release with no dates can still be set up', () => {
+    expect(onTrackSlotsNeeded(release, [], '2026-06-01')).toBe(1);
+    expect(onTrackSlotsNeeded(release, [{ promiseDate: null }], '2026-06-01')).toBe(1);
+  });
+
+  it('names the slots a longer date needs and nobody has picked an image for', () => {
+    const withOne = { ...release, templateImages: { 'pp-ontrack-1': 'Artist portrait' } };
+    const missing = missingOnTrackImages(withOne, [{ promiseDate: '2027-06-01' }], '2026-06-01');
+    expect(missing).not.toContain('pp-ontrack-1');
+    expect(missing.length).toBe(
+      onTrackSlotsNeeded(withOne, [{ promiseDate: '2027-06-01' }], '2026-06-01') - 1,
+    );
+  });
+
+  it('goes quiet once every slot has an image', () => {
+    const slots = onTrackSlotsFor(release, [{ promiseDate: '2027-06-01' }], '2026-06-01');
+    const filled = {
+      ...release,
+      templateImages: Object.fromEntries(slots.map((s, i) => [s, `Picture ${i + 1}`])),
+    };
+    expect(missingOnTrackImages(filled, [{ promiseDate: '2027-06-01' }], '2026-06-01')).toEqual([]);
+  });
+});
+
 describe('imageSlotsForPlan', () => {
-  it('gives milestones their own slot and cycles on-track fillers through three', () => {
+  /* It used to cycle three slots round, so a five-filler plan showed a
+     collector the same picture twice. There are now as many slots as the
+     longest window needs, and the nth filler takes the nth slot. */
+  it('gives milestones their own slot and every on-track filler its own', () => {
     expect(
       imageSlotsForPlan([
         'pp-printing',
@@ -165,7 +212,7 @@ describe('imageSlotsForPlan', () => {
       'pp-ontrack-1',
       'pp-ontrack-2',
       'pp-ontrack-3',
-      'pp-ontrack-1',
+      'pp-ontrack-4',
       'pp-dispatch',
     ]);
   });

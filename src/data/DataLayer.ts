@@ -4,6 +4,7 @@ import type {
   ImageSlot,
   ImportSummary,
   LastSentInfo,
+  LibraryImage,
   Order,
   PendingSendItem,
   ProductKind,
@@ -132,6 +133,24 @@ export interface DataLayer {
     slot: ImageSlot,
     imageName: string | null,
   ): Promise<Release>;
+  /**
+   * The image library the picker chooses from.
+   *
+   * Phase 1 seeds it with the names the HubSpot masters already use, which
+   * have no file behind them here — `url` is undefined for those and the
+   * picker draws the system's "nothing chosen yet" hatch rather than a broken
+   * thumbnail. An uploaded image has a real `url` and shows the picture.
+   * Phase 2 replaces the whole list with HubSpot's own library.
+   */
+  listImages(): Promise<LibraryImage[]>;
+  /**
+   * Add an image to the library and return the whole list.
+   *
+   * `dataUrl` rather than a file: phase 1 has nowhere to put a file, and a
+   * data URI is a real image the picker and the preview can both draw, which
+   * is what makes the interaction worth reviewing.
+   */
+  addImage(name: string, dataUrl: string): Promise<LibraryImage[]>;
 
   // --- batches and plans -------------------------------------------------
   /**

@@ -13,6 +13,8 @@
  * `RowTick`, `ColumnsMenu` and the rest are already the answer to most of what
  * a screen asks.
  */
+import { useLayoutEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { ReactElement, ReactNode } from 'react';
 
 /* ---------------------------------------------------------------- the page */
@@ -357,11 +359,28 @@ export function Dialog({
   danger?: { label: string; onClick: () => void };
   children: ReactNode;
 }): ReactElement | null {
+  /* A dialogue tall enough to scroll opens at its top. Without this it opens
+     wherever the browser last put the scroll — which on the image picker meant
+     the grid's second row, with the title above the fold and no sign that
+     there was anything above it. */
+  const panel = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (open && panel.current) panel.current.scrollTop = 0;
+  }, [open]);
+
   if (!open) return null;
-  return (
+  /* A PORTAL, for the reason the kit's own `Menu` is one: a dialogue rendered
+     where it is written is a descendant of a card and of the work area's
+     scroller, and it is drawn against whichever of those turns out to be its
+     containing block rather than against the window. Rendered in place, the
+     image picker's scrim covered only the card it was opened from and the
+     panel was clipped to it — title above the cut, foot below it. The body is
+     the only parent that cannot do that. */
+  return createPortal(
     <>
       <div className="rd-scrim" onClick={onClose} />
       <div
+        ref={panel}
         className={`rd-dialog rd-dialog-${size}`}
         role="dialog"
         aria-modal="true"
@@ -404,7 +423,8 @@ export function Dialog({
           </div>
         ) : null}
       </div>
-    </>
+    </>,
+    document.body,
   );
 }
 

@@ -24,6 +24,10 @@ export interface ParsedLineItem {
   email: string | null;
   collectorName: string;
   orderDate: string;
+  /** Shipping country, falling back to billing. Order-level, so carried. */
+  country: string | null;
+  /** Shopify order tags. One comma-separated cell in the export. */
+  shopifyTags: string[];
   /** 1-based data row (excluding header) for issue reporting. */
   row: number;
 }
@@ -89,7 +93,13 @@ export function parseShopifyOrderExport(csvText: string): ParseResult {
   // Order-level fields carried forward across continuation rows, keyed by order name.
   const orderContext = new Map<
     string,
-    { email: string | null; collectorName: string | null; orderDate: string | null }
+    {
+      email: string | null;
+      collectorName: string | null;
+      orderDate: string | null;
+      country: string | null;
+      shopifyTags: string[] | null;
+    }
   >();
   let lastOrderName: string | null = null;
 
@@ -116,16 +126,31 @@ export function parseShopifyOrderExport(csvText: string): ParseResult {
     const billingName = col(colIndex, cells, 'Billing Name');
     const shippingName = col(colIndex, cells, 'Shipping Name');
     const createdAt = parseCreatedAt(col(colIndex, cells, 'Created at'));
+    /* Country and tags are order-level like Email and Billing Name, so they
+       are blank on a continuation row and carried forward the same way. Both
+       columns are optional: an export cut down by hand may not have them, and
+       an order with no tags is ordinary rather than a fault. */
+    const countryHere =
+      col(colIndex, cells, 'Shipping Country') || col(colIndex, cells, 'Billing Country');
+    const tagsHere = col(colIndex, cells, 'Tags');
 
     const ctx = orderContext.get(orderName) ?? {
       email: null,
       collectorName: null,
       orderDate: null,
+      country: null,
+      shopifyTags: null,
     };
     if (emailRaw) ctx.email = emailRaw;
     const nameHere = billingName || shippingName;
     if (nameHere) ctx.collectorName = nameHere;
     if (createdAt) ctx.orderDate = createdAt;
+    if (countryHere) ctx.country = countryHere;
+    if (tagsHere)
+      ctx.shopifyTags = tagsHere
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
     orderContext.set(orderName, ctx);
 
     const quantityRaw = col(colIndex, cells, 'Lineitem quantity');
@@ -141,6 +166,8 @@ export function parseShopifyOrderExport(csvText: string): ParseResult {
       email: ctx.email,
       collectorName: ctx.collectorName ?? '',
       orderDate: ctx.orderDate ?? '',
+      country: ctx.country,
+      shopifyTags: ctx.shopifyTags ?? [],
       row: rowNum,
     });
   });
@@ -154,6 +181,8 @@ export function parseShopifyOrderExport(csvText: string): ParseResult {
     if (!item.email && ctx.email) item.email = ctx.email;
     if (!item.collectorName && ctx.collectorName) item.collectorName = ctx.collectorName;
     if (!item.orderDate && ctx.orderDate) item.orderDate = ctx.orderDate;
+    if (!item.country && ctx.country) item.country = ctx.country;
+    if (item.shopifyTags.length === 0 && ctx.shopifyTags) item.shopifyTags = ctx.shopifyTags;
   }
 
   for (const item of items) {

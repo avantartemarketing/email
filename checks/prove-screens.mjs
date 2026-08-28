@@ -149,8 +149,15 @@ if (!(await page.evaluate(() => document.fonts.check('16px "Inter Variable"'))))
   )
 
 /* ---- 2 · a release, with its three stacked tables ------------------------ */
-await screen('release detail', async () => {
+await screen('release detail · all orders', async () => {
   await page.getByText('Falling Light').first().click()
+  await page.waitForTimeout(400)
+})
+
+/* And the flow tab, which is the screen with three stacked tables on it — the
+   one whose geometry has the most ways to go wrong. */
+await screen('release detail · a flow', async () => {
+  await page.getByRole('tab', { name: /^Framed \(/ }).click()
   await page.waitForTimeout(400)
 })
 
@@ -200,8 +207,11 @@ await screen('approval queue', async () => {
   const what = 'reschedule dialogue'
   await page.goto(`${BASE}/`, { waitUntil: 'networkidle' })
   await page.getByText('Falling Light').first().click()
-  await page.getByRole('tab', { name: /^Framed \(/ }).waitFor()
-  await page.waitForTimeout(300)
+  /* The strip opens on "All orders" now, which has no ticks — the reschedule
+     lives on a flow tab, so the check has to go there rather than assume it
+     is already the screen. */
+  await page.getByRole('tab', { name: /^Framed \(/ }).click()
+  await page.waitForTimeout(400)
   const ticks = page.locator('table.rd-t27 tbody tr [role="checkbox"]')
   await ticks.nth(0).click()
   await ticks.nth(1).click()

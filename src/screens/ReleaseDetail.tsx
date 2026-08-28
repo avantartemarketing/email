@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useParams } from 'react-router-dom';
 import type {
@@ -10,6 +10,7 @@ import type {
 } from '../types';
 import { formatDay, formatDayShort, today } from '../logic/dates';
 import { inheritedSentStory } from '../logic/reschedule';
+import { missingOnTrackImages } from '../logic/templates';
 import { plural, productKindTag, releaseStatusBadge } from '../ui/format';
 import { useApp, useCrumb } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
@@ -44,6 +45,7 @@ import { RemoveOrderModal } from '../components/RemoveOrderModal';
 import { ImportCsvModal } from '../components/ImportCsvModal';
 import { AllocationImportModal } from '../components/AllocationImportModal';
 import { ReleaseEmailsPanel } from '../components/ReleaseEmailsCard';
+import { ReleaseOrdersTable } from '../components/ReleaseOrdersTable';
 import { useColumns } from '../ui/useColumns';
 
 export function ReleaseDetail(): ReactElement {
@@ -53,8 +55,22 @@ export function ReleaseDetail(): ReactElement {
   const [selectedTab, setSelectedTab] = useState(0);
   const [importOpen, setImportOpen] = useState(false);
   const [allocationOpen, setAllocationOpen] = useState(false);
+  /* A date change is the moment an extra on-track email can appear, so it is
+     the moment to say so. The flag only survives until the reload lands; the
+     BAND below is derived and stays until the images are actually picked. */
+  const [dateJustChanged, setDateJustChanged] = useState(false);
+  const [imageGapOpen, setImageGapOpen] = useState(false);
   // The shell's path ends at the record this screen is showing.
   useCrumb(detail.data?.release.title);
+
+  const missingImages = detail.data
+    ? missingOnTrackImages(detail.data.release, detail.data.batches, today())
+    : [];
+  useEffect(() => {
+    if (!dateJustChanged) return;
+    setDateJustChanged(false);
+    if (missingImages.length > 0) setImageGapOpen(true);
+  }, [dateJustChanged, missingImages.length]);
 
   if (detail.error) {
     return (
@@ -75,9 +91,13 @@ export function ReleaseDetail(): ReactElement {
 
   const d = detail.data;
   const batches = d.batches;
-  // Most releases never split: one batch means "the release" — no batch
-  // names. Print releases show their framed/unframed flows as tabs, and
-  // every release gets an Emails tab as a peer of its flows.
+  /* The strip reads widest-first: everything on the release, then everything
+     it sends, then each flow's own working screen. "All orders" is the
+     warehouse's view (one row per print, every batch at once) and "All emails"
+     the release's; a flow tab is where dates and plans are actually changed.
+
+     Most releases never split, so one batch means "the release" and carries no
+     batch name. Print releases show their framed/unframed flows. */
   const singleBatch = batches.length === 1;
   const batchTabs =
     batches.length > 1
@@ -86,12 +106,16 @@ export function ReleaseDetail(): ReactElement {
           return { key: b.id, label: `${b.name} (${active})` };
         })
       : [{ key: 'overview', label: 'Overview' }];
-  const tabs = [...batchTabs, { key: 'emails', label: 'Emails' }];
-  const emailsIndex = tabs.length - 1;
-  const tabIndex = Math.min(selectedTab, emailsIndex);
-  const showingEmails = tabIndex === emailsIndex;
-  const batchTab = Math.min(tabIndex, Math.max(batches.length - 1, 0));
-  const batch = showingEmails ? undefined : batches[batchTab];
+  const activeOrderCount = d.orders.filter((o) => !o.removed).length;
+  const tabs = [
+    { key: 'orders', label: `All orders (${activeOrderCount})` },
+    { key: 'emails', label: 'All emails' },
+    ...batchTabs,
+  ];
+  const tabIndex = Math.min(selectedTab, tabs.length - 1);
+  const showingOrders = tabIndex === 0;
+  const showingEmails = tabIndex === 1;
+  const batch = showingOrders || showingEmails ? undefined : batches[tabIndex - 2];
   const flaggedNoEmail = d.orders.filter((o) => !o.removed && !o.email);
   const flaggedNoContact = d.orders.filter((o) => !o.removed && o.email && !o.hubspotContactId);
 
@@ -134,6 +158,22 @@ export function ReleaseDetail(): ReactElement {
           </Bar>
         ) : null}
 
+        {missingImages.length > 0 ? (
+          <Bar tone="warn">
+            <b>
+              {missingImages.length === 1
+                ? 'One on-track email has no image.'
+                : `${missingImages.length} on-track emails have no image.`}
+            </b>{' '}
+            This release's longest dispatch window needs{' '}
+            {plural(missingImages.length, 'more update')} than there are pictures for, so{' '}
+            {missingImages.length === 1 ? 'it goes' : 'they go'} out on the master's image.
+            <button type="button" className="rd-inline-pill" onClick={() => setSelectedTab(1)}>
+              Pick images
+            </button>
+          </Bar>
+        ) : null}
+
         <Tabs
           tabs={tabs}
           value={tabs[tabIndex].key}
@@ -142,8 +182,14 @@ export function ReleaseDetail(): ReactElement {
         />
       </Stack>
 
-      {showingEmails ? (
-        <ReleaseEmailsPanel release={d.release} onChanged={() => detail.reload()} />
+      {showingOrders ? (
+        <ReleaseOrdersTable orders={d.orders} batches={d.batches} />
+      ) : showingEmails ? (
+        <ReleaseEmailsPanel
+          release={d.release}
+          batches={d.batches}
+          onChanged={() => detail.reload()}
+        />
       ) : d.orders.length === 0 ? (
         <Card>
           <CardHead
@@ -155,7 +201,7 @@ export function ReleaseDetail(): ReactElement {
             }
           />
           <Empty>
-            Review the Emails tab (pick each send's image), then import the Shopify order export to
+            Review the All emails tab (pick each send's image), then import the Shopify order export to
             create this release's orders
             {d.release.productKind === 'print'
               ? ' — framed and unframed prints land in their own batches with separate timelines'
@@ -173,8 +219,9 @@ export function ReleaseDetail(): ReactElement {
           onBatchCreated={() => {
             detail.reload();
             // The new batch lands at the end (sorted by creation).
-            setSelectedTab(batches.length);
+            setSelectedTab(batches.length + 2);
           }}
+          onDateChanged={() => setDateJustChanged(true)}
         />
       ) : null}
       <ImportCsvModal
@@ -189,6 +236,30 @@ export function ReleaseDetail(): ReactElement {
         onClose={() => setAllocationOpen(false)}
         onImported={() => detail.reload()}
       />
+      <Dialog
+        open={imageGapOpen}
+        size="sm"
+        title="This date needs another email"
+        onClose={() => setImageGapOpen(false)}
+        primary={{
+          label: 'Pick the images',
+          onClick: () => {
+            setImageGapOpen(false);
+            setSelectedTab(1);
+          },
+        }}
+        secondary={{ label: 'Later', onClick: () => setImageGapOpen(false) }}
+      >
+        <p>
+          The new window is long enough to need{' '}
+          {plural(missingImages.length, 'more on-track update')} — collectors hear from us at
+          least every five weeks, so a longer wait is more emails.
+        </p>
+        <p>
+          {missingImages.length === 1 ? 'It has' : 'They have'} no image picked yet and would go
+          out on the HubSpot master's own picture.
+        </p>
+      </Dialog>
     </Page>
   );
 }
@@ -217,12 +288,16 @@ function BatchSection({
   singleBatch,
   onChanged,
   onBatchCreated,
+  onDateChanged,
 }: {
   detail: ReleaseDetailData;
   batch: Batch;
   singleBatch: boolean;
   onChanged: () => void;
   onBatchCreated: () => void;
+  /** A date moved — the release may now need an on-track email it has no
+      image for, which is the one thing worth interrupting somebody about. */
+  onDateChanged: () => void;
 }): ReactElement {
   const { data, showToast, userName } = useApp();
   const release = detail.release;
@@ -512,6 +587,7 @@ function BatchSection({
           showToast(message);
           if (selectedOrders.length < activeOrders.length) onBatchCreated();
           else onChanged();
+          onDateChanged();
         }}
       />
       <PromiseDateModal
@@ -520,7 +596,10 @@ function BatchSection({
         batch={batch}
         batchLabel={batchLabel}
         onClose={() => setPromiseOpen(false)}
-        onSaved={onChanged}
+        onSaved={() => {
+          onChanged();
+          onDateChanged();
+        }}
       />
       <AddSendModal
         open={addSendOpen}
