@@ -15,12 +15,13 @@ it once absorbed.
 - "Emails" is a peer TAB on the release page (Framed / Unframed / … /
   Emails; Overview + Emails when batchless) — `ReleaseEmailsPanel`, no
   more buried button.
-- **Comms plan layout is awaiting Tom's pick** from five mocked options:
-  https://claude.ai/code/artifact/7384926b-b8df-4040-8eb4-9e74d22af0cd
-  (plain table / progress strip + upcoming / stepper / upcoming-sent split
-  / merged activity table — the last two also slim or absorb batch
-  history). Build the chosen one next; recommendation was option 1, with
-  4 or 5 if the history busyness is the real complaint.
+- **Comms plan is a plain table** (Tom picked option 1 from
+  https://claude.ai/code/artifact/7384926b-b8df-4040-8eb4-9e74d22af0cd):
+  `src/components/PlanTable.tsx` — one row per email, status/dates/
+  approver/recipients/issues as columns behind the shared Columns control,
+  sent rows muted, split-inherited sends as "· before the split" rows.
+  PlanTimeline is gone. If plan+history still feels busy later, options 4
+  and 5 on that page are the fold-history-in follow-ups.
 
 **Round-2 feedback (same day, after the round-2 artifact) is also applied:**
 - Print releases run **framed and unframed as separate batches** ("Framed" /

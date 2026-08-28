@@ -30,7 +30,7 @@ import { inheritedSentStory } from '../logic/reschedule';
 import { plural, releaseStatusBadge } from '../ui/format';
 import { useApp } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
-import { PlanTimeline } from '../components/PlanTimeline';
+import { PlanTable } from '../components/PlanTable';
 import { BatchHistoryTimeline } from '../components/BatchHistoryTimeline';
 import { RescheduleModal } from '../components/RescheduleModal';
 import { PromiseDateModal } from '../components/PromiseDateModal';
@@ -465,19 +465,13 @@ function BatchSection({
 
           <Layout>
             <Layout.Section>
-              <Card>
-                <BlockStack gap="300">
-                  <Text as="h2" variant="headingSm">
-                    Comms plan
-                  </Text>
-                  <PlanTimeline
-                    sends={batchSends}
-                    inheritedSends={singleBatch ? [] : inheritedSends}
-                    onEdit={(send) => setEditingSend(send)}
-                    onCancel={(send) => setCancellingSend(send)}
-                  />
-                </BlockStack>
-              </Card>
+              <PlanTable
+                sends={batchSends}
+                inheritedSends={singleBatch ? [] : inheritedSends}
+                batchActiveOrderCount={activeOrders.length}
+                onEdit={(send) => setEditingSend(send)}
+                onCancel={(send) => setCancellingSend(send)}
+              />
             </Layout.Section>
             <Layout.Section variant="oneThird">
               <Card>

@@ -66,7 +66,7 @@ await shot('04-release-email-edit');
 
 // Framed 3 — the overdue split batch, with inherited story in the plan
 await page.getByRole('tab', { name: /^Framed 3/ }).click();
-await page.getByText('received before the split').first().waitFor();
+await page.getByText(/before the split/).first().waitFor();
 await shot('05-release-fl-batch3');
 
 // --- 3. warehouse allocation import summary -------------------------------
