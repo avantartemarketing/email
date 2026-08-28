@@ -290,13 +290,6 @@ function BatchSection({
                   <Text as="p" variant="headingLg">
                     {batch.promiseDate ? `From ${formatDay(batch.promiseDate)}` : 'Not set'}
                   </Text>
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    {plural(activeOrders.length, 'active order')}
-                    {removedOrders.length > 0 ? ` · ${removedOrders.length} removed` : ''}
-                    {selectedResources.length > 0
-                      ? ` · ${selectedResources.length} selected for reschedule`
-                      : ''}
-                  </Text>
                 </BlockStack>
                 <InlineStack gap="200" wrap>
                   {batch.promiseDate ? (
@@ -351,11 +344,6 @@ function BatchSection({
                   {orderColumns.columnsButton}
                 </InlineStack>
               </InlineStack>
-              <Text as="p" variant="bodySm" tone="subdued">
-                {batch.promiseDate
-                  ? `Select some to split them onto a new delivery date; select none to reschedule ${batchLabel ? `the whole of ${batchLabel}` : 'everyone'}.`
-                  : 'Set the promise date to draft the comms plan.'}
-              </Text>
             </div>
             <IndexTable
               resourceName={{ singular: 'order', plural: 'orders' }}
