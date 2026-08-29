@@ -199,6 +199,14 @@ export function SendDetail(): ReactElement {
           {/* Approve, or change it. There is no third parking state: the
               owner, 28 Aug — "they can reschedule a send, or they can mark it
               as cancelled". Both of those are already on this row. */}
+          {send.status === 'awaiting_copy' ? (
+            /* Not Approve, and not a shut Approve either: this send is not
+               waiting on this person's judgement, it is waiting on somebody's
+               words. The verb here has to be the one that unblocks it. */
+            <Btn kind="pri" onClick={() => navigate('/copy')}>
+              Write the email
+            </Btn>
+          ) : null}
           {send.status === 'pending_approval' && isAdmin ? (
             !send.imageName ? (
               <Why says={NO_IMAGE_YET}>
@@ -221,6 +229,13 @@ export function SendDetail(): ReactElement {
       }
     >
       <div className="rd-stack">
+        {send.status === 'awaiting_copy' ? (
+          <Bar tone="note" title="Waiting for the CRM team to write it">
+            The delivery date changed and this email is the notice to collectors. The copy below is
+            the generated starting draft — it goes to an approver only once somebody has written
+            it, in Emails to write.
+          </Bar>
+        ) : null}
         {failures.length > 0 ? (
           <Bar
             tone="fail"

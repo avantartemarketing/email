@@ -1518,29 +1518,45 @@ export const HUBSPOT_DIRECTORY: Record<string, string> = {
   'alice.dubois@example.com': 'hs-4558',
 };
 
+/**
+ * `role` gates approving; `team` addresses work. They are separate axes on
+ * purpose — Maya approves sends AND writes delay copy, Jakob does neither,
+ * and collapsing the two would make one of those people impossible.
+ */
 export const USERS = [
   {
     id: 'user-tom',
     name: 'Tom Lloyd',
     email: 'tom.lloyd@avantarte.com',
     role: 'admin' as const,
+    team: 'ops' as const,
   },
   {
     id: 'user-crm',
     name: 'Maya Delacroix',
     email: 'maya.delacroix@avantarte.com',
     role: 'admin' as const,
+    team: 'crm' as const,
+  },
+  {
+    id: 'user-crm-2',
+    name: 'Nadia Ferreira',
+    email: 'nadia.ferreira@avantarte.com',
+    role: 'operator' as const,
+    team: 'crm' as const,
   },
   {
     id: 'user-pm',
     name: 'Priya Nair',
     email: 'priya.nair@avantarte.com',
     role: 'operator' as const,
+    team: 'ops' as const,
   },
   {
     id: 'user-warehouse',
     name: 'Jakob Meijer',
     email: 'jakob.meijer@avantarte.com',
     role: 'operator' as const,
+    team: 'ops' as const,
   },
 ];

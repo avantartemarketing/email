@@ -181,6 +181,65 @@ await screen('batches', async () => {
   if (bands === 0) faults.push(`${what}: opened flat — no release bands drawn`)
 }
 
+/* ---- 2c · emails to write ------------------------------------------------
+   The CRM handoff (29 Aug 2026). Two things are worth proving on the render
+   rather than in a unit test: the row offers the WRITER'S verb and not the
+   approver's, and the writer dialogue's action is reachable — the 600px email
+   preview that used to push the reschedule dialogue's Save off-screen lives
+   in this dialogue now, so the hazard moved here with it. */
+await screen('emails to write', async () => {
+  await page.goto(`${BASE}/copy`, { waitUntil: 'networkidle' })
+})
+
+{
+  const what = 'emails to write'
+  const verbs = await page.evaluate(() =>
+    [...document.querySelectorAll('table.rd-t27 tbody button')].map((b) => b.textContent?.trim() ?? ''),
+  )
+  if (verbs.length === 0) faults.push(`${what}: no row verbs — the seeded copy queue is empty`)
+  if (verbs.some((v) => /^approve/i.test(v)))
+    faults.push(`${what}: a row offers "Approve" — this queue is written, not approved`)
+  if (!verbs.some((v) => /write the email/i.test(v)))
+    faults.push(`${what}: no "Write the email" on any row`)
+
+  await page.locator('table.rd-t27 tbody tr').first().click()
+  await page.getByRole('dialog').waitFor()
+  await page.waitForTimeout(400)
+  /* The brief is the reason this screen exists: the reason must be IN the
+     dialogue, above the fields, not merely capped in the row behind it. */
+  const brief = await page.evaluate(() => {
+    const bar = document.querySelector('.rd-dialog .rd-notebar')
+    const fields = document.querySelector('.rd-dialog .rd-fields')
+    if (!bar || !fields) return null
+    return {
+      text: bar.textContent?.trim() ?? '',
+      above: bar.getBoundingClientRect().bottom <= fields.getBoundingClientRect().top,
+    }
+  })
+  if (!brief) faults.push(`${what}: the writer has no brief bar above its fields`)
+  else {
+    if (!/why the date moved/i.test(brief.text))
+      faults.push(`${what}: the brief bar does not say why the date moved`)
+    if (!brief.above) faults.push(`${what}: the brief is drawn below the fields it briefs`)
+  }
+  const foot = await page.evaluate(() => {
+    const btn = [...document.querySelectorAll('.rd-dialogfoot button')].find((b) =>
+      /send for approval/i.test(b.textContent ?? ''),
+    )
+    if (!btn) return null
+    const box = btn.getBoundingClientRect()
+    return { top: box.top, bottom: box.bottom, viewport: window.innerHeight }
+  })
+  if (!foot) faults.push(`${what}: no "Send for approval" button in the writer's foot`)
+  else if (foot.bottom > foot.viewport || foot.top < 0)
+    faults.push(
+      `${what}: "Send for approval" is drawn at ${Math.round(foot.top)}–${Math.round(foot.bottom)}px ` +
+        `in a ${foot.viewport}px window — the writer's one action is behind a 600px email preview`,
+    )
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(250)
+}
+
 /* ---- 3 · my approvals ---------------------------------------------------- */
 await screen('my approvals', async () => {
   await page.goto(`${BASE}/approvals`, { waitUntil: 'networkidle' })
@@ -258,11 +317,15 @@ await screen('my approvals', async () => {
 
 /* ---- 5 · a dialogue's actions are reachable ------------------------------
    The kit's `.rd-dialog` carries its own overflow, so a tall panel scrolls as
-   a whole — its foot included. This app puts a 600px email preview inside two
-   of its dialogues, and the reschedule one is the most consequential action in
-   the tool. Rendered on 28 Aug 2026 its Save button sat below the preview,
-   off-screen, reachable only by scrolling past it. `.rd-dialogfoot` is sticky
-   now; this is what stops that coming back. */
+   a whole — its foot included. Rendered on 28 Aug 2026 this dialogue's Save
+   button sat below a 600px email preview, off-screen, reachable only by
+   scrolling past it. `.rd-dialogfoot` is sticky now; this is what stops that
+   coming back.
+
+   The preview itself has since moved to the writer on /copy (checked in 2c),
+   because the rescheduler no longer writes the delay email — so what is proved
+   here is the rest of it: one step, a foot that says who writes, and the
+   consequence panel appearing once the form is answerable. */
 {
   const what = 'reschedule dialogue'
   await page.goto(`${BASE}/`, { waitUntil: 'networkidle' })
@@ -280,9 +343,18 @@ await screen('my approvals', async () => {
   const future = new Date(2027, 0, 15).toISOString().slice(0, 10)
   await page.getByLabel('New promised delivery date').fill(future)
   await page.getByLabel('Reason for the change').fill('Checking the foot stays reachable')
-  await page.getByRole('button', { name: 'Next: delay email' }).click()
+  /* No second step to click through any more: the consequence panel is the
+     answer to a filled-in form, on the same panel. */
   await page.getByText('What happens when you save').waitFor()
   await page.waitForTimeout(250)
+  const handoff = await page.evaluate(
+    () => document.querySelector('.rd-dialog .rd-after')?.textContent ?? '',
+  )
+  if (!/CRM/.test(handoff))
+    faults.push(
+      `${what}: the consequence panel never names CRM — the one thing that changed about ` +
+        'this flow is who writes the email',
+    )
 
   const foot = await page.evaluate(() => {
     const btn = [...document.querySelectorAll('.rd-dialogfoot button')].find((b) =>

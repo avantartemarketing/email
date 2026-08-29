@@ -1,6 +1,7 @@
 import type {
   Batch,
   BatchEvent,
+  Notification,
   Order,
   Release,
   RescheduleInput,
@@ -35,10 +36,30 @@ import {
  * Semantics (from the brief):
  *  1. subset of a batch selected → split into a new batch;
  *  2. the new batch gets the new promise date;
- *  3. a delay send (reason required, editable body) goes to the front of the
- *     plan, scheduled for today;
+ *  3. a delay send (reason required) goes to the front of the plan, scheduled
+ *     for today — UNWRITTEN, with a brief attached and a notification raised
+ *     for the CRM team;
  *  4. remaining milestones are regenerated against the new date;
- *  5. every new send lands in the approval queue as pending.
+ *  5. the regenerated milestones land in the approval queue as pending; the
+ *     delay email joins them only once somebody has written it.
+ *
+ * ## Why the delay email is not written here
+ *
+ * The owner, 29 Aug 2026: "When someone schedules a delay, the job of writing
+ * the email goes to the CRM team. So we need it to trigger a notification to
+ * them and appear in a view where they can see the reason for the delay and
+ * write the email."
+ *
+ * The person who knows the delay is real is a producer or a warehouse lead;
+ * the person who should write to two hundred collectors about it is not. The
+ * old flow made the rescheduler do both in one dialogue, which meant the copy
+ * was written by whoever happened to be holding the news. Splitting the act
+ * costs a state (`awaiting_copy`) and buys the right author.
+ *
+ * The DRAFT is still generated here, from the release's delay template with
+ * the reason patched in. That is not the same as writing it: it is the
+ * starting point CRM edits, and it means a delay notice is never one blank
+ * page away from going out.
  */
 
 export interface RescheduleContext {
@@ -75,8 +96,13 @@ export interface RescheduleChangeSet {
   movedOrderIds: string[];
   /** Unsent sends superseded by the regenerated plan (whole-batch case only). */
   cancelledSendIds: string[];
-  /** Delay send first, then regenerated milestones — all pending approval. */
+  /**
+   * Delay send first (awaiting copy), then the regenerated milestones
+   * (pending approval).
+   */
   newSends: ScheduledSend[];
+  /** Raised for the team that owes the work — CRM writes the delay email. */
+  notifications: Notification[];
   events: BatchEvent[];
 }
 
@@ -250,6 +276,11 @@ export function planReschedule(
   const imageSlots = imageSlotsForPlan(plannedSteps.map((s) => s.templateRef));
 
   const delayTemplate = effectiveTemplate(release, 'pp-delay');
+  /* The starting point, not the email. Generated from the release's delay
+     template with this reschedule's reason patched in, so the writer opens on
+     something true rather than on a blank page — and so a delay notice is
+     never blocked on prose alone. */
+  const draft = buildDefaultDelayEmail(release, oldPromiseDate, input.newPromiseDate, input.reason);
   const delaySend: ScheduledSend = {
     id: ctx.newId('send'),
     releaseId: release.id,
@@ -257,14 +288,25 @@ export function planReschedule(
     type: 'delay',
     templateRef: 'pp-delay',
     scheduledDate: nowDay,
-    status: 'pending_approval',
-    subject: input.delaySubject,
+    /* NOT pending_approval. Nobody has written this yet, and putting an
+       auto-drafted email in front of an approver is how a template goes out
+       under a human's name. It joins the approval queue when CRM hands it
+       back. */
+    status: 'awaiting_copy',
+    subject: draft.subject,
     headline: patchTokens(delayTemplate.headline, fields),
     imageSlot: 'pp-delay',
     imageName: release.templateImages['pp-delay'],
-    body: input.delayBody,
+    body: draft.body,
     // After a delay notice, "what happens next" is the regenerated plan.
     nextSteps: buildNextSteps(plannedSteps.map((s) => s.templateRef), fields),
+    brief: {
+      oldPromiseDate,
+      newPromiseDate: input.newPromiseDate,
+      reason: input.reason.trim(),
+      requestedBy: user.id,
+      requestedAt: nowIso,
+    },
     createdAt: nowIso,
     createdBy: user.id,
   };
@@ -318,6 +360,44 @@ export function planReschedule(
       data: { toBatchId: newBatch.id, orderIds },
     });
   }
+  const recipientCount = splitOccurred ? orderIds.length : activeIds.size;
+  /* The notification, built here rather than by the data layer, so both
+     implementations of `DataLayer` raise the same one with the same words —
+     and so a reschedule that fails to notify anybody fails a test rather than
+     a collector. Phase 2 delivers this to Slack and email; phase 1 delivers
+     it to the rail badge and the copy queue, which is the same event with a
+     shorter wire. */
+  const notifications: Notification[] = [
+    {
+      id: ctx.newId('notif'),
+      kind: 'delay_copy_requested',
+      team: 'crm',
+      sendId: delaySend.id,
+      releaseId: release.id,
+      batchId: targetBatch.id,
+      /* Same convention as every other surface: a release that never split
+         has no batch language anywhere, so the notification must not be where
+         "Batch 1" is introduced. */
+      title: `${release.title}${
+        splitOccurred || ctx.allBatchNames.length > 1 ? ` — ${targetBatch.name}` : ''
+      }: delay email to write`,
+      detail: `${formatDay(oldPromiseDate)} → ${formatDay(input.newPromiseDate)} for ${recipientCount} collector${recipientCount === 1 ? '' : 's'}. ${input.reason.trim()}`,
+      createdAt: nowIso,
+      createdBy: user.id,
+    },
+  ];
+
+  events.push({
+    id: ctx.newId('event'),
+    releaseId: release.id,
+    batchId: targetBatch.id,
+    type: 'copy_requested',
+    at: nowIso,
+    by: user.id,
+    byName: user.name,
+    description: `Delay email handed to the CRM team to write — ${recipientCount} collector${recipientCount === 1 ? '' : 's'}`,
+    data: { sendId: delaySend.id, reason: input.reason.trim() },
+  });
   events.push({
     id: ctx.newId('event'),
     releaseId: release.id,
@@ -342,6 +422,7 @@ export function planReschedule(
     movedOrderIds: splitOccurred ? orderIds : [],
     cancelledSendIds,
     newSends: [delaySend, ...milestoneSends],
+    notifications,
     events,
   };
 }

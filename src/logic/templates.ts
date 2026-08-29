@@ -28,7 +28,15 @@ export const TEMPLATE_LABELS: Record<TemplateRef, string> = {
 };
 
 /** Statuses a send can still be changed in — everything before it went out. */
-export const UNSENT_STATUSES: SendStatus[] = ['draft', 'pending_approval', 'approved'];
+export const UNSENT_STATUSES: SendStatus[] = [
+  'draft',
+  /* An unwritten delay email is as unsent as a draft, and it occupies a date
+     in the batch's story: leaving it out here would let a moved milestone
+     land on top of a delay notice nobody could see yet. */
+  'awaiting_copy',
+  'pending_approval',
+  'approved',
+];
 
 /**
  * Local mirrors of the six HubSpot master templates (`pp-*`). The real
@@ -372,6 +380,10 @@ export function onTrackSlotsFor(
 /** Said by the shut Approve control and thrown by the layer behind it. */
 export const NO_IMAGE_YET =
   "This email has no image yet — pick one on the release's All emails tab, then approve.";
+
+/** Said when somebody tries to approve a delay email nobody has written. */
+export const NOT_WRITTEN_YET =
+  'The CRM team has not written this delay email yet — it is in Emails to write.';
 
 /** `pp-ontrack-3` → "On track 3"; every other slot takes its template label. */
 export function slotLabel(slot: ImageSlot): string {

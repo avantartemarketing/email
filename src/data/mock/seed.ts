@@ -6,7 +6,6 @@ import type {
   SendRecipient,
 } from '../../types';
 import { addDays, parseDay, today } from '../../logic/dates';
-import { buildDefaultDelayEmail } from '../../logic/reschedule';
 import { requiredImageSlots } from '../../logic/templates';
 import { MockDataLayer } from './MockDataLayer';
 
@@ -49,10 +48,14 @@ const ON_TRACK_IMAGES = [
  *   - Falling Light: the delayed print release. Framed and unframed flows
  *     run as separate batches on their own dates; the framed flow has been
  *     split and delayed twice ("Framed 2" delayed once, "Framed 3" split
- *     two days ago with its delay notice still unapproved — the overdue
- *     state). The warehouse allocation sheet is imported.
+ *     two days ago, its delay email written the same day and still
+ *     unapproved — the overdue state). Two unframed prints failed QC an
+ *     hour ago, so their delay email is waiting to be written. The
+ *     warehouse allocation sheet is imported.
  *   - Vessel VIII: sculpture, long window, on-track cadence with custom
- *     "casting" copy, one update pushed back by its approver and one dropped.
+ *     "casting" copy, one update pushed back by its approver and one
+ *     dropped. A patina problem six days ago split three pieces off, and
+ *     nobody has written that delay email yet — the overdue copy job.
  *   - Blue Interval: completed, framed and unframed flows both fully sent.
  *   - Night Garden: imported yesterday, no promise dates yet.
  */
@@ -254,18 +257,18 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
     ]),
     newPromiseDate: addDays(T, 45),
     reason: 'Second framing run pushed back at the framers',
-    delaySubject: 'An update on your Falling Light delivery date',
-    delayBody: buildDefaultDelayEmail(
-      layer._store.releases.get(fallingLight.id)!,
-      addDays(T, 20),
-      addDays(T, 45),
-      'The second framing run has been pushed back at our framers',
-    ).body,
     userId: 'user-pm',
   });
+  /* Priya scheduled the delay; Maya wrote the email, which is the handoff the
+     whole `awaiting_copy` state exists for. She kept the drafted body and
+     rewrote the subject line — the usual shape of the job. */
   await as('user-crm');
   const flFramed2Sends = findSends(flSplit1.batch.id);
   const flDelay1 = flFramed2Sends.find((s) => s.type === 'delay')!;
+  await layer.submitDelayCopy(flDelay1.id, {
+    subject: 'An update on your Falling Light delivery date',
+    body: flDelay1.body,
+  });
   await layer.approveSend(flDelay1.id);
   markSent(layer, flDelay1.id, sentAt(flDelay1));
   const flF2Framing = flFramed2Sends.find((s) => s.templateRef === 'pp-framing');
@@ -296,20 +299,22 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
   // approval, two days past its scheduled date: the overdue state.
   clock(-2);
   await as('user-warehouse');
-  await layer.reschedule({
+  const flSplit2 = await layer.reschedule({
     releaseId: fallingLight.id,
     batchId: flFramed.id,
     orderIds: findOrders(fallingLight.id, ['#AA10419', '#AA10443', '#AA10446', '#AA10449']),
     newPromiseDate: addDays(T, 75),
-    reason: 'Frame moulding out of stock at the supplier',
-    delaySubject: 'An update on your Falling Light delivery date',
-    delayBody: buildDefaultDelayEmail(
-      layer._store.releases.get(fallingLight.id)!,
-      addDays(T, 20),
-      addDays(T, 75),
-      'The moulding used for your frame is out of stock with our supplier, and the replacement batch has a longer lead time than expected',
-    ).body,
+    reason:
+      'Frame moulding out of stock at the supplier — the replacement run has a longer lead time than expected',
     userId: 'user-warehouse',
+  });
+  // Nadia turned the copy round the same day; it has been sitting in the
+  // approval queue ever since, two days past the date it should have gone out.
+  await as('user-crm-2');
+  const flDelay2 = findSends(flSplit2.batch.id).find((s) => s.type === 'delay')!;
+  await layer.submitDelayCopy(flDelay2.id, {
+    subject: 'An update on your Falling Light delivery date',
+    body: flDelay2.body,
   });
 
   // --- Vessel VIII — sculpture, long window ------------------------------
@@ -354,6 +359,25 @@ You can expect more updates along the way, but please don't hesitate to contact 
   // December's update is dropped — the studio is sending a printed card instead.
   if (vSends[4]) await layer.cancelSend(vSends[4].id);
 
+  /* T-6: the foundry has to redo the patina on three pieces. The delay was
+     scheduled six days ago and NOBODY HAS WRITTEN THE EMAIL — the state the
+     copy queue exists to make visible, and the reason it carries a clock. */
+  clock(-6);
+  await as('user-warehouse');
+  const vDelayed = [...layer._store.orders.values()]
+    .filter((o) => o.batchId === vBatch.id && !o.removed)
+    .slice(0, 3)
+    .map((o) => o.id);
+  await layer.reschedule({
+    releaseId: vessel.id,
+    batchId: vBatch.id,
+    orderIds: vDelayed,
+    newPromiseDate: addDays(T, 195),
+    reason:
+      'Patina on three pieces has to be redone — the foundry found pitting after the first finishing pass',
+    userId: 'user-warehouse',
+  });
+
   // --- Night Garden — imported yesterday, no promise date yet ------------
   clock(-1);
   await as('user-tom');
@@ -365,6 +389,24 @@ You can expect more updates along the way, but please don't hesitate to contact 
     shopifyProductIds: ['9051230601'],
   });
   await layer.importOrders(nightGarden.id, NIGHT_GARDEN_CSV);
+
+  /* Today: two unframed prints came out of QC with a mark on the border and
+     have to be reprinted. Scheduled an hour ago, so its delay email is the
+     fresh job at the top of the copy queue — needed today, not yet late. */
+  clock(0);
+  await as('user-pm');
+  const flReprint = [...layer._store.orders.values()]
+    .filter((o) => o.batchId === flUnframed.id && !o.removed)
+    .slice(0, 2)
+    .map((o) => o.id);
+  await layer.reschedule({
+    releaseId: fallingLight.id,
+    batchId: flUnframed.id,
+    orderIds: flReprint,
+    newPromiseDate: addDays(T, 38),
+    reason: 'Two prints marked on the border in QC and have to be pulled again',
+    userId: 'user-pm',
+  });
 
   // Back to real time, signed in as Tom, with honest loading latency.
   layer._setClock(null);

@@ -22,7 +22,12 @@ export { TEMPLATE_LABELS } from '../logic/templates';
 
 export function isOverdue(send: ScheduledSend, todayDay = today()): boolean {
   return (
-    (send.status === 'pending_approval' || send.status === 'approved') &&
+    /* Three ways to be late and one word for it. An unwritten delay notice is
+       the newest of them: the collector is owed the email whichever queue it
+       is stuck in, so the mark cannot depend on whose desk that is. */
+    (send.status === 'pending_approval' ||
+      send.status === 'approved' ||
+      send.status === 'awaiting_copy') &&
     send.scheduledDate < todayDay
   );
 }
@@ -31,13 +36,22 @@ export function sendStatusBadge(send: ScheduledSend): ReactElement {
   if (isOverdue(send)) {
     return (
       <Pill tone="red">
-        {send.status === 'pending_approval' ? 'Overdue — to approve' : 'Overdue — queued'}
+        {send.status === 'awaiting_copy'
+          ? 'Overdue — to write'
+          : send.status === 'pending_approval'
+            ? 'Overdue — to approve'
+            : 'Overdue — queued'}
       </Pill>
     );
   }
   switch (send.status) {
     case 'draft':
       return <Pill tone="grey">Draft</Pill>;
+    case 'awaiting_copy':
+      /* Its own tone, not amber. Amber already means "an approver has to look
+         at this", and the whole point of the state is that it is on somebody
+         else's desk entirely. */
+      return <Pill tone="violet">Awaiting copy</Pill>;
     case 'pending_approval':
       return <Pill tone="amber">Pending approval</Pill>;
     case 'approved':

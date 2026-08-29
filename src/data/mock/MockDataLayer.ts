@@ -5,10 +5,12 @@ import type {
   BatchListItem,
   BatchEventType,
   BatchFulfilment,
+  CopyJobItem,
   ImageSlot,
   ImportSummary,
   LastSentInfo,
   LibraryImage,
+  Notification,
   Order,
   PendingSendItem,
   Release,
@@ -42,6 +44,7 @@ import { generateMilestonePlan } from '../../logic/plan';
 import { inheritedSentStory, planReschedule, sentStoryForBatch } from '../../logic/reschedule';
 import {
   MASTER_TEMPLATES,
+  NOT_WRITTEN_YET,
   NO_IMAGE_YET,
   UNSENT_STATUSES,
   buildNextSteps,
@@ -72,6 +75,8 @@ interface Store {
   orders: Map<string, Order>;
   sends: Map<string, ScheduledSend>;
   events: BatchEvent[];
+  /** What one team has raised for another, oldest first. */
+  notifications: Notification[];
   /** The email picker's library — seeded names, plus anything uploaded. */
   images: LibraryImage[];
 }
@@ -98,6 +103,7 @@ export class MockDataLayer implements DataLayer {
       orders: new Map(),
       sends: new Map(),
       events: [],
+      notifications: [],
       images: IMAGE_OPTIONS.map((name) => ({ name })),
     };
     this.hubspotDirectory = hubspotDirectory;
@@ -274,7 +280,13 @@ export class MockDataLayer implements DataLayer {
         .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
       const overdue = sends.filter(
         (s) =>
-          (s.status === 'pending_approval' || s.status === 'approved') && s.scheduledDate < today,
+          /* An unwritten delay notice that should have gone out on Tuesday is
+             as late as an unapproved one: the collector is owed an email
+             either way, and which queue it is stuck in is our problem. */
+          (s.status === 'pending_approval' ||
+            s.status === 'approved' ||
+            s.status === 'awaiting_copy') &&
+          s.scheduledDate < today,
       );
       const orders = [...this._store.orders.values()].filter(
         (o) => o.releaseId === release.id && !o.removed,
@@ -997,6 +1009,7 @@ export class MockDataLayer implements DataLayer {
       send.status = 'cancelled';
     }
     for (const send of changes.newSends) this._store.sends.set(send.id, send);
+    this._store.notifications.push(...changes.notifications);
     this._store.events.push(...changes.events);
 
     const targetBatch = this.mustGet(this._store.batches, changes.targetBatchId, 'batch');
@@ -1024,6 +1037,103 @@ export class MockDataLayer implements DataLayer {
       { orderIds: [order.id], reason: order.removedReason },
     );
     await this.settle(undefined);
+  }
+
+  // --- writing the delay copy --------------------------------------------
+
+  async listCopyQueue(): Promise<CopyJobItem[]> {
+    const unread = new Map(
+      this._store.notifications
+        .filter((n) => n.kind === 'delay_copy_requested' && !n.readAt)
+        .map((n) => [n.sendId, n]),
+    );
+    const items = [...this._store.sends.values()]
+      .filter((s) => s.status === 'awaiting_copy')
+      /* Soonest-needed first, and an overdue one is the soonest of all —
+         the same ordering the approval queue uses, for the same reason. */
+      .sort(
+        (a, b) =>
+          a.scheduledDate.localeCompare(b.scheduledDate) || a.createdAt.localeCompare(b.createdAt),
+      )
+      .map((send): CopyJobItem => {
+        const release = this.mustGet(this._store.releases, send.releaseId, 'release');
+        const batch = this.mustGet(this._store.batches, send.batchId, 'batch');
+        return {
+          send,
+          release,
+          batch,
+          recipientCount: this.activeBatchOrders(send.batchId).length,
+          releaseBatchCount: this.releaseBatches(release.id).length,
+          notification: unread.get(send.id) ?? null,
+        };
+      });
+    return this.settle(items);
+  }
+
+  async submitDelayCopy(
+    sendId: string,
+    copy: { subject: string; body: string },
+    options: { hold?: boolean } = {},
+  ): Promise<ScheduledSend> {
+    const user = this.currentUser();
+    const send = this.mustGet(this._store.sends, sendId, 'send');
+    if (send.status !== 'awaiting_copy') {
+      throw new Error(
+        `This email is not waiting to be written (it is ${send.status.replace('_', ' ')})`,
+      );
+    }
+    const subject = copy.subject.trim();
+    const body = copy.body.trim();
+    /* The draft is generated, so both fields always arrive filled — but a
+       writer can empty one, and an empty subject line is a send that reaches
+       an inbox as a blank row. Refused here rather than only in the dialogue,
+       because the dialogue is not the only thing that will ever call this. */
+    if (!subject || !body) throw new Error('A delay email needs both a subject and a body');
+    send.subject = subject;
+    send.body = body;
+    /* Written by hand now, whoever started it: release-level template edits
+       must leave these words alone from here on. */
+    send.copyEdited = true;
+    if (options.hold) return this.settle(send);
+
+    send.status = 'pending_approval';
+    send.copyWrittenAt = this.now().toISOString();
+    send.copyWrittenBy = user.id;
+    /* The notification is answered by the work being done, not by the row
+       being looked at — so anything still unread on this send closes here
+       too, and the badge cannot outlive the job it counted. */
+    for (const n of this._store.notifications) {
+      if (n.sendId === send.id && !n.readAt) {
+        n.readAt = this.now().toISOString();
+        n.readBy = user.id;
+      }
+    }
+    this._addEvent(
+      send.releaseId,
+      send.batchId,
+      'copy_written',
+      `Delay email written — “${send.subject}” now waiting for approval`,
+      { sendId: send.id },
+    );
+    return this.settle(send);
+  }
+
+  async listNotifications(): Promise<Notification[]> {
+    const { team } = this.currentUser();
+    const items = this._store.notifications
+      .filter((n) => n.team === team)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return this.settle(items);
+  }
+
+  async markNotificationRead(notificationId: string): Promise<Notification> {
+    const notification = this._store.notifications.find((n) => n.id === notificationId);
+    if (!notification) throw new Error(`Unknown notification: ${notificationId}`);
+    if (!notification.readAt) {
+      notification.readAt = this.now().toISOString();
+      notification.readBy = this.currentUser().id;
+    }
+    return this.settle(notification);
   }
 
   // --- approval queue ----------------------------------------------------
@@ -1061,6 +1171,10 @@ export class MockDataLayer implements DataLayer {
   async approveSend(sendId: string): Promise<ScheduledSend> {
     const user = this.requireAdmin();
     const send = this.mustGet(this._store.sends, sendId, 'send');
+    /* Named before the generic refusal, because "this one is awaiting_copy"
+       tells an approver the state and not the remedy — and the remedy is a
+       different team, not a different click. */
+    if (send.status === 'awaiting_copy') throw new Error(NOT_WRITTEN_YET);
     if (send.status !== 'pending_approval') {
       throw new Error(`Only pending sends can be approved (this one is ${send.status})`);
     }

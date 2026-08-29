@@ -32,10 +32,11 @@ describe('seeded world — releases index', () => {
     expect(titles).toEqual(['Blue Interval', 'Falling Light', 'Night Garden', 'Vessel VIII']);
   });
 
-  it('Falling Light is the delayed release with four batches and an overdue send', async () => {
+  it('Falling Light is the delayed release with five batches and an overdue send', async () => {
     const fl = await releaseByTitle('Falling Light');
-    // Framed + Unframed flows, plus two splits from the framed flow.
-    expect(fl.batchCount).toBe(4);
+    // Framed + Unframed flows, two splits from the framed flow, and today's
+    // QC reprint split off the unframed one.
+    expect(fl.batchCount).toBe(5);
     /* A real release runs to hundreds of collectors, and the fixture does too.
        The count is asserted as an INVARIANT rather than as a number: the total
        is the active orders, so the refunded one is excluded and nothing else
@@ -77,9 +78,12 @@ describe('seeded world — Falling Light detail', () => {
       'Unframed',
       'Framed 2',
       'Framed 3',
+      'Unframed 2',
     ]);
 
-    const [framed, unframed, framed2, framed3] = detail.batches;
+    const [framed, unframed, framed2, framed3, unframed2] = detail.batches;
+    expect(unframed2.fulfilment).toBe('unframed');
+    expect(unframed2.promiseDate).toBe(addDays(today(), 38));
     expect(framed.fulfilment).toBe('framed');
     expect(unframed.fulfilment).toBe('unframed');
     expect(framed2.fulfilment).toBe('framed');
@@ -121,7 +125,7 @@ describe('seeded world — Falling Light detail', () => {
     const { release } = await releaseByTitle('Falling Light');
     const detail = await layer.getRelease(release.id);
     const reschedules = detail.events.filter((e) => e.type === 'reschedule');
-    expect(reschedules).toHaveLength(2);
+    expect(reschedules).toHaveLength(3);
     for (const event of reschedules) {
       expect(event.data.oldDate).toBeTruthy();
       expect(event.data.newDate).toBeTruthy();
@@ -130,6 +134,10 @@ describe('seeded world — Falling Light detail', () => {
     }
     expect(detail.events.some((e) => e.type === 'orders_split')).toBe(true);
     expect(detail.events.some((e) => e.type === 'order_removed')).toBe(true);
+    /* Every reschedule hands a delay email to CRM, so the two event types
+       come in pairs — and the ones that have been written say so. */
+    expect(detail.events.filter((e) => e.type === 'copy_requested')).toHaveLength(3);
+    expect(detail.events.filter((e) => e.type === 'copy_written')).toHaveLength(2);
   });
 
   it('froze recipients on sent sends, including failures', async () => {
@@ -265,7 +273,7 @@ describe('live behaviour through the interface', () => {
   it('a full-batch reschedule cancels unsent sends and preserves sent history', async () => {
     const { release } = await releaseByTitle('Vessel VIII');
     const before = await layer.getRelease(release.id);
-    const batch = before.batches[0];
+    const batch = before.batches.find((b) => b.isDefault)!;
     const activeOrders = before.orders.filter((o) => !o.removed && o.batchId === batch.id);
     const sentBefore = before.sends.filter((s) => s.status === 'sent').map((s) => s.id);
 
@@ -276,24 +284,29 @@ describe('live behaviour through the interface', () => {
       orderIds: activeOrders.map((o) => o.id),
       newPromiseDate: addDays(today(), 210),
       reason: 'Foundry moved the casting slot',
-      delaySubject: 'An update on your Vessel VIII delivery date',
-      delayBody: 'Hi {{first_name}}, delay body.',
       userId: 'user-warehouse',
     });
     expect(result.splitOccurred).toBe(false);
 
     const after = await layer.getRelease(release.id);
-    expect(after.batches).toHaveLength(1);
-    expect(after.batches[0].promiseDate).toBe(addDays(today(), 210));
+    // The seeded patina split is untouched; the batch rescheduled here moved.
+    expect(after.batches).toHaveLength(2);
+    expect(after.batches.find((b) => b.id === batch.id)!.promiseDate).toBe(addDays(today(), 210));
     for (const id of sentBefore) {
       expect(after.sends.find((s) => s.id === id)?.status).toBe('sent');
     }
-    // The old pending plan is cancelled; the new one is pending, delay first.
+    // The old pending plan is cancelled; the regenerated milestones are
+    // pending — and the delay email is with CRM, not with an approver.
     expect(
-      after.sends.filter((s) => s.status === 'approved'),
+      after.sends.filter((s) => s.batchId === batch.id && s.status === 'approved'),
     ).toHaveLength(0);
-    const pending = after.sends.filter((s) => s.status === 'pending_approval');
-    expect(pending.some((s) => s.type === 'delay')).toBe(true);
+    const mine = after.sends.filter((s) => s.batchId === batch.id);
+    const pending = mine.filter((s) => s.status === 'pending_approval');
+    expect(pending.length).toBeGreaterThan(0);
+    expect(pending.some((s) => s.type === 'delay')).toBe(false);
+    expect(
+      mine.filter((s) => s.status === 'awaiting_copy' && s.type === 'delay'),
+    ).toHaveLength(1);
     await layer.setCurrentUser('user-tom');
   });
 
@@ -393,7 +406,7 @@ describe('real email format, allocation and lineage behaviours', () => {
     expect(view.lastSent).not.toBeNull();
     expect(view.lastSent!.templateRef).toBe('pp-framing');
     expect(view.lastSent!.batchName).toBe('Framed');
-    expect(view.releaseBatchCount).toBe(4);
+    expect(view.releaseBatchCount).toBe(5);
 
     const queue = await layer.listApprovalQueue();
     const flItem = queue.find((i) => i.release.title === 'Falling Light');
@@ -412,8 +425,6 @@ describe('real email format, allocation and lineage behaviours', () => {
       orderIds: activeOrders.map((o) => o.id),
       newPromiseDate: addDays(today(), 90),
       reason: 'Replacement moulding delayed again',
-      delaySubject: 'An update on your Falling Light delivery date',
-      delayBody: 'Hi {{first_name}}, delay body.',
       userId: 'user-pm',
     });
     await layer.setCurrentUser('user-tom');
@@ -548,6 +559,140 @@ describe('real email format, allocation and lineage behaviours', () => {
     });
     expect(moved.scheduledDate).toBe(addDays(today(), 33));
     expect(moved.copyEdited ?? false).toBe(false);
+  });
+});
+
+describe('the delay-copy handoff', () => {
+  /* The owner, 29 Aug 2026: "When someone schedules a delay, the job of
+     writing the email goes to the CRM team. So we need it to trigger a
+     notification to them and appear in a view where they can see the reason
+     for the delay and write the email." Everything below is that sentence,
+     asserted through the interface the screens use. */
+
+  it('the seeded world has both halves of the state: one late, one fresh', async () => {
+    const queue = await layer.listCopyQueue();
+    /* Not a total: the tests above this one reschedule things, and each
+       reschedule mints another job. The two the SEED puts there are named by
+       their reasons, which is also what the view is read for. */
+    const late = queue.find((j) => j.send.brief!.reason.includes('Patina'))!;
+    const fresh = queue.find((j) => j.send.brief!.reason.includes('marked on the border'))!;
+    expect(late).toBeDefined();
+    expect(fresh).toBeDefined();
+    expect(late.send.scheduledDate < today()).toBe(true);
+    expect(fresh.send.scheduledDate).toBe(today());
+    // Soonest-needed first, so the late one leads the whole list.
+    const dates = queue.map((j) => j.send.scheduledDate);
+    expect([...dates].sort()).toEqual(dates);
+    expect(queue[0].send.id).toBe(late.send.id);
+    for (const job of queue) {
+      expect(job.send.status).toBe('awaiting_copy');
+      expect(job.send.type).toBe('delay');
+      // The reason is the point of the view — it must survive the join.
+      expect(job.send.brief!.reason.length).toBeGreaterThan(0);
+      expect(job.recipientCount).toBeGreaterThan(0);
+      expect(job.notification).not.toBeNull();
+    }
+  });
+
+  it('an unwritten delay email is nowhere near the approval queue', async () => {
+    const queue = await layer.listCopyQueue();
+    const approvals = await layer.listApprovalQueue();
+    const ids = new Set(approvals.map((i) => i.send.id));
+    for (const job of queue) expect(ids.has(job.send.id)).toBe(false);
+  });
+
+  it('refuses to approve one, and says whose job it is', async () => {
+    const [job] = await layer.listCopyQueue();
+    await layer.setCurrentUser('user-tom');
+    await expect(layer.approveSend(job.send.id)).rejects.toThrow(/CRM team has not written/);
+  });
+
+  it('is addressed to CRM, and ops does not see it', async () => {
+    await layer.setCurrentUser('user-crm');
+    const forCrm = await layer.listNotifications();
+    expect(forCrm.length).toBeGreaterThan(0);
+    expect(forCrm.every((n) => n.team === 'crm')).toBe(true);
+    // Newest first — a notification list read top-down.
+    expect(forCrm[0].createdAt >= forCrm[forCrm.length - 1].createdAt).toBe(true);
+
+    await layer.setCurrentUser('user-warehouse');
+    expect(await layer.listNotifications()).toEqual([]);
+    await layer.setCurrentUser('user-tom');
+  });
+
+  it('holds half-written copy without submitting it', async () => {
+    const [job] = await layer.listCopyQueue();
+    await layer.setCurrentUser('user-crm');
+    const held = await layer.submitDelayCopy(
+      job.send.id,
+      { subject: 'Half a subject', body: job.send.body },
+      { hold: true },
+    );
+    expect(held.status).toBe('awaiting_copy');
+    expect(held.subject).toBe('Half a subject');
+    expect(held.copyWrittenAt).toBeUndefined();
+    // Still the writer's job, so still on the writer's list.
+    expect((await layer.listCopyQueue()).some((j) => j.send.id === job.send.id)).toBe(true);
+    await layer.setCurrentUser('user-tom');
+  });
+
+  it('refuses copy with an empty half', async () => {
+    const [job] = await layer.listCopyQueue();
+    await layer.setCurrentUser('user-crm');
+    await expect(
+      layer.submitDelayCopy(job.send.id, { subject: '   ', body: job.send.body }),
+    ).rejects.toThrow(/subject and a body/);
+    await layer.setCurrentUser('user-tom');
+  });
+
+  it('written copy leaves the copy queue, joins the approval queue, and closes its notification', async () => {
+    const before = await layer.listCopyQueue();
+    const job = before[0];
+    await layer.setCurrentUser('user-crm');
+    const written = await layer.submitDelayCopy(job.send.id, {
+      subject: 'A short delay on your Vessel VIII',
+      body: 'Hi {{first_name}}, the foundry found pitting on your piece.',
+    });
+    expect(written.status).toBe('pending_approval');
+    expect(written.copyWrittenBy).toBe('user-crm');
+    expect(written.copyEdited).toBe(true);
+
+    expect((await layer.listCopyQueue()).map((j) => j.send.id)).not.toContain(job.send.id);
+    expect((await layer.listApprovalQueue()).map((i) => i.send.id)).toContain(job.send.id);
+    /* The badge cannot outlive the job it counted: doing the work answers the
+       notification, whether or not anybody clicked the row first. */
+    const notifications = await layer.listNotifications();
+    expect(notifications.find((n) => n.sendId === job.send.id)!.readAt).toBeTruthy();
+
+    const detail = await layer.getRelease(job.release.id);
+    expect(detail.events.some((e) => e.type === 'copy_written')).toBe(true);
+    await layer.setCurrentUser('user-tom');
+  });
+
+  it('and then it can be approved like anything else', async () => {
+    const item = (await layer.listApprovalQueue()).find(
+      (i) => i.send.subject === 'A short delay on your Vessel VIII',
+    )!;
+    expect(item).toBeDefined();
+    const approved = await layer.approveSend(item.send.id);
+    expect(approved.status).toBe('approved');
+  });
+
+  it('marking one read is idempotent and records who read it', async () => {
+    await layer.setCurrentUser('user-crm-2');
+    const [job] = await layer.listCopyQueue();
+    const first = await layer.markNotificationRead(job.notification!.id);
+    expect(first.readBy).toBe('user-crm-2');
+    await layer.setCurrentUser('user-crm');
+    const second = await layer.markNotificationRead(job.notification!.id);
+    // The first reader keeps the credit; reading again is not re-reading.
+    expect(second.readAt).toBe(first.readAt);
+    expect(second.readBy).toBe('user-crm-2');
+    // Read, but still unwritten — the job stays on the list.
+    const after = await layer.listCopyQueue();
+    expect(after.some((j) => j.send.id === job.send.id)).toBe(true);
+    expect(after.find((j) => j.send.id === job.send.id)!.notification).toBeNull();
+    await layer.setCurrentUser('user-tom');
   });
 });
 

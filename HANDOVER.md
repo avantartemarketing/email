@@ -196,7 +196,50 @@ drops the grouped column from the grid while its bands are drawn — the band
 already prints the value, and a column repeating its own heading was two
 marks for one fact. `prove-screens` asserts the page opens banded.
 
-`npm test` → 145 green. `npm run build` clean. `check:screens` clean.
+**The CRM handoff (29 Aug 2026)** — Tom: *"When someone schedules a delay, the
+job of writing the email goes to the CRM team. So we need it to trigger a
+notification to them and appear in a view where they can see the reason for the
+delay and write the email."*
+
+The reschedule dialogue lost its second step. It used to make the person
+scheduling the delay write the collector email on the spot; now that act belongs
+to CRM, so the dialogue is one form (date + reason) and the reason is no longer
+a field you fill in to unlock a text editor — it is the BRIEF, and its note says
+so. What changed underneath:
+
+- **A new send status, `awaiting_copy`.** `planReschedule` mints the delay send
+  in it (drafted from the release's delay template with the reason patched in,
+  so nobody opens a blank page) with a `DelayBrief` attached — old date, new
+  date, reason, who asked, when. It is not in the approval queue: `approveSend`
+  refuses it by name (`NOT_WRITTEN_YET`), because an auto-drafted email in front
+  of an approver is how a template goes out under a human's name.
+- **A `Notification` record**, built in the pure logic layer so both DataLayer
+  implementations raise the same one, addressed to a **team** (`Team = 'crm' |
+  'ops'` on `User`) rather than a person — a person goes on holiday and the
+  delay notice does not wait. Phase 2 delivers it to Slack and email; phase 1
+  delivers it to the rail badge and the queue, which is the same event on a
+  shorter wire.
+- **Emails to write** — a new rail item and screen (`/copy`). One row per
+  unwritten delay email: needed-by with an Overdue pill, a New pill while its
+  notification is unread, collectors, how far the promise slipped, and the
+  reason (capped in the row, in full above the fields in the writer). The writer
+  pre-fills the draft, previews the real email, and `Send for approval` moves it
+  into My approvals. `Save and finish later` holds half-written copy.
+- **The badge summons CRM only.** The page is open to everyone — an ops lead
+  should be able to see what is stuck, and a collector owed a delay notice must
+  not wait for the right person to be at their desk — but a badge counting
+  somebody else's work is a badge you learn to ignore. Ops sees a note saying
+  whose desk it is instead.
+- The seed now replays the handoff: two of its three reschedules were written
+  and approved, one Vessel VIII delay has sat unwritten for six days (the
+  overdue copy job) and today's QC reprint on Falling Light is the fresh one.
+- `prove-screens` gained `/copy`: no row may offer *Approve*, every row offers
+  *Write the email*, the brief is drawn above the fields it briefs, and `Send
+  for approval` stays on screen above the 600px email preview — the hazard that
+  used to live in the reschedule dialogue moved here with the preview. Made to
+  fail three ways on purpose before being kept.
+
+`npm test` → 158 green. `npm run build` clean. `check:screens` clean.
 
 **Artifacts live (publish with `url:` to update, never without):**
 - Prototype, Workbench-rd: https://claude.ai/code/artifact/ebfa534f-1267-4a64-99a5-7978167d3a9f

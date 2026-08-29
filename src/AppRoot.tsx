@@ -32,6 +32,7 @@ import Menu from './rd/components/Menu';
 import { ReleasesIndex } from './screens/ReleasesIndex';
 import { ReleaseDetail } from './screens/ReleaseDetail';
 import { Batches } from './screens/Batches';
+import { EmailsToWrite } from './screens/EmailsToWrite';
 import { MyApprovals } from './screens/MyApprovals';
 import { SendDetail } from './screens/SendDetail';
 
@@ -153,12 +154,28 @@ function Shell({
     [location.pathname, queueTick],
   );
 
+  /* The delay-copy badge, and it summons CRM ONLY.
+     Same argument as the count above, one step further out: a badge that
+     counts somebody else's work is a badge you learn to ignore, and every
+     unwritten delay email is CRM's work by definition. The PAGE stays open to
+     everyone — an ops lead should be able to see what is stuck — but the
+     summons on the rail belongs to the team that owes it. */
+  const copyCount = useAsync(
+    async () => (currentUser.team === 'crm' ? (await data.listCopyQueue()).length : 0),
+    [location.pathname, queueTick, currentUser.id],
+  );
+
   const onReleases = location.pathname === '/' || location.pathname.startsWith('/releases');
-  const area = onReleases
-    ? 'Releases'
+  /* The area the crumb hops back to, named once. It used to be two
+     expressions — a label and a path — computed apart, so a fourth rail item
+     could be labelled "Emails to write" and still hop to My approvals. */
+  const [area, areaPath] = onReleases
+    ? ['Releases', '/']
     : location.pathname.startsWith('/batches')
-      ? 'Batches'
-      : 'My approvals';
+      ? ['Batches', '/batches']
+      : location.pathname.startsWith('/copy')
+        ? ['Emails to write', '/copy']
+        : ['My approvals', '/approvals'];
   const initials = currentUser.name
     .split(' ')
     .map((part) => part[0])
@@ -186,6 +203,13 @@ function Shell({
               Batches
             </NavLink>
             <NavLink
+              to="/copy"
+              className={({ isActive }) => (isActive ? 'rd-navrow on' : 'rd-navrow')}
+            >
+              Emails to write
+              {copyCount.data ? <span className="rd-navcount">{copyCount.data}</span> : null}
+            </NavLink>
+            <NavLink
               to="/approvals"
               className={({ isActive }) => (isActive ? 'rd-navrow on' : 'rd-navrow')}
             >
@@ -203,7 +227,7 @@ function Shell({
                   <button
                     type="button"
                     className="rd-barhop"
-                    onClick={() => navigate(onReleases ? '/' : '/approvals')}
+                    onClick={() => navigate(areaPath)}
                   >
                     {area}
                   </button>
@@ -246,6 +270,7 @@ function Shell({
               <Route path="/" element={<ReleasesIndex />} />
               <Route path="/releases/:releaseId" element={<ReleaseDetail />} />
               <Route path="/batches" element={<Batches />} />
+              <Route path="/copy" element={<EmailsToWrite />} />
               <Route path="/approvals" element={<MyApprovals />} />
               <Route path="/sends/:sendId" element={<SendDetail />} />
               <Route path="*" element={<Navigate to="/" replace />} />

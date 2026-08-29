@@ -26,7 +26,13 @@ const release: Release = {
   createdAt: '2026-05-01T00:00:00.000Z',
 };
 
-const user: User = { id: 'u-1', name: 'Priya N', email: 'priya@avantarte.com', role: 'operator' };
+const user: User = {
+  id: 'u-1',
+  name: 'Priya N',
+  email: 'priya@avantarte.com',
+  role: 'operator',
+  team: 'ops',
+};
 
 function makeBatch(overrides: Partial<Batch> = {}): Batch {
   return {
@@ -100,8 +106,6 @@ function makeInput(orderIds: string[]) {
     orderIds,
     newPromiseDate: '2026-11-20',
     reason: 'Framing supplier delay',
-    delaySubject: 'An update on your Falling Light delivery date',
-    delayBody: 'Delay body copy',
     userId: 'u-1',
   };
 }
@@ -126,15 +130,43 @@ describe('planReschedule — subset selection (split)', () => {
     expect(result.cancelledSendIds).toEqual([]);
   });
 
-  it('puts the delay send first, scheduled today, pending approval', () => {
+  it('puts the delay send first, scheduled today, waiting to be written', () => {
     const delay = result.newSends[0];
     expect(delay.type).toBe('delay');
     expect(delay.templateRef).toBe('pp-delay');
     expect(delay.scheduledDate).toBe(NOW_DAY);
-    expect(delay.status).toBe('pending_approval');
-    expect(delay.subject).toBe('An update on your Falling Light delivery date');
-    expect(delay.body).toBe('Delay body copy');
+    /* The whole point of the 29 Aug change: the rescheduler does not write
+       this, so it must not arrive in front of an approver. */
+    expect(delay.status).toBe('awaiting_copy');
     expect(delay.batchId).toBe(result.targetBatchId);
+  });
+
+  it('drafts the delay email rather than leaving the writer a blank page', () => {
+    const delay = result.newSends[0];
+    expect(delay.subject.length).toBeGreaterThan(0);
+    // The reason patched into the generated body — the brief, made visible.
+    expect(delay.body).toContain('Framing supplier delay');
+  });
+
+  it('attaches the brief the writer works from', () => {
+    const { brief } = result.newSends[0];
+    expect(brief).toBeDefined();
+    expect(brief!.oldPromiseDate).toBe('2026-09-15');
+    expect(brief!.newPromiseDate).toBe('2026-11-20');
+    expect(brief!.reason).toBe('Framing supplier delay');
+    expect(brief!.requestedBy).toBe('u-1');
+  });
+
+  it('raises exactly one notification, addressed to CRM and to the delay send', () => {
+    expect(result.notifications).toHaveLength(1);
+    const [n] = result.notifications;
+    expect(n.kind).toBe('delay_copy_requested');
+    /* A team, not a person — a person goes on holiday and the delay notice
+       does not wait. */
+    expect(n.team).toBe('crm');
+    expect(n.sendId).toBe(result.newSends[0].id);
+    expect(n.detail).toContain('Framing supplier delay');
+    expect(n.readAt).toBeUndefined();
   });
 
   it('gives the delay send the regenerated plan as its next steps', () => {
@@ -163,8 +195,8 @@ describe('planReschedule — subset selection (split)', () => {
 
   it('records batch_created, orders_split and reschedule events with the full story', () => {
     const types = result.events.map((e) => e.type);
-    expect(types).toEqual(['batch_created', 'orders_split', 'reschedule']);
-    const reschedule = result.events[2];
+    expect(types).toEqual(['batch_created', 'orders_split', 'copy_requested', 'reschedule']);
+    const reschedule = result.events[3];
     expect(reschedule.batchId).toBe(result.targetBatchId);
     expect(reschedule.by).toBe('u-1');
     expect(reschedule.data.oldDate).toBe('2026-09-15');
@@ -197,10 +229,9 @@ describe('planReschedule — whole batch', () => {
     expect(result.cancelledSendIds.sort()).toEqual(['s1', 's2']);
   });
 
-  it('records a reschedule event on the same batch', () => {
-    expect(result.events).toHaveLength(1);
-    expect(result.events[0].type).toBe('reschedule');
-    expect(result.events[0].batchId).toBe('batch-1');
+  it('records the handoff and the reschedule on the same batch', () => {
+    expect(result.events.map((e) => e.type)).toEqual(['copy_requested', 'reschedule']);
+    for (const event of result.events) expect(event.batchId).toBe('batch-1');
   });
 });
 

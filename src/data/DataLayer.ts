@@ -2,10 +2,12 @@ import type {
   AllocationImportSummary,
   Batch,
   BatchListItem,
+  CopyJobItem,
   ImageSlot,
   ImportSummary,
   LastSentInfo,
   LibraryImage,
+  Notification,
   Order,
   PendingSendItem,
   ProductKind,
@@ -187,6 +189,32 @@ export interface DataLayer {
   reschedule(input: RescheduleInput): Promise<RescheduleResult>;
   /** Mark an order removed (cancellation/refund): drops out of future sends. */
   removeOrder(orderId: string, reason: string): Promise<void>;
+
+  // --- writing the delay copy --------------------------------------------
+  /**
+   * Every delay email waiting to be written, soonest-needed first.
+   *
+   * A reschedule mints its delay send `awaiting_copy`, not `pending_approval`
+   * — the owner, 29 Aug 2026: "the job of writing the email goes to the CRM
+   * team". This is that team's worklist, and it is deliberately NOT filtered
+   * by who is asking: the queue belongs to a team, and anybody looking at it
+   * should see all of it, including the piece nobody has picked up.
+   */
+  listCopyQueue(): Promise<CopyJobItem[]>;
+  /**
+   * Hand the written copy back: saves it and moves the send into the approval
+   * queue. `hold: true` saves the words without submitting, for copy that is
+   * half-written.
+   */
+  submitDelayCopy(
+    sendId: string,
+    copy: { subject: string; body: string },
+    options?: { hold?: boolean },
+  ): Promise<ScheduledSend>;
+  /** What has been raised for the signed-in user's team, newest first. */
+  listNotifications(): Promise<Notification[]>;
+  /** Mark one read — happens when somebody opens the job it points at. */
+  markNotificationRead(notificationId: string): Promise<Notification>;
 
   // --- approval queue ----------------------------------------------------
   /** Every send waiting on an approver, soonest first. */

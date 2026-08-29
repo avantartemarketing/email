@@ -11,11 +11,22 @@
 
 export type Role = 'operator' | 'admin';
 
+/**
+ * Which side of a handoff somebody sits on.
+ *
+ * Not a second permissions axis — `role` is still the only thing the data
+ * layer gates on. A team is an ADDRESS: work raised by one team and owed by
+ * another has to be addressed to a standing group rather than a person,
+ * because a person goes on holiday and the delay notice does not wait.
+ */
+export type Team = 'crm' | 'ops';
+
 export interface User {
   id: string;
   name: string;
   email: string;
   role: Role;
+  team: Team;
 }
 
 export type ReleaseStatus = 'active' | 'completed';
@@ -176,10 +187,39 @@ export type TemplateRef =
 
 export type SendStatus =
   | 'draft'
+  /**
+   * Written by nobody yet.
+   *
+   * The owner, 29 Aug 2026: "When someone schedules a delay, the job of
+   * writing the email goes to the CRM team." Before this there was no state
+   * between "a delay was scheduled" and "an email is waiting for approval",
+   * because the person scheduling the delay wrote the copy on the spot. Now
+   * the two acts belong to two teams, and the gap between them is a state
+   * something can sit in — visibly, and with a clock on it.
+   */
+  | 'awaiting_copy'
   | 'pending_approval'
   | 'approved'
   | 'sent'
   | 'cancelled';
+
+/**
+ * Why a delay email exists, handed to whoever has to write it.
+ *
+ * Every fact here was already in the reschedule event log, and reading it
+ * back out of the log to brief a copywriter meant joining a send to an event
+ * by batch and timestamp. Carrying it ON the send is not duplication — it is
+ * the brief, and a brief belongs to the job it briefs.
+ */
+export interface DelayBrief {
+  /** What collectors had been promised. Null if the batch had no date. */
+  oldPromiseDate: string | null;
+  newPromiseDate: string;
+  /** The rescheduler's own words. Required at the door, so never empty. */
+  reason: string;
+  requestedBy: string;
+  requestedAt: string;
+}
 
 /**
  * One row of the "What happens next?" card in the real email format —
@@ -225,6 +265,11 @@ export interface ScheduledSend {
   /** True once someone edited this send's copy directly — release-level
    *  template edits then leave it alone. */
   copyEdited?: boolean;
+  /** Set on a delay send: the brief for whoever writes it. */
+  brief?: DelayBrief;
+  /** Set when the copy was handed back in and the send left `awaiting_copy`. */
+  copyWrittenAt?: string;
+  copyWrittenBy?: string;
   createdAt: string;
   createdBy: string;
   approvedAt?: string;
@@ -246,6 +291,8 @@ export type BatchEventType =
   | 'order_removed'
   | 'plan_edited'
   | 'release_emails_edited'
+  | 'copy_requested'
+  | 'copy_written'
   | 'send_approved'
   | 'send_sent';
 
@@ -268,6 +315,31 @@ export interface BatchEvent {
     fromBatchId?: string;
     [key: string]: unknown;
   };
+}
+
+/**
+ * What one team raises for another. Today there is exactly one kind, and the
+ * type is a union of one on purpose: the second kind will want its own copy,
+ * its own destination and its own count, and a `kind: string` invites all
+ * three to be invented at the call site.
+ */
+export type NotificationKind = 'delay_copy_requested';
+
+export interface Notification {
+  id: string;
+  kind: NotificationKind;
+  /** Addressed to a team, never a person — see `Team`. */
+  team: Team;
+  sendId: string;
+  releaseId: string;
+  batchId: string;
+  /** One line, already written — phase 2 puts this in a Slack message. */
+  title: string;
+  detail: string;
+  createdAt: string;
+  createdBy: string;
+  readAt?: string;
+  readBy?: string;
 }
 
 export interface ImportRowIssue {
@@ -367,6 +439,21 @@ export interface PendingSendItem {
   lastSent: LastSentInfo | null;
 }
 
+/**
+ * One delay email waiting to be written, joined with the context its writer
+ * needs before they can write a word of it.
+ */
+export interface CopyJobItem {
+  send: ScheduledSend;
+  release: Release;
+  batch: Batch;
+  recipientCount: number;
+  /** 1 means "don't talk about batches" — same convention as the queue. */
+  releaseBatchCount: number;
+  /** The notification that raised it; null once somebody has read it. */
+  notification: Notification | null;
+}
+
 export interface RescheduleInput {
   releaseId: string;
   batchId: string;
@@ -374,8 +461,6 @@ export interface RescheduleInput {
   orderIds: string[];
   newPromiseDate: string;
   reason: string;
-  delaySubject: string;
-  delayBody: string;
   userId: string;
 }
 
