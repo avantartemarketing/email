@@ -187,14 +187,37 @@ approve is one of two problems, and the queue now routes each to its remedy.
   email as a side effect (plan regenerated, delay notice lands at the top of
   the queue, pending, for the same approver).
 
-**The Batches page (same round):** a new rail item between Releases and My
-approvals — every batch in the system grouped under its release, with active
-collector counts and the promised window (`listBatches()` on the DataLayer).
-It OPENS grouped by release via a new `defaultView` prop on DataTable (an
-initial view used only until the user changes anything), and DataTable now
-drops the grouped column from the grid while its bands are drawn — the band
-already prints the value, and a column repeating its own heading was two
-marks for one fact. `prove-screens` asserts the page opens banded.
+**Release overview (same round, renamed 29 Aug):** a rail item between Releases
+and Emails to write — every release opened out into the batches it ships in,
+with active collector counts and the promised window (`listBatches()` on the
+DataLayer). It OPENS grouped by release via a new `defaultView` prop on
+DataTable (an initial view used only until the user changes anything), and
+DataTable drops the grouped column from the grid while its bands are drawn —
+the band already prints the value, and a column repeating its own heading was
+two marks for one fact.
+
+Tom renamed it from Batches and sent a reference for the shape: *"Batches
+should be called Release overview, and look more like this. The Grouped
+headings wouldn't be in status lozenges though."* So:
+
+- the band stays ruling 14's caption-over-value and the release title stays
+  BARE — a lozenge is a mark on a status or a category, and a release title is
+  a name, not a state;
+- the batch name moved from a teal tag to emphasis (`.rd-ink`), because grouped
+  by release it is the row's identity and the reference sets an identity in
+  weight; the fulfilment tag it used to carry has its own column in Fields;
+- **grouped bands now FOLD.** The kit records shipping a band whose chevron had
+  no handler behind it — "it looked collapsible for months and never was" — so
+  `DataTable` wires `open`/`onToggle`. Session state, not view state: a filter
+  somebody lost is worse than no filter, but a fold somebody forgot is a table
+  quietly hiding rows next visit. Folding a group also deselects its rows, so a
+  bulk action can never fire on a row nobody can see.
+
+`prove-screens` asserts the page opens banded, that pressing a band actually
+removes rows (made to fail by restoring the old handler-less chevron), and —
+new, `checkNaming` — that a top-level screen's rail row, bar and title all say
+the same name. That last one exists because this rename changed two of the
+three and left the bar saying "My approvals" over the release overview.
 
 **The CRM handoff (29 Aug 2026)** — Tom: *"When someone schedules a delay, the
 job of writing the email goes to the CRM team. So we need it to trigger a

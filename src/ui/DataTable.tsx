@@ -234,6 +234,41 @@ export function DataTable<T>({
 
   const pin = useGridPin(Boolean(select && select.picked.size > 0));
 
+  /* Groups FOLD. The band has carried a chevron since ruling 14 and the kit
+     records what happened the last time nothing was behind it: "it looked
+     collapsible for months and never was, and the owner reported it." A
+     grouped table is read one group at a time, and on a page whose whole
+     definition is its grouping, shutting the four releases you are not looking
+     at is the difference between a page and a scroll.
+
+     Session state, not view state: a filter somebody set and lost is worse
+     than no filter, but a FOLD somebody set and forgot is a table quietly
+     hiding rows on the next visit. Folds reopen. */
+  const [shut, setShut] = useState<ReadonlySet<string>>(() => new Set());
+  /* Keyed by the grouping as well as the value, so regrouping cannot fold a
+     group that merely shares a key with one folded under another grouping —
+     and so switching back finds what you left. */
+  const foldKey = (key: string): string => `${view.group ?? ''}\u0000${key}`;
+  const toggleFold = (key: string, groupRows: T[]): void => {
+    const k = foldKey(key);
+    const folding = !shut.has(k);
+    setShut((prev) => {
+      const next = new Set(prev);
+      if (folding) next.add(k);
+      else next.delete(k);
+      return next;
+    });
+    /* Folding a group DESELECTS it. A bulk action fires on what is ticked, and
+       a tick you cannot see is a row you did not mean to approve — the same
+       argument `usePicked` makes for reading a shift-range off the DOM rather
+       than off the data. */
+    if (folding && select && select.picked.size > 0) {
+      const gone = new Set(groupRows.map(rowKey));
+      const left = new Set([...select.picked.ids].filter((id) => !gone.has(id)));
+      if (left.size !== select.picked.size) select.picked.replace(left);
+    }
+  };
+
   const fieldsMenu = (
     <ColumnsMenu
       columns={columns
@@ -336,12 +371,21 @@ export function DataTable<T>({
                 </td>
               </tr>
             ) : grouping ? (
-              groups.flatMap((g) => [
-                <GroupBand key={`band-${g.key}`} columns={span} caption={groupCaption}>
-                  {g.label}
-                </GroupBand>,
-                ...body(g.rows),
-              ])
+              groups.flatMap((g) => {
+                const open = !shut.has(foldKey(g.key));
+                return [
+                  <GroupBand
+                    key={`band-${g.key}`}
+                    columns={span}
+                    caption={groupCaption}
+                    open={open}
+                    onToggle={() => toggleFold(g.key, g.rows)}
+                  >
+                    {g.label}
+                  </GroupBand>,
+                  ...(open ? body(g.rows) : []),
+                ];
+              })
             ) : (
               body(kept)
             )}

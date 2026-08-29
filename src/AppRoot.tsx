@@ -31,7 +31,7 @@ import { Skeleton } from './ui/rd';
 import Menu from './rd/components/Menu';
 import { ReleasesIndex } from './screens/ReleasesIndex';
 import { ReleaseDetail } from './screens/ReleaseDetail';
-import { Batches } from './screens/Batches';
+import { ReleaseOverview } from './screens/ReleaseOverview';
 import { EmailsToWrite } from './screens/EmailsToWrite';
 import { MyApprovals } from './screens/MyApprovals';
 import { SendDetail } from './screens/SendDetail';
@@ -171,8 +171,8 @@ function Shell({
      could be labelled "Emails to write" and still hop to My approvals. */
   const [area, areaPath] = onReleases
     ? ['Releases', '/']
-    : location.pathname.startsWith('/batches')
-      ? ['Batches', '/batches']
+    : location.pathname.startsWith('/overview')
+      ? ['Release overview', '/overview']
       : location.pathname.startsWith('/copy')
         ? ['Emails to write', '/copy']
         : ['My approvals', '/approvals'];
@@ -197,10 +197,10 @@ function Shell({
               Releases
             </NavLink>
             <NavLink
-              to="/batches"
+              to="/overview"
               className={({ isActive }) => (isActive ? 'rd-navrow on' : 'rd-navrow')}
             >
-              Batches
+              Release overview
             </NavLink>
             <NavLink
               to="/copy"
@@ -269,7 +269,7 @@ function Shell({
             <Routes>
               <Route path="/" element={<ReleasesIndex />} />
               <Route path="/releases/:releaseId" element={<ReleaseDetail />} />
-              <Route path="/batches" element={<Batches />} />
+              <Route path="/overview" element={<ReleaseOverview />} />
               <Route path="/copy" element={<EmailsToWrite />} />
               <Route path="/approvals" element={<MyApprovals />} />
               <Route path="/sends/:sendId" element={<SendDetail />} />

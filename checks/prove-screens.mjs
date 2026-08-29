@@ -124,9 +124,37 @@ async function checkEveryTable(what) {
   return out
 }
 
+/**
+ * The three places a top-level screen says its own name — the rail row, the
+ * bar, and the title under the hairline — say the SAME name.
+ *
+ * Renaming Batches to Release overview on 29 Aug 2026 changed the rail row and
+ * the page title and missed the bar, which then said "My approvals" over the
+ * release overview: three strings computed in three places, and nothing in the
+ * app that reads two of them at once. A screen with a crumb is exempt — there
+ * the bar names the area and the title names the thing inside it, which is the
+ * shell's whole shape.
+ */
+async function checkNaming(what) {
+  const out = []
+  const nav = await page.evaluate(() => ({
+    here: document.querySelector('.rd-barhere')?.textContent?.trim() ?? '',
+    hop: document.querySelector('.rd-barhop')?.textContent?.trim() ?? null,
+    title: document.querySelector('.rd-title')?.textContent?.trim() ?? '',
+    rail: document.querySelector('.rd-navrow.on')?.firstChild?.textContent?.trim() ?? '',
+  }))
+  if (nav.hop !== null) return out
+  if (nav.here !== nav.title)
+    out.push(`${what}: the bar says "${nav.here}" over a page titled "${nav.title}"`)
+  if (nav.rail && nav.rail !== nav.title)
+    out.push(`${what}: the rail says "${nav.rail}" for a page titled "${nav.title}"`)
+  return out
+}
+
 async function screen(what, go) {
   await go()
   await settle(what)
+  faults.push(...(await checkNaming(what)))
   faults.push(...(await checkHead(what)))
   faults.push(...(await checkEveryTable(what)))
   faults.push(...(await checkRowShape(page, { label: what })))
@@ -161,24 +189,57 @@ await screen('release detail · a flow', async () => {
   await page.waitForTimeout(400)
 })
 
-/* ---- 2b · the batches overview ------------------------------------------- */
-await screen('batches', async () => {
-  await page.goto(`${BASE}/batches`, { waitUntil: 'networkidle' })
+/* ---- 2b · the release overview ------------------------------------------- */
+await screen('release overview', async () => {
+  await page.goto(`${BASE}/overview`, { waitUntil: 'networkidle' })
 })
 
 /* The page's definition is "grouped by release", so a fresh open must draw
    band rows — a flat first paint means the default view never reached the
    table. ONE browser context serves the whole run and nothing clears
-   localStorage, so this block must stay the run's first touch of /batches:
-   `ppc.table.batches.view` is unwritten here, which is what makes this read
+   localStorage, so this block must stay the run's first touch of /overview:
+   `ppc.table.release-overview.view` is unwritten here, which is what makes this read
    what a new visitor gets. Any later check that exercises this table's view
    controls has to run after it. */
 {
-  const what = 'batches'
+  const what = 'release overview'
   const bands = await page.evaluate(
     () => document.querySelectorAll('table tr.rd-band').length,
   )
   if (bands === 0) faults.push(`${what}: opened flat — no release bands drawn`)
+
+  /* And the bands FOLD. The kit records shipping a band whose chevron had no
+     handler behind it — "it looked collapsible for months and never was, and
+     the owner reported it" — so the chevron being drawn is not the check: the
+     rows going away when it is pressed is. */
+  const fold = await page.evaluate(() => {
+    const band = document.querySelector('table tr.rd-band')
+    const wrap = band?.querySelector('.rd-bandwrap')
+    if (!band || !wrap) return null
+    const chevron = wrap.querySelector('.rd-bandchev') !== null
+    const before = document.querySelectorAll('table tbody tr').length
+    wrap.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    return { chevron, before, expanded: wrap.getAttribute('aria-expanded') }
+  })
+  if (!fold) faults.push(`${what}: no band to fold`)
+  else {
+    if (!fold.chevron) faults.push(`${what}: the band draws no chevron`)
+    await new Promise((r) => setTimeout(r, 250))
+    const after = await page.evaluate(
+      () => document.querySelectorAll('table tbody tr').length,
+    )
+    if (after >= fold.before)
+      faults.push(
+        `${what}: pressing a band changed nothing — ${fold.before} rows before, ${after} after. ` +
+          'A chevron with no handler behind it is the fault this check exists for',
+      )
+    // Put it back, so nothing after this reads a folded table.
+    await page.evaluate(() => {
+      const wrap = document.querySelector('table tr.rd-band .rd-bandwrap')
+      wrap?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    await new Promise((r) => setTimeout(r, 250))
+  }
 }
 
 /* ---- 2c · emails to write ------------------------------------------------
