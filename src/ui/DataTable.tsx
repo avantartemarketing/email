@@ -62,6 +62,17 @@ export interface Column<T> {
   groupLabel?: (key: string, rows: T[]) => string;
   /** A fixed vocabulary's own order, for both the bands and the filter menu. */
   order?: readonly string[];
+  /**
+   * The band says everything this cell does, so the column comes off the grid
+   * while grouped by it.
+   *
+   * Opt-in, not automatic: it is only true where the cell is the bare value
+   * the band prints. A cell that adds anything — a pill, a marker, an action
+   * — still earns its column under its own band, and dropping every grouped
+   * column unconditionally took a LOCKED warning column off the approvals
+   * table the moment somebody grouped by it.
+   */
+  bandReplaces?: boolean;
   sortable?: boolean;
   groupable?: boolean;
   filterable?: boolean;
@@ -69,10 +80,15 @@ export interface Column<T> {
 }
 
 /** Remembered per table, so a filter set yesterday is still set today. */
-function readView(table: string): ViewState {
+function readView(table: string, initial?: Partial<ViewState>): ViewState {
   try {
     const raw = localStorage.getItem(storageKey(table));
-    if (!raw) return EMPTY_VIEW;
+    /* A table may open pre-arranged — the batches page IS "grouped by
+       release", so arriving flat would be arriving broken. The initial view
+       fills in only while nothing is remembered: the first change the user
+       makes is stored and wins from then on, so the default is a starting
+       point rather than a preference they cannot shake off. */
+    if (!raw) return { ...EMPTY_VIEW, ...initial };
     const parsed = JSON.parse(raw) as Partial<ViewState>;
     return {
       search: parsed.search ?? '',
@@ -81,13 +97,18 @@ function readView(table: string): ViewState {
       sort: parsed.sort ?? [],
     };
   } catch {
-    // A browser refusing storage still gets a working table.
-    return EMPTY_VIEW;
+    /* A browser refusing storage still gets a working table — and still gets
+       the table it was designed as: dropping `initial` here opened the
+       batches page flat in exactly the case this catch exists for. */
+    return { ...EMPTY_VIEW, ...initial };
   }
 }
 
-export function useView(table: string): [ViewState, (next: ViewState) => void] {
-  const [state, setState] = useState<ViewState>(() => readView(table));
+export function useView(
+  table: string,
+  initial?: Partial<ViewState>,
+): [ViewState, (next: ViewState) => void] {
+  const [state, setState] = useState<ViewState>(() => readView(table, initial));
   const set = useCallback(
     (next: ViewState) => {
       setState(next);
@@ -126,6 +147,8 @@ export function DataTable<T>({
   select,
   headActions,
   noun = 'row',
+  nounPlural,
+  defaultView,
 }: {
   /** Stable id — what the view and the hidden columns are remembered against. */
   table: string;
@@ -146,8 +169,12 @@ export function DataTable<T>({
   headActions?: ReactNode;
   /** What one row IS, for the count — "order", "send". */
   noun?: string;
+  /** Its plural, where adding an s is not it — "batches". */
+  nounPlural?: string;
+  /** How the table opens before anyone touches its view controls. */
+  defaultView?: Partial<ViewState>;
 }): ReactElement {
-  const [view, setView] = useView(table);
+  const [view, setView] = useView(table, defaultView);
   const [hidden, setHidden] = useState<Set<string>>(() =>
     readHidden(table, columns as Column<unknown>[]),
   );
@@ -191,10 +218,17 @@ export function DataTable<T>({
     [columns],
   );
 
-  const visible = columns.filter((c) => c.locked || !hidden.has(c.id));
-  const span = visible.length + (select ? 1 : 0);
   const { rows: kept, groups } = applyView(rows, fields, view);
   const grouping = fields.find((f) => f.id === view.group);
+  /* The grouped column comes OFF the grid while its bands are drawn: every
+     band already prints the value, and a column repeating what the heading
+     above it just said is two marks for one fact. Ungrouping brings it
+     straight back, locked or not — locked means "not hideable by hand",
+     and this is not by hand. */
+  const visible = columns.filter(
+    (c) => (c.locked || !hidden.has(c.id)) && !(grouping && c.id === view.group && c.bandReplaces),
+  );
+  const span = visible.length + (select ? 1 : 0);
   const groupCaption =
     columns.find((c) => c.id === view.group)?.caption ?? grouping?.label.toUpperCase() ?? '';
 
@@ -316,8 +350,8 @@ export function DataTable<T>({
       </div>
       <Foot>
         {kept.length === rows.length
-          ? `${rows.length} ${noun}${rows.length === 1 ? '' : 's'}`
-          : `${kept.length} of ${rows.length} ${noun}${rows.length === 1 ? '' : 's'}`}
+          ? `${rows.length} ${rows.length === 1 ? noun : (nounPlural ?? `${noun}s`)}`
+          : `${kept.length} of ${rows.length} ${rows.length === 1 ? noun : (nounPlural ?? `${noun}s`)}`}
         {select && select.picked.size > 0 ? ` · ${select.picked.size} selected` : ''}
         {foot ? <> · {foot}</> : null}
       </Foot>

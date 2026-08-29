@@ -336,6 +336,16 @@ export interface ReleaseSummary {
   overdueCount: number;
 }
 
+/** Row for the batches overview: one batch joined with its release. */
+export interface BatchListItem {
+  release: Release;
+  batch: Batch;
+  /** Active (not removed) orders in the batch. */
+  collectorCount: number;
+  /** 1 means "don't talk about batches" — same convention as the queue. */
+  releaseBatchCount: number;
+}
+
 /** Everything the release detail screen needs in one fetch. */
 export interface ReleaseDetail {
   release: Release;

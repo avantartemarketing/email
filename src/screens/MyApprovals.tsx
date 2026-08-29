@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { PendingSendItem } from '../types';
+import type { PendingSendItem, ReleaseDetail } from '../types';
 import type { SendDetailView } from '../data/DataLayer';
 import { daysBetween, formatDayShort, today } from '../logic/dates';
-import { NO_IMAGE_YET } from '../logic/templates';
+import { inheritedSentStory } from '../logic/reschedule';
+import { NO_IMAGE_YET, shipWindowShort } from '../logic/templates';
 import { isOverdueApproval, needsApprovingNow } from '../logic/approvals';
 import { TEMPLATE_LABELS, plural } from '../ui/format';
 import { useApp } from '../ui/AppContext';
@@ -31,6 +32,7 @@ import type { Column } from '../ui/DataTable';
 import usePicked from '../rd/components/usePicked';
 import { EmailPreview } from '../components/EmailPreview';
 import { ChangeSendDateModal } from '../components/ChangeSendDateModal';
+import { RescheduleModal } from '../components/RescheduleModal';
 
 /**
  * The approver's own worklist.
@@ -80,6 +82,15 @@ export function MyApprovals(): ReactElement {
   const [actingOn, setActingOn] = useState<string | null>(null);
   const [movingDate, setMovingDate] = useState<PendingSendItem | null>(null);
   const [cancelling, setCancelling] = useState<PendingSendItem | null>(null);
+  /* Situation 2: the promise itself has slipped. The reschedule flow needs
+     the batch's orders and sends, which the queue row does not carry, so the
+     door fetches the release before the dialogue can open. */
+  const [rescheduling, setRescheduling] = useState<{
+    item: PendingSendItem;
+    detail: ReleaseDetail;
+  } | null>(null);
+  /** Bumped per request, so only the newest reschedule fetch may open. */
+  const rescheduleReq = useRef(0);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   /* The last email these collectors received, shown where it is asked for
@@ -121,6 +132,35 @@ export function MyApprovals(): ReactElement {
   const reload = () => {
     queue.reload();
     refreshApprovals();
+  };
+
+  /**
+   * The door from the queue into Change delivery date.
+   *
+   * The moment an approver realizes "17 – 24 Sept isn't true any more"
+   * happens HERE, reading the email — but the remedy used to live three
+   * screens away on the batch tab. Same flow, same modal, opened where the
+   * realization happens. It only ever produces PENDING sends, so it is not
+   * admin-gated: an operator can pull the cord and approval still guards
+   * everything that reaches a collector.
+   */
+  const openReschedule = async (item: PendingSendItem): Promise<void> => {
+    /* The dialogue the approver is looking at stays up until its replacement
+       is ready: tearing it down first left the screen bare for the fetch, and
+       on a failure dropped them somewhere they never asked to be. The token
+       makes the last click win, so a double-click or a slow release cannot
+       open a modal for a send nobody is looking at any more. */
+    const req = (rescheduleReq.current += 1);
+    try {
+      const detail = await data.getRelease(item.release.id);
+      if (req !== rescheduleReq.current) return;
+      setPreview(null);
+      setMovingDate(null);
+      setRescheduling({ item, detail });
+    } catch (err) {
+      if (req !== rescheduleReq.current) return;
+      showToast(err instanceof Error ? err.message : String(err), true);
+    }
   };
 
   const approve = async (item: PendingSendItem): Promise<void> => {
@@ -212,7 +252,11 @@ export function MyApprovals(): ReactElement {
         ) : (
           approveBtn
         )}
-        <RowAct onClick={() => setMovingDate(item)}>Change date</RowAct>
+        {/* The object is in the name, because two date verbs now live one
+            click apart: this one moves ONE EMAIL silently; "Change delivery
+            date" changes the batch's promise and tells collectors. A bare
+            "Change date" next to that pair is a coin toss. */}
+        <RowAct onClick={() => setMovingDate(item)}>Change email date</RowAct>
         {/* "Cancel send", not "Cancel": on a screen with a dialogue on every
             verb, a bare "Cancel" is the word that dismisses one. The noun is
             what makes it an act. Same word the send's own page uses. */}
@@ -541,9 +585,14 @@ export function MyApprovals(): ReactElement {
         secondary={
           preview
             ? [
-                { label: 'Change date', onClick: () => setMovingDate(preview) },
+                { label: 'Change email date', onClick: () => setMovingDate(preview) },
+                { label: 'Change delivery date', onClick: () => void openReschedule(preview) },
                 {
+                  /* The one that LEAVES rather than acts, so it leaves the
+                     boxed register too: four chips beside a primary is four
+                     equal-looking boxes with no rank in them. */
                   label: 'Open send detail',
+                  kind: 'link' as const,
                   onClick: () => {
                     navigate(`/sends/${preview.send.id}`);
                     setPreview(null);
@@ -567,6 +616,15 @@ export function MyApprovals(): ReactElement {
             <Facts
               items={[
                 { label: 'Scheduled', value: formatDayShort(preview.send.scheduledDate) },
+                {
+                  /* The promise, next to the email that claims it — so "is
+                     what this says still true?" is answerable without leaving
+                     the dialogue or trusting memory. */
+                  label: 'Promised dispatch',
+                  value: preview.batch.promiseDate
+                    ? shipWindowShort(preview.batch.promiseDate)
+                    : 'Not set',
+                },
                 { label: 'Recipients', value: preview.recipientCount },
                 { label: 'Submitted by', value: userName(preview.send.createdBy) },
                 {
@@ -650,7 +708,43 @@ export function MyApprovals(): ReactElement {
           showToast(message);
           reload();
         }}
+        onPivot={() => {
+          if (movingDate) void openReschedule(movingDate);
+        }}
       />
+
+      {/* Change delivery date, scoped to the send's batch. The reschedule
+          cancels the batch's unsent sends and regenerates the plan, so the
+          email that could not be approved is superseded as a side effect of
+          telling the truth — the queue reloads with the delay notice at the
+          top, pending, for the same approver. */}
+      {rescheduling
+        ? (() => {
+            const d = rescheduling.detail;
+            const batch = d.batches.find((b) => b.id === rescheduling.item.batch.id);
+            if (!batch) return null;
+            const orders = d.orders.filter((o) => o.batchId === batch.id && !o.removed);
+            const batchSends = d.sends.filter((send) => send.batchId === batch.id);
+            return (
+              <RescheduleModal
+                open
+                onClose={() => setRescheduling(null)}
+                release={d.release}
+                batch={batch}
+                batchLabel={d.batches.length > 1 ? batch.name : null}
+                selectedOrders={orders}
+                batchActiveOrderCount={orders.length}
+                batchSends={batchSends}
+                inheritedSentSends={inheritedSentStory(batch, d.batches, d.sends)}
+                onDone={(message) => {
+                  setRescheduling(null);
+                  showToast(message);
+                  reload();
+                }}
+              />
+            );
+          })()
+        : null}
 
       <Dialog
         open={cancelling !== null}

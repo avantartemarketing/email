@@ -2,6 +2,7 @@ import type {
   AllocationImportSummary,
   Batch,
   BatchEvent,
+  BatchListItem,
   BatchEventType,
   BatchFulfilment,
   ImageSlot,
@@ -297,6 +298,29 @@ export class MockDataLayer implements DataLayer {
     });
     summaries.sort((a, b) => a.release.title.localeCompare(b.release.title));
     return this.settle(summaries);
+  }
+
+  async listBatches(): Promise<BatchListItem[]> {
+    /* Same order the releases index reads in — releases by title, a release's
+       batches by creation — so the two screens tell one story. */
+    const releases = [...this._store.releases.values()].sort((a, b) =>
+      a.title.localeCompare(b.title),
+    );
+    const rows: BatchListItem[] = [];
+    for (const release of releases) {
+      const batches = this.releaseBatches(release.id).sort((a, b) =>
+        a.createdAt.localeCompare(b.createdAt),
+      );
+      for (const batch of batches) {
+        rows.push({
+          release,
+          batch,
+          collectorCount: this.activeBatchOrders(batch.id).length,
+          releaseBatchCount: batches.length,
+        });
+      }
+    }
+    return this.settle(rows);
   }
 
   async getRelease(releaseId: string): Promise<ReleaseDetail> {

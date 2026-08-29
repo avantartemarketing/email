@@ -165,6 +165,26 @@ describe('seeded world — approval queue', () => {
   });
 });
 
+describe('seeded world — batches overview', () => {
+  it('lists every batch under its release, with honest counts', async () => {
+    const rows = await layer.listBatches();
+    const releases = await layer.listReleases();
+    // Every release's batches are present, and no phantom ones.
+    expect(rows.length).toBe(releases.reduce((sum, r) => sum + r.batchCount, 0));
+    // Releases arrive in the index's own order, batches by creation within.
+    const titles = [...new Set(rows.map((r) => r.release.title))];
+    expect(titles).toEqual(releases.map((r) => r.release.title));
+    // The count is ACTIVE orders — a refunded collector is not a collector.
+    const fl = releases.find((r) => r.release.title === 'Falling Light')!;
+    const flRows = rows.filter((r) => r.release.id === fl.release.id);
+    expect(flRows.reduce((sum, r) => sum + r.collectorCount, 0)).toBe(fl.orderCount);
+    // Night Garden has batches but no promises yet — the page must show that.
+    const ng = rows.filter((r) => r.release.title === 'Night Garden');
+    expect(ng.length).toBeGreaterThan(0);
+    expect(ng.every((r) => r.batch.promiseDate === null)).toBe(true);
+  });
+});
+
 describe('live behaviour through the interface', () => {
   it('re-importing the same CSV creates no duplicates', async () => {
     const { release } = await releaseByTitle('Night Garden');

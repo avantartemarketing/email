@@ -1,6 +1,7 @@
 import type {
   AllocationImportSummary,
   Batch,
+  BatchListItem,
   ImageSlot,
   ImportSummary,
   LastSentInfo,
@@ -96,6 +97,8 @@ export interface DataLayer {
 
   // --- releases and import ----------------------------------------------
   listReleases(): Promise<ReleaseSummary[]>;
+  /** Every batch across every release, for the batches overview. */
+  listBatches(): Promise<BatchListItem[]>;
   getRelease(releaseId: string): Promise<ReleaseDetail>;
   createRelease(input: CreateReleaseInput): Promise<Release>;
   /**

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { APPROVAL_HORIZON_DAYS, isOverdueApproval, needsApprovingNow } from '../approvals';
-import { addDays } from '../dates';
+import { addDays, daysBetween } from '../dates';
 
 const T = '2026-08-28';
 const pending = (scheduledDate: string) => ({ status: 'pending_approval' as const, scheduledDate });
@@ -45,5 +45,15 @@ describe('isOverdueApproval', () => {
     const late = pending(addDays(T, -5));
     expect(isOverdueApproval(late, T)).toBe(true);
     expect(needsApprovingNow(late, T)).toBe(true);
+  });
+});
+
+describe('the guardrails rest on real date maths', () => {
+  it('parseDay refuses an empty string — the crowding guard must never hand it one', () => {
+    /* The bug this pins: ChangeSendDateModal computed the nearest-send gap in
+       its render body before checking the field was filled, so clearing the
+       native date input threw here and, with no error boundary anywhere in the
+       app, took the whole approvals page down with it. */
+    expect(() => daysBetween('', '2026-09-01')).toThrow(/Not an ISO date/);
   });
 });

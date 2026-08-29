@@ -384,6 +384,13 @@ export function Facts({ items }: { items: { label: string; value: ReactNode }[] 
  * Escape closes it, the scrim closes it, and the primary action is a button
  * rather than a form submit so a screen never has to think about enter.
  */
+/** A dialogue's non-primary action. `link` drops it out of the boxed register. */
+interface DialogAction {
+  label: string;
+  onClick: () => void;
+  kind?: 'chip' | 'link';
+}
+
 export function Dialog({
   open,
   title,
@@ -399,8 +406,12 @@ export function Dialog({
   size?: 'sm' | 'md' | 'lg';
   onClose: () => void;
   primary?: { label: string; onClick: () => void; disabled?: boolean; destructive?: boolean };
-  /** One or several, in the order the foot should read them. */
-  secondary?: { label: string; onClick: () => void } | { label: string; onClick: () => void }[];
+  /**
+   * One or several, in the order the foot should read them. `kind: 'link'`
+   * drops one out of the boxed register — four chips beside a primary is a
+   * row of equal-looking boxes with no rank in it.
+   */
+  secondary?: DialogAction | DialogAction[];
   /** The word that acts, at the far end of the foot — "Delete", "Remove". */
   danger?: { label: string; onClick: () => void };
   children: ReactNode;
@@ -411,7 +422,14 @@ export function Dialog({
      there was anything above it. */
   const panel = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
-    if (open && panel.current) panel.current.scrollTop = 0;
+    if (!open || !panel.current) return;
+    panel.current.scrollTop = 0;
+    /* And it takes focus. Escape is handled on the panel, so without this the
+       key went to whichever panel last held focus — with two dialogues open
+       (the preview, then Change email date over it) that is the one
+       UNDERNEATH, so Escape shut the wrong one and left the top one orphaned
+       over a closed parent. */
+    panel.current.focus();
   }, [open]);
 
   if (!open) return null;
@@ -430,6 +448,7 @@ export function Dialog({
         className={`rd-dialog rd-dialog-${size}`}
         role="dialog"
         aria-modal="true"
+        tabIndex={-1}
         onKeyDown={(e) => {
           if (e.key === 'Escape') onClose();
         }}
@@ -454,7 +473,12 @@ export function Dialog({
               </button>
             ) : null}
             {(Array.isArray(secondary) ? secondary : secondary ? [secondary] : []).map((s) => (
-              <button key={s.label} type="button" className="rd-chip" onClick={s.onClick}>
+              <button
+                key={s.label}
+                type="button"
+                className={s.kind === 'link' ? 'rd-linkbtn rd-linkbtn-mut' : 'rd-chip'}
+                onClick={s.onClick}
+              >
                 {s.label}
               </button>
             ))}

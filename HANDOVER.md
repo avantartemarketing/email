@@ -166,7 +166,37 @@ assertions that counted the old world now state the invariant instead.
   deletes the row carrying its own "Switch on"; and it now confirms first,
   naming how many queued sends across how many batches it will cancel.
 
-`npm test` → 144 green. `npm run build` clean. `check:screens` clean.
+**The can't-approve round (29 Aug, latest):** an email an approver cannot
+approve is one of two problems, and the queue now routes each to its remedy.
+
+- *"True, but not yet"* → **Change email date** (renamed from "Change date":
+  two date verbs one click apart need their objects in their names). The
+  dialogue now fetches the batch's other queued sends and warns when a move
+  lands out of order or crowds another email inside the plan's own seven-day
+  floor. The 7-day approvals horizon is the snooze: a moved email leaves "To
+  approve now" and re-enters it, badge and all, when it is due — the toast
+  says "it comes back up for approval nearer the time".
+- *"No longer true — the promise slipped"* → **Change delivery date**, now
+  reachable FROM the queue: a door in the preview (which also carries a
+  "Promised dispatch" fact, so the email's claim is checkable in place), and
+  a hard CEILING in the email-date dialogue — no update may land on/after the
+  dispatch email, and dispatch may not land after the window opens. A date
+  that does not fit blocks Move send and offers the pivot; picking an
+  impossible date IS the diagnosis. The reschedule is scoped to the send's
+  batch, reuses `RescheduleModal` wholesale, and supersedes the un-approvable
+  email as a side effect (plan regenerated, delay notice lands at the top of
+  the queue, pending, for the same approver).
+
+**The Batches page (same round):** a new rail item between Releases and My
+approvals — every batch in the system grouped under its release, with active
+collector counts and the promised window (`listBatches()` on the DataLayer).
+It OPENS grouped by release via a new `defaultView` prop on DataTable (an
+initial view used only until the user changes anything), and DataTable now
+drops the grouped column from the grid while its bands are drawn — the band
+already prints the value, and a column repeating its own heading was two
+marks for one fact. `prove-screens` asserts the page opens banded.
+
+`npm test` → 145 green. `npm run build` clean. `check:screens` clean.
 
 **Artifacts live (publish with `url:` to update, never without):**
 - Prototype, Workbench-rd: https://claude.ai/code/artifact/ebfa534f-1267-4a64-99a5-7978167d3a9f

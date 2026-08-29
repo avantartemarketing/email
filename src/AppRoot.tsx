@@ -31,6 +31,7 @@ import { Skeleton } from './ui/rd';
 import Menu from './rd/components/Menu';
 import { ReleasesIndex } from './screens/ReleasesIndex';
 import { ReleaseDetail } from './screens/ReleaseDetail';
+import { Batches } from './screens/Batches';
 import { MyApprovals } from './screens/MyApprovals';
 import { SendDetail } from './screens/SendDetail';
 
@@ -153,7 +154,11 @@ function Shell({
   );
 
   const onReleases = location.pathname === '/' || location.pathname.startsWith('/releases');
-  const area = onReleases ? 'Releases' : 'My approvals';
+  const area = onReleases
+    ? 'Releases'
+    : location.pathname.startsWith('/batches')
+      ? 'Batches'
+      : 'My approvals';
   const initials = currentUser.name
     .split(' ')
     .map((part) => part[0])
@@ -173,6 +178,12 @@ function Shell({
           <div className="rd-railnav">
             <NavLink to="/" className={onReleases ? 'rd-navrow on' : 'rd-navrow'}>
               Releases
+            </NavLink>
+            <NavLink
+              to="/batches"
+              className={({ isActive }) => (isActive ? 'rd-navrow on' : 'rd-navrow')}
+            >
+              Batches
             </NavLink>
             <NavLink
               to="/approvals"
@@ -234,6 +245,7 @@ function Shell({
             <Routes>
               <Route path="/" element={<ReleasesIndex />} />
               <Route path="/releases/:releaseId" element={<ReleaseDetail />} />
+              <Route path="/batches" element={<Batches />} />
               <Route path="/approvals" element={<MyApprovals />} />
               <Route path="/sends/:sendId" element={<SendDetail />} />
               <Route path="*" element={<Navigate to="/" replace />} />

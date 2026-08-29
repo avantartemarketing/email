@@ -161,6 +161,26 @@ await screen('release detail · a flow', async () => {
   await page.waitForTimeout(400)
 })
 
+/* ---- 2b · the batches overview ------------------------------------------- */
+await screen('batches', async () => {
+  await page.goto(`${BASE}/batches`, { waitUntil: 'networkidle' })
+})
+
+/* The page's definition is "grouped by release", so a fresh open must draw
+   band rows — a flat first paint means the default view never reached the
+   table. ONE browser context serves the whole run and nothing clears
+   localStorage, so this block must stay the run's first touch of /batches:
+   `ppc.table.batches.view` is unwritten here, which is what makes this read
+   what a new visitor gets. Any later check that exercises this table's view
+   controls has to run after it. */
+{
+  const what = 'batches'
+  const bands = await page.evaluate(
+    () => document.querySelectorAll('table tr.rd-band').length,
+  )
+  if (bands === 0) faults.push(`${what}: opened flat — no release bands drawn`)
+}
+
 /* ---- 3 · my approvals ---------------------------------------------------- */
 await screen('my approvals', async () => {
   await page.goto(`${BASE}/approvals`, { waitUntil: 'networkidle' })
