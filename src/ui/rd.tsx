@@ -405,7 +405,22 @@ export function Dialog({
   title: ReactNode;
   size?: 'sm' | 'md' | 'lg';
   onClose: () => void;
-  primary?: { label: string; onClick: () => void; disabled?: boolean; destructive?: boolean };
+  primary?: {
+    label: string;
+    onClick: () => void;
+    disabled?: boolean;
+    destructive?: boolean;
+    /**
+     * Why it is shut, on the `Why` the kit keeps for exactly this.
+     *
+     * A dialogue's primary is the one control on it that matters, and until
+     * now it could be greyed with no way to say what was missing — every
+     * caller that wanted to had to draw a band instead, which is a second
+     * place to keep the same sentence in step. Ruling: "a shut control must
+     * say why", and this is where a dialogue says it.
+     */
+    why?: string;
+  };
   /**
    * One or several, in the order the foot should read them. `kind: 'link'`
    * drops one out of the boxed register — four chips beside a primary is a
@@ -463,14 +478,22 @@ export function Dialog({
         {primary || secondary || danger ? (
           <div className="rd-dialogfoot">
             {primary ? (
-              <button
-                type="button"
-                className="rd-btn-pri"
-                onClick={primary.onClick}
-                disabled={primary.disabled}
-              >
-                {primary.label}
-              </button>
+              primary.disabled && primary.why ? (
+                <Why says={primary.why}>
+                  <button type="button" className="rd-btn-pri" disabled>
+                    {primary.label}
+                  </button>
+                </Why>
+              ) : (
+                <button
+                  type="button"
+                  className="rd-btn-pri"
+                  onClick={primary.onClick}
+                  disabled={primary.disabled}
+                >
+                  {primary.label}
+                </button>
+              )
             ) : null}
             {(Array.isArray(secondary) ? secondary : secondary ? [secondary] : []).map((s) => (
               <button

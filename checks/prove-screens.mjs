@@ -277,6 +277,112 @@ await screen('release detail · a flow', async () => {
 }
 
 
+/* ---- 1b · adding a release ------------------------------------------------
+   The flow the owner approved on 30 Aug: drop the export, tick which products
+   are this release, let the file decide the rest. Three things are worth
+   proving on a render rather than in a unit test, and each is a way the flow
+   could quietly stop working:
+   - a file that is not an order export gets a whole-FILE answer, never a row
+     count. An empty file used to draw "1 row could not be read" over the body
+     "Everything else was imported.";
+   - pane two lists what the file actually contains, with the counts;
+   - the primary is shut until the one thing the file cannot supply is given,
+     and it says which thing. */
+addingARelease: {
+  const what = 'new release'
+  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: 'New release' }).click()
+  await page.getByRole('dialog').waitFor()
+
+  const notAnExport = 'Order Number,Print Name,Fulfilment\n#1,Falling Light,Framed'
+  await page.setInputFiles('.rd-importdrop input', {
+    name: 'allocation.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(notAnExport),
+  })
+  await page.getByRole('button', { name: 'Read the file' }).click()
+  await page.waitForTimeout(250)
+  const fault = await page.evaluate(() => {
+    const bar = document.querySelector('.rd-dialog .rd-failbar')
+    return {
+      text: bar?.textContent?.trim() ?? '',
+      rows: document.querySelectorAll('.rd-dialog table tbody tr').length,
+    }
+  })
+  if (!/not a Shopify order export/i.test(fault.text))
+    faults.push(`${what}: a non-export drew "${fault.text.slice(0, 70)}" instead of a file fault`)
+  if (!/Order Number/.test(fault.text))
+    faults.push(`${what}: the fault does not name the columns the file DID have`)
+  if (fault.rows > 0)
+    faults.push(`${what}: a whole-file fault drew ${fault.rows} table row(s) — it is not a row`)
+
+  /* A refused file must leave the door open. Stated as its own fault, and the
+     block stops here when it is broken, because everything below drops a
+     second file into a box that is no longer on the screen — and a check that
+     reports a 30-second timeout instead of a sentence has told the next
+     person nothing. This guard is why: with the fault put back in the row
+     channel the first file "succeeded" into pane two and the run crashed. */
+  if ((await page.locator('.rd-importdrop input').count()) === 0) {
+    faults.push(`${what}: a file that is not an order export moved the dialogue on anyway`)
+    break addingARelease
+  }
+
+  /* And the real thing. Two products, their counts, and a shut primary that
+     names the one fact a Shopify export does not carry. */
+  const header =
+    'Name,Email,Financial Status,Paid at,Fulfillment Status,Currency,Subtotal,Created at,' +
+    'Lineitem quantity,Lineitem name,Lineitem price,Lineitem sku,Billing Name,Shipping Name,' +
+    'Shipping Country,Tags'
+  const row = (n, title, sku) =>
+    `#ZZ${n},c${n}@example.com,paid,2026-06-01 10:00:00 +0000,unfulfilled,GBP,500,` +
+    `2026-06-01 10:00:00 +0000,1,${title},500,${sku},Collector ${n},Collector ${n},United Kingdom,`
+  const csv = [
+    header,
+    row(1, 'Harbour Light - Framed', 'HL-FR'),
+    row(2, 'Harbour Light - Framed', 'HL-FR'),
+    row(3, 'Harbour Light - Unframed', 'HL-UF'),
+  ].join('\n')
+  await page.setInputFiles('.rd-importdrop input', {
+    name: 'harbour-light.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(csv),
+  })
+  await page.getByRole('button', { name: 'Read the file' }).click()
+  await page.waitForTimeout(350)
+
+  const pane = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('.rd-dialog .rd-importlist tbody tr')].map((r) =>
+      [...r.children].map((c) => c.textContent?.trim() ?? ''),
+    )
+    const primary = document.querySelector('.rd-dialogfoot button')
+    return {
+      rows,
+      foot: document.querySelector('.rd-dialog .rd-foot')?.textContent?.trim() ?? '',
+      primary: primary?.textContent?.trim() ?? '',
+      shut: primary instanceof HTMLButtonElement ? primary.disabled : null,
+      why: document.querySelector('.rd-dialogfoot .rd-tip')?.textContent?.trim() ?? '',
+      title: document.querySelector('.rd-dialoghd, .rd-dialog h2')?.textContent?.trim() ?? '',
+    }
+  })
+  if (pane.rows.length !== 2)
+    faults.push(`${what}: ${pane.rows.length} product rows for a file with two products`)
+  else {
+    if (!pane.rows.some((r) => r.includes('Framed') && r.includes('2')))
+      faults.push(`${what}: the framed row does not carry its count — ${pane.rows[0].join(' | ')}`)
+  }
+  if (!/harbour-light\.csv/.test(pane.title))
+    faults.push(`${what}: pane two's title does not carry the file name — "${pane.title}"`)
+  if (!/3 orders from 3 Shopify orders/.test(pane.foot))
+    faults.push(`${what}: the foot does not state both totals — "${pane.foot}"`)
+  if (pane.shut !== true)
+    faults.push(`${what}: the primary is open with no artist — a Shopify export has no artist column`)
+  if (!/artist/i.test(pane.why))
+    faults.push(`${what}: the shut primary does not say what is missing — "${pane.why}"`)
+}
+
+await page.keyboard.press('Escape')
+await page.waitForTimeout(200)
+
 /* ---- 2b · the promise date overview --------------------------------------- */
 await screen('promise date overview', async () => {
   await page.goto(`${BASE}/overview`, { waitUntil: 'networkidle' })

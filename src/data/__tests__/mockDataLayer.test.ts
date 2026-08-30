@@ -2,7 +2,12 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import type { DataLayer } from '../DataLayer';
 import type { MockDataLayer } from '../mock/MockDataLayer';
 import { createSeededMockDataLayer } from '../mock/seed';
-import { FALLING_LIGHT_ALLOCATION_CSV, NIGHT_GARDEN_CSV } from '../mock/fixtures';
+import {
+  FALLING_LIGHT_ALLOCATION_CSV,
+  NIGHT_GARDEN_CSV,
+  VESSEL_VIII_CSV,
+} from '../mock/fixtures';
+import { parseShopifyOrderExport } from '../../logic/importer';
 import { addDays, today } from '../../logic/dates';
 
 /**
@@ -194,15 +199,19 @@ describe('seeded world — batches overview', () => {
 });
 
 describe('live behaviour through the interface', () => {
-  it('re-importing the same CSV creates no duplicates', async () => {
+  it('re-adding the same export creates no duplicates', async () => {
     const { release } = await releaseByTitle('Night Garden');
     const before = (await releaseByTitle('Night Garden')).orderCount;
-    const summary = await layer.importOrders(release.id, NIGHT_GARDEN_CSV);
-    expect(summary.newOrders).toBe(0);
-    /* Every row in the file is a duplicate, the in-file repeat included — so
-       the skip count is the row count and the release is unchanged. Stated
-       against the file rather than as a number, because the file grew. */
-    expect(summary.duplicatesSkipped).toBe(summary.rowsParsed);
+    const items = parseShopifyOrderExport(NIGHT_GARDEN_CSV).items;
+    const intake = await layer.addOrders(release.id, items, {
+      kind: 'csv_upload',
+      label: 'night-garden-2026-08-22.csv',
+    });
+    expect(intake.summary.newOrders).toBe(0);
+    /* Every claimed row in the file is already here. A repeat WITHIN the file
+       is a note rather than a skip, so the skip count is the distinct existing
+       orders the file re-states — not the row count. */
+    expect(intake.summary.duplicatesSkipped).toBeGreaterThan(0);
     expect((await releaseByTitle('Night Garden')).orderCount).toBe(before);
   });
 
@@ -489,9 +498,9 @@ describe('real email format, allocation and lineage behaviours', () => {
       productKind: 'sculpture',
       disabledTemplates: ['pp-ontrack'],
     });
-    const detail = await layer.getRelease(release.id);
+    const detail = await layer.getRelease(release.release.id);
     await layer.setPromiseDate(detail.batches[0].id, addDays(today(), 240));
-    const planned = await layer.getRelease(release.id);
+    const planned = await layer.getRelease(release.release.id);
     const refs = planned.sends.map((s) => s.templateRef);
     expect(refs).not.toContain('pp-ontrack');
     expect(refs[refs.length - 1]).toBe('pp-dispatch');
@@ -709,6 +718,123 @@ describe('the delay-copy handoff', () => {
     expect(after.some((j) => j.send.id === job.send.id)).toBe(true);
     expect(after.find((j) => j.send.id === job.send.id)!.notification).toBeNull();
     await layer.setCurrentUser('user-tom');
+  });
+});
+
+describe('adding a release from a file', () => {
+  /* The flow the owner asked for on 30 Aug: drop the export, tick which
+     products are this release, and let the file decide the rest. */
+
+  it('the seeded releases were opened from their files, and claim what they hold', async () => {
+    const { release } = await releaseByTitle('Falling Light');
+    expect(release.productMatch.lineItemTitles).toEqual([
+      'Falling Light - Framed',
+      'Falling Light - Unframed',
+    ]);
+    /* The Night Garden line in the Falling Light export belongs to a collector
+       who bought two editions in one order. It is in the file and not claimed,
+       so it never became an order here. */
+    const detail = await layer.getRelease(release.id);
+    expect(detail.orders.some((o) => o.lineItemTitle.startsWith('Night Garden'))).toBe(false);
+    expect(release.productMatch.confirmedAt).toBeTruthy();
+  });
+
+  it('every order remembers the arrival that made it', async () => {
+    const { release } = await releaseByTitle('Falling Light');
+    const detail = await layer.getRelease(release.id);
+    expect(detail.intakes).toHaveLength(1);
+    const [intake] = detail.intakes;
+    expect(intake.source).toEqual({
+      kind: 'csv_upload',
+      label: 'falling-light-2026-04-26.csv',
+    });
+    expect(detail.orders.every((o) => o.intakeId === intake.id)).toBe(true);
+    /* Two different quantities, both stored: an order here is one row per
+       print, and the file holds fewer Shopify orders than that. */
+    expect(intake.summary.newOrders).toBe(294);
+    expect(intake.summary.shopifyOrders).toBe(293);
+  });
+
+  it('refuses a product another release already claims', async () => {
+    await expect(
+      layer.createRelease(
+        { title: 'Falling Light Again', artist: 'Someone', editionSize: null, productKind: 'print',
+          productMatch: { lineItemTitles: ['Falling Light - Framed'], skus: [] } },
+      ),
+    ).rejects.toThrow(/already claimed by Falling Light/);
+  });
+
+  it('claimantsOf names who has a title, so the door can say it before the press', async () => {
+    const claims = await layer.claimantsOf([
+      'Falling Light - Framed',
+      'Nothing Anybody Sells',
+    ]);
+    expect(claims).toHaveLength(1);
+    expect(claims[0].releaseTitle).toBe('Falling Light');
+    expect(claims[0].orderCount).toBeGreaterThan(200);
+  });
+
+  it('an arrival can be undone while nothing has sent, and hard-deletes', async () => {
+    /* Its own product, because the claim guard is real: the seeded Night
+       Garden already holds those titles, and re-using them here fails at the
+       door — which is the point of the guard, and was caught by it. */
+    const items = parseShopifyOrderExport(NIGHT_GARDEN_CSV).items.map((i) => ({
+      ...i,
+      lineItemTitle: i.lineItemTitle.replace('Night Garden', 'Tidal Study'),
+    }));
+    const { release, intake } = await layer.createRelease(
+      {
+        title: 'Tidal Study',
+        artist: 'Ilse Marchetti',
+        editionSize: 40,
+        productKind: 'print',
+        productMatch: {
+          lineItemTitles: ['Tidal Study - Framed', 'Tidal Study - Unframed'],
+          skus: [],
+        },
+      },
+      { items, source: { kind: 'csv_upload', label: 'tidal-study.csv' } },
+    );
+    expect(intake).not.toBeNull();
+    const before = await layer.getRelease(release.id);
+    expect(before.orders.length).toBeGreaterThan(0);
+    expect(before.batches.length).toBeGreaterThan(0);
+
+    await layer.undoIntake(intake!.id);
+    const after = await layer.getRelease(release.id);
+    /* HARD-deleted, not marked removed: a soft-removed order stays in the
+       dedupe set — deliberately, so a cancelled order in a re-uploaded export
+       stays gone — and 294 of them would poison the import of the right file. */
+    expect(after.orders).toHaveLength(0);
+    expect(after.batches).toHaveLength(0);
+    expect(after.intakes).toHaveLength(0);
+    await layer.deleteRelease(release.id);
+  });
+
+  it('refuses to undo or delete once a collector has been written to', async () => {
+    const { release } = await releaseByTitle('Falling Light');
+    const detail = await layer.getRelease(release.id);
+    await expect(layer.undoIntake(detail.intakes[0].id)).rejects.toThrow(/already gone out/);
+    await expect(layer.deleteRelease(release.id)).rejects.toThrow(/cannot be deleted/);
+  });
+
+  it('a release set up without a file claims nothing, and its first file decides', async () => {
+    const { release } = await layer.createRelease({
+      title: 'Slack Water',
+      artist: 'Ada Boateng',
+      editionSize: 30,
+      productKind: 'sculpture',
+    });
+    expect(release.productMatch.lineItemTitles).toEqual([]);
+    const items = parseShopifyOrderExport(VESSEL_VIII_CSV).items.map((i) => ({
+      ...i,
+      lineItemTitle: 'Slack Water',
+    }));
+    await layer.addOrders(release.id, items, { kind: 'csv_upload', label: 'slack-water.csv' });
+    const after = await layer.getRelease(release.id);
+    expect(after.release.productMatch.lineItemTitles).toEqual(['Slack Water']);
+    expect(after.orders.length).toBeGreaterThan(0);
+    await layer.deleteRelease(release.id);
   });
 });
 

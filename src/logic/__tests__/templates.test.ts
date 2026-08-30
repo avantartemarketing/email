@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { emptyProductMatch } from '../intake';
 import type { Release } from '../../types';
 import {
   buildNextSteps,
@@ -27,7 +28,7 @@ function makeRelease(overrides: Partial<Release> = {}): Release {
     id: 'rel-1',
     title: 'Falling Light',
     artist: 'Jenny Marlowe',
-    shopifyProductIds: [],
+    productMatch: emptyProductMatch(),
     editionSize: 150,
     status: 'active',
     productKind: 'print',

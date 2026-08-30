@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import { useParams } from 'react-router-dom';
 import type {
   Batch,
+  Intake,
   Order,
   OrderAllocation,
   ReleaseDetail as ReleaseDetailData,
@@ -22,6 +23,7 @@ import {
   CardHead,
   Dialog,
   Empty,
+  Facts,
   None,
   Page,
   Pill,
@@ -42,14 +44,14 @@ import { PromiseDateModal } from '../components/PromiseDateModal';
 import { AddSendModal } from '../components/AddSendModal';
 import { EditSendModal } from '../components/EditSendModal';
 import { RemoveOrderModal } from '../components/RemoveOrderModal';
-import { ImportCsvModal } from '../components/ImportCsvModal';
+import { AddOrdersModal } from '../components/AddOrdersModal';
 import { AllocationImportModal } from '../components/AllocationImportModal';
 import { ReleaseEmailsPanel } from '../components/ReleaseEmailsCard';
 import { ReleaseOrdersTable } from '../components/ReleaseOrdersTable';
 
 export function ReleaseDetail(): ReactElement {
   const { releaseId } = useParams<{ releaseId: string }>();
-  const { data } = useApp();
+  const { data, showToast, userName } = useApp();
   const detail = useAsync(() => data.getRelease(releaseId!), [releaseId]);
   /* Two levels, two pieces of state — the owner, 29 Aug 2026: "The batches is
      a tab and then the different batches is a sub level within that." It used
@@ -68,6 +70,12 @@ export function ReleaseDetail(): ReactElement {
      BAND below is derived and stays until the images are actually picked. */
   const [dateJustChanged, setDateJustChanged] = useState(false);
   const [imageGapOpen, setImageGapOpen] = useState(false);
+  /* The remover ships WITH the flow, not after it. Creating a release from a
+     file is now one press that makes a release, its batches and three hundred
+     orders — and the file most likely to be dropped by mistake is named almost
+     identically to the right one. */
+  const [undoing, setUndoing] = useState<Intake | null>(null);
+  const [undoBusy, setUndoBusy] = useState(false);
   // The shell's path ends at the record this screen is showing.
   useCrumb(detail.data?.release.title);
 
@@ -127,7 +135,12 @@ export function ReleaseDetail(): ReactElement {
 
      Most releases never split, so one batch means "the release" and carries no
      batch name. Print releases show their framed/unframed flows. */
-  const singleBatch = batches.length === 1;
+  /* `<= 1`, not `=== 1`. A release with NO batches is a real state now — set
+     up without a file, or emptied by an undo — and at `=== 1` its third tab
+     read "Batches (0)", which is batch language on a release that has none.
+     One batch and no batches are the same thing to a reader: there is nothing
+     to choose between. */
+  const singleBatch = batches.length <= 1;
   const activeOrderCount = d.orders.filter((o) => !o.removed).length;
   const batchCount = (id: string) => d.orders.filter((o) => o.batchId === id && !o.removed).length;
   /* THREE, always. A release that splits eleven times still has three
@@ -146,6 +159,18 @@ export function ReleaseDetail(): ReactElement {
   const showingEmails = top === 'emails';
   const batch =
     top === 'batches' ? (batches.find((b) => b.id === batchId) ?? batches[0]) : undefined;
+  /* The newest arrival, while it is still undoable: nothing on its batches has
+     gone out. Sent history is the collector's inbox and cannot be unwound. */
+  const newestIntake = d.intakes[0] ?? null;
+  const undoable =
+    newestIntake &&
+    !d.sends.some(
+      (s) =>
+        s.status === 'sent' &&
+        d.orders.some((o) => o.intakeId === newestIntake.id && o.batchId === s.batchId),
+    )
+      ? newestIntake
+      : null;
   const flaggedNoEmail = d.orders.filter((o) => !o.removed && !o.email);
   const flaggedNoContact = d.orders.filter((o) => !o.removed && o.email && !o.hubspotContactId);
 
@@ -164,8 +189,16 @@ export function ReleaseDetail(): ReactElement {
       }
       actions={
         <>
-          <Btn onClick={() => setImportOpen(true)}>Import orders</Btn>
+          <Btn onClick={() => setImportOpen(true)}>Add orders</Btn>
           <Btn onClick={() => setAllocationOpen(true)}>Import warehouse allocation</Btn>
+          {/* Only the newest, and only while nothing has sent — undoing an
+              arrival two arrivals back is a diff nobody can hold in their
+              head. `undoIntake` refuses the rest on its own. */}
+          {undoable ? (
+            <Btn kind="link-danger" onClick={() => setUndoing(undoable)}>
+              Undo this import
+            </Btn>
+          ) : null}
         </>
       }
     >
@@ -234,7 +267,7 @@ export function ReleaseDetail(): ReactElement {
             title="No orders yet"
             actions={
               <Btn kind="pri" onClick={() => setImportOpen(true)}>
-                Import orders
+                Add orders
               </Btn>
             }
           />
@@ -264,11 +297,61 @@ export function ReleaseDetail(): ReactElement {
           onDateChanged={() => setDateJustChanged(true)}
         />
       ) : null}
-      <ImportCsvModal
+      <Dialog
+        open={undoing !== null}
+        size="sm"
+        title={undoing ? `Undo the import of ${undoing.source.label}?` : ''}
+        onClose={() => setUndoing(null)}
+        primary={{
+          label: 'Undo the import',
+          destructive: true,
+          disabled: undoBusy,
+          onClick: () => {
+            if (!undoing) return;
+            setUndoBusy(true);
+            void data
+              .undoIntake(undoing.id)
+              .then(() => {
+                showToast(`${plural(undoing.summary.newOrders, 'order')} removed`);
+                setUndoing(null);
+                detail.reload();
+              })
+              .catch((err: unknown) =>
+                showToast(err instanceof Error ? err.message : String(err), true),
+              )
+              .finally(() => setUndoBusy(false));
+          },
+        }}
+        secondary={{ label: 'Keep it', onClick: () => setUndoing(null) }}
+      >
+        {undoing ? (
+          <>
+            <Facts
+              items={[
+                { label: 'Orders', value: undoing.summary.newOrders },
+                ...(undoing.summary.batchesCreated.length > 0
+                  ? [{ label: 'Batches', value: undoing.summary.batchesCreated.length }]
+                  : []),
+                { label: 'Added', value: formatDayShort(undoing.at.slice(0, 10)) },
+                { label: 'By', value: userName(undoing.by) },
+              ]}
+            />
+            {/* Hard-deleted, and the reason is worth saying: a soft-removed
+                order stays in the dedupe set — deliberately, so a cancelled
+                order in a re-uploaded export stays gone — and "removing" 294
+                of them would poison the import of the correct file. */}
+            <Bar tone="warn" title="These orders are deleted, not cancelled">
+              Nothing has been sent to them. The same export can be added again afterwards.
+            </Bar>
+          </>
+        ) : null}
+      </Dialog>
+      <AddOrdersModal
         open={importOpen}
         release={d.release}
+        existing={d.orders}
         onClose={() => setImportOpen(false)}
-        onImported={() => detail.reload()}
+        onAdded={() => detail.reload()}
       />
       <AllocationImportModal
         open={allocationOpen}

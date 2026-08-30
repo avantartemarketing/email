@@ -82,11 +82,83 @@ export interface LibraryImage {
   uploaded?: boolean;
 }
 
+/**
+ * Which Shopify line-item titles a release claims — the join key, and the one
+ * thing in this app that must match an external system exactly.
+ *
+ * It used to be the release TITLE, typed into a form and explained in a
+ * tooltip: get a character wrong and the import succeeded with nothing in it.
+ * Now it is the set of exact strings an operator TICKED off the file itself,
+ * so the string that has to be right is one nobody typed — and it is the same
+ * string the Shopify sync will match on, which is why the title is free to be
+ * a display name again.
+ *
+ * Claimed EXCLUSIVELY: no two releases may claim the same string, which is
+ * what stops two people importing the same export into two releases.
+ */
+export interface ProductMatch {
+  lineItemTitles: string[];
+  /** A second correlate for sync day. Never the matcher. */
+  skus: string[];
+  /** Empty until the sync writes it; then it is the join and titles the fallback. */
+  shopifyProductIds: string[];
+  confirmedAt: string | null;
+  confirmedBy: string | null;
+}
+
+/** Where a batch of orders came in from. CSV today, the API later. */
+export interface IntakeSource {
+  kind: 'csv_upload' | 'shopify_sync';
+  /** A file name, or "Shopify". Reported, never drawn in a page head. */
+  label: string;
+}
+
+/**
+ * One arrival of orders. The record that makes an import undoable — and the
+ * reason the flow can afford to create a release and 294 orders in one press.
+ */
+export interface Intake {
+  id: string;
+  releaseId: string;
+  source: IntakeSource;
+  at: string;
+  by: string;
+  summary: ImportSummary;
+  newestOrderDate: string | null;
+}
+
+export type IntakeNoteKind =
+  | 'duplicate_row'
+  | 'no_email'
+  | 'no_collector_name'
+  | 'both_batches'
+  | 'other_release'
+  | 'quantity'
+  | 'not_paid';
+
+/**
+ * Something in the file worth knowing before the write, in three short cells.
+ *
+ * Never a sentence: `Cap` is 27 characters and the house rule is that a cell
+ * is never two lines, so "#AA10418 — framed and unframed, two dates, two email
+ * streams" renders as an ellipsis and the point is lost on every row.
+ */
+export interface IntakeNote {
+  kind: IntakeNoteKind;
+  /** "#AA10418" */
+  order: string;
+  /** A fixed vocabulary word: "Two batches", "No email". */
+  what: string;
+  /** A few words: "Framed + Unframed". */
+  detail: string;
+}
+
 export interface Release {
   id: string;
   title: string;
   artist: string;
-  shopifyProductIds: string[];
+  /** The Shopify join. Empty until an operator confirms one. */
+  productMatch: ProductMatch;
   editionSize: number | null;
   status: ReleaseStatus;
   productKind: ProductKind;
@@ -143,6 +215,17 @@ export interface Order {
   shopifyTags: string[];
   /** Warehouse edition allocation rows, set by the allocation CSV import. */
   allocations?: OrderAllocation[];
+  /** The arrival that created it — what `undoIntake` unwinds. */
+  intakeId: string;
+  /** When this tool created it. `orderDate` is when it was bought. */
+  importedAt: string;
+  quantity: number;
+  sku: string | null;
+  /** Read from the export, refreshed on re-import, never acted on. */
+  financialStatus: string | null;
+  fulfillmentStatus: string | null;
+  /** "csv:#AA10412" now, "shopify:5312…" after the sync. Namespaced on purpose. */
+  sourceOrderRef: string;
   removed: boolean;
   removedAt?: string;
   removedBy?: string;
@@ -374,7 +457,23 @@ export interface ImportRowIssue {
 export interface ImportSummary {
   rowsParsed: number;
   newOrders: number;
+  /**
+   * Distinct Shopify order names behind `newOrders` — a DIFFERENT quantity,
+   * because an order is one row per print. One Shopify order buying a framed
+   * and an unframed print is two orders here and one there, so the two totals
+   * are stated rather than one of them guessed at.
+   */
+  shopifyOrders: number;
+  /** Distinct people. Not orders, and not rows. */
+  collectors: number;
+  /** Existing orders this file re-states. A repeat WITHIN the file is a note. */
   duplicatesSkipped: number;
+  /** Cancelled here, offered again by a fresher export, and not resurrected. */
+  stillCancelled: number;
+  /** Batches this arrival brought into existence. */
+  batchesCreated: { batchId: string; name: string }[];
+  /** Everything worth knowing before the write. None of it blocks. */
+  notes: IntakeNote[];
   /** Line-item rows that didn't match this release's products. */
   filteredOut: number;
   /** Orders created without a HubSpot contact match — flagged, not dropped. */
@@ -449,6 +548,8 @@ export interface ReleaseDetail {
   orders: Order[];
   sends: ScheduledSend[];
   events: BatchEvent[];
+  /** Newest first. What "Undo this import" acts on. */
+  intakes: Intake[];
 }
 
 /** Row for the global approval queue, joined with display context. */

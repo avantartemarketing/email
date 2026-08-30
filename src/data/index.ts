@@ -14,4 +14,12 @@ export function getDataLayer(): Promise<DataLayer> {
   return instance;
 }
 
-export type { CreateReleaseInput, DataLayer, ImportOptions, SendDetailView, SendPatch } from './DataLayer';
+export type {
+  Claim,
+  CreateReleaseInput,
+  CreateReleaseResult,
+  DataLayer,
+  IntakeInput,
+  SendDetailView,
+  SendPatch,
+} from './DataLayer';

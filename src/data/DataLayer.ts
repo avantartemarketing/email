@@ -1,10 +1,12 @@
+import type { ParsedLineItem } from '../logic/importer';
 import type {
   AllocationImportSummary,
   Batch,
   BatchListItem,
   CopyJobItem,
   ImageSlot,
-  ImportSummary,
+  Intake,
+  IntakeSource,
   LastSentInfo,
   LibraryImage,
   Notification,
@@ -38,14 +40,40 @@ export interface CreateReleaseInput {
   artist: string;
   editionSize: number | null;
   productKind: ProductKind;
-  shopifyProductIds?: string[];
+  /** The Shopify line-item titles this release claims, ticked off the file. */
+  productMatch?: { lineItemTitles: string[]; skus: string[] };
   /** Milestones switched off for this release (dispatch can't be). */
   disabledTemplates?: TemplateRef[];
 }
 
-export interface ImportOptions {
-  /** Line-item title matchers; defaults to the release title. */
-  titleMatchers?: string[];
+/**
+ * Orders arriving with a release, so creating one from a file is a single act.
+ *
+ * The ITEMS are the write. There is no matcher argument and no CSV text: the
+ * caller has already read the file and decided which products are this
+ * release's, and the layer's job is to store that decision, not to re-derive
+ * it. It is also the seam the Shopify sync slides into — the same array, built
+ * from JSON instead of from a file.
+ */
+export interface IntakeInput {
+  items: ParsedLineItem[];
+  source: IntakeSource;
+}
+
+export interface CreateReleaseResult {
+  release: Release;
+  /** Null when the release was set up without a file. */
+  intake: Intake | null;
+}
+
+/** Which release, if any, already claims a line-item title. */
+export interface Claim {
+  lineItemTitle: string;
+  releaseId: string;
+  releaseTitle: string;
+  orderCount: number;
+  createdAt: string;
+  createdBy: string;
 }
 
 export interface SendPatch {
@@ -102,14 +130,43 @@ export interface DataLayer {
   /** Every batch across every release, for the batches overview. */
   listBatches(): Promise<BatchListItem[]>;
   getRelease(releaseId: string): Promise<ReleaseDetail>;
-  createRelease(input: CreateReleaseInput): Promise<Release>;
   /**
-   * Parse a Shopify order export, filter to this release's line items,
-   * dedupe on order name + line item, resolve HubSpot contacts by email,
-   * and create the new orders in the release's default batch. Re-uploading
-   * the same or a fresher export is always safe.
+   * Create a release, optionally with the orders that arrived with it.
+   *
+   * One call, because it is one decision: the operator dropped a file, ticked
+   * the products in it and pressed a button. Splitting it would leave a
+   * release that exists with no orders if the second half failed — and the
+   * flow has no way to tell them apart from a deliberately empty one.
    */
-  importOrders(releaseId: string, csvText: string, options?: ImportOptions): Promise<ImportSummary>;
+  createRelease(input: CreateReleaseInput, intake?: IntakeInput): Promise<CreateReleaseResult>;
+  /**
+   * Add orders to a release, from wherever they came.
+   *
+   * Deduped on Shopify order + line item, so re-adding the same or a fresher
+   * export is always safe. The items are the write: no matcher is consulted,
+   * because the caller decided which products belong to this release when it
+   * ticked them.
+   */
+  addOrders(releaseId: string, items: ParsedLineItem[], source: IntakeSource): Promise<Intake>;
+  /**
+   * Set which Shopify line-item titles this release claims. Refuses a title
+   * another release already claims — the check that stops two operators
+   * importing one export into two releases.
+   */
+  setProductMatch(releaseId: string, match: { lineItemTitles: string[]; skus: string[] }): Promise<Release>;
+  /** Which releases already claim any of these titles. Empty means free. */
+  claimantsOf(lineItemTitles: string[]): Promise<Claim[]>;
+  /**
+   * Unwind one arrival: HARD-deletes the orders it created and any batch it
+   * brought into existence. Refused once a send on those batches has fired.
+   *
+   * Hard, not `removed: true`, deliberately — a soft-removed order stays in
+   * the dedupe set (a cancelled order in a re-uploaded export must stay gone),
+   * so "removing" 294 orders would poison the re-import of the correct file.
+   */
+  undoIntake(intakeId: string): Promise<void>;
+  /** Refused once any send on the release has fired. */
+  deleteRelease(releaseId: string): Promise<void>;
   /**
    * Parse the warehouse edition-allocation sheet and attach allocation rows
    * (print, spec, edition number) to this release's orders by order number.

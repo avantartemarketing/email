@@ -7,6 +7,8 @@ import type {
 } from '../../types';
 import { addDays, parseDay, today } from '../../logic/dates';
 import { requiredImageSlots } from '../../logic/templates';
+import { parseShopifyOrderExport } from '../../logic/importer';
+import { productsInFile, proposeRelease, skusFor } from '../../logic/intake';
 import { MockDataLayer } from './MockDataLayer';
 
 import {
@@ -134,6 +136,34 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
     );
   };
   const as = (userId: string) => layer.setCurrentUser(userId);
+  /**
+   * Open a release the way the flow now does it: read the export, take the
+   * products it proposes, and create the release and its orders in one act.
+   * The seed replays the real doors, so what it builds is what the screens
+   * would have built.
+   */
+  const openFromFile = async (
+    input: { title: string; artist: string; editionSize: number | null },
+    csv: string,
+    fileName: string,
+  ) => {
+    const parsed = parseShopifyOrderExport(csv);
+    if (parsed.fault) throw new Error(`Seed error: ${fileName} — ${parsed.fault.detail}`);
+    const products = productsInFile(parsed.items);
+    const proposal = proposeRelease(products);
+    const { release } = await layer.createRelease(
+      {
+        ...input,
+        productKind: proposal.productKind,
+        productMatch: {
+          lineItemTitles: proposal.lineItemTitles,
+          skus: skusFor(products, proposal.lineItemTitles),
+        },
+      },
+      { items: parsed.items, source: { kind: 'csv_upload', label: fileName } },
+    );
+    return release;
+  };
   const findOrders = (releaseId: string, orderNames: string[]) =>
     [...layer._store.orders.values()]
       .filter((o) => o.releaseId === releaseId && orderNames.includes(o.shopifyOrderName))
@@ -188,14 +218,11 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
   // --- Blue Interval — completed release, clean history -------------------
   clock(-120);
   await as('user-crm');
-  const blueInterval = await layer.createRelease({
-    title: 'Blue Interval',
-    artist: 'Theo Lindgren',
-    editionSize: 75,
-    productKind: 'print',
-    shopifyProductIds: ['9051230001'],
-  });
-  await layer.importOrders(blueInterval.id, BLUE_INTERVAL_CSV);
+  const blueInterval = await openFromFile(
+    { title: 'Blue Interval', artist: 'Theo Lindgren', editionSize: 75 },
+    BLUE_INTERVAL_CSV,
+    'blue-interval-orders.csv',
+  );
   clock(-118);
   await layer.setPromiseDate(batchOf(blueInterval.id, 'unframed').id, addDays(T, -40));
   await layer.setPromiseDate(batchOf(blueInterval.id, 'framed').id, addDays(T, -30));
@@ -208,14 +235,11 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
   // --- Falling Light — the delayed release -------------------------------
   clock(-60);
   await as('user-crm');
-  const fallingLight = await layer.createRelease({
-    title: 'Falling Light',
-    artist: 'Jenny Marlowe',
-    editionSize: 150,
-    productKind: 'print',
-    shopifyProductIds: ['9051230412'],
-  });
-  await layer.importOrders(fallingLight.id, FALLING_LIGHT_CSV);
+  const fallingLight = await openFromFile(
+    { title: 'Falling Light', artist: 'Jenny Marlowe', editionSize: 150 },
+    FALLING_LIGHT_CSV,
+    'falling-light-2026-04-26.csv',
+  );
   // The CRM manager picks hero images for the templated emails at setup.
   await layer.setReleaseEmailImage(fallingLight.id, 'pp-printing', 'Studio — printing');
   await layer.setReleaseEmailImage(fallingLight.id, 'pp-signing', 'Artist at work');
@@ -320,14 +344,11 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
   // --- Vessel VIII — sculpture, long window ------------------------------
   clock(-20);
   await as('user-crm');
-  const vessel = await layer.createRelease({
-    title: 'Vessel VIII',
-    artist: 'Rafael Okonkwo',
-    editionSize: 25,
-    productKind: 'sculpture',
-    shopifyProductIds: ['9051230508'],
-  });
-  await layer.importOrders(vessel.id, VESSEL_VIII_CSV);
+  const vessel = await openFromFile(
+    { title: 'Vessel VIII', artist: 'Rafael Okonkwo', editionSize: 25 },
+    VESSEL_VIII_CSV,
+    'vessel-viii-orders.csv',
+  );
   const vBatch = [...layer._store.batches.values()].find((b) => b.releaseId === vessel.id)!;
   // Sculpture updates get release-level custom copy before the plan is
   // generated — the on-track master reads too print-like for a bronze.
@@ -381,14 +402,11 @@ You can expect more updates along the way, but please don't hesitate to contact 
   // --- Night Garden — imported yesterday, no promise date yet ------------
   clock(-1);
   await as('user-tom');
-  const nightGarden = await layer.createRelease({
-    title: 'Night Garden',
-    artist: 'Mireille Fontaine',
-    editionSize: 100,
-    productKind: 'print',
-    shopifyProductIds: ['9051230601'],
-  });
-  await layer.importOrders(nightGarden.id, NIGHT_GARDEN_CSV);
+  await openFromFile(
+    { title: 'Night Garden', artist: 'Mireille Fontaine', editionSize: 100 },
+    NIGHT_GARDEN_CSV,
+    'night-garden-2026-08-22.csv',
+  );
 
   /* Today: two unframed prints came out of QC with a mark on the border and
      have to be reprinted. Scheduled an hour ago, so its delay email is the

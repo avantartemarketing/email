@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { emptyProductMatch } from '../intake';
 import type { Batch, Order, Release, ScheduledSend, User } from '../../types';
 import {
   buildDefaultDelayEmail,
@@ -16,7 +17,7 @@ const release: Release = {
   id: 'rel-1',
   title: 'Falling Light',
   artist: 'Jenny Marlowe',
-  shopifyProductIds: ['1111'],
+  productMatch: emptyProductMatch(),
   editionSize: 150,
   status: 'active',
   productKind: 'print',
@@ -58,6 +59,13 @@ function makeOrder(id: string, overrides: Partial<Order> = {}): Order {
     hubspotContactId: `hs-${id}`,
     variant: 'Framed',
     orderDate: '2026-05-02',
+    intakeId: 'intake-1',
+    importedAt: '2026-05-02T00:00:00.000Z',
+    quantity: 1,
+    sku: 'FL-FR',
+    financialStatus: 'paid',
+    fulfillmentStatus: 'unfulfilled',
+    sourceOrderRef: `csv:#AA${id}`,
     country: 'United Kingdom',
     shopifyTags: [],
     removed: false,

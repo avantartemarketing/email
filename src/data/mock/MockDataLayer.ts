@@ -8,6 +8,8 @@ import type {
   CopyJobItem,
   ImageSlot,
   ImportSummary,
+  Intake,
+  IntakeSource,
   LastSentInfo,
   LibraryImage,
   Notification,
@@ -26,7 +28,9 @@ import type {
 import type {
   CreateReleaseInput,
   DataLayer,
-  ImportOptions,
+  IntakeInput,
+  Claim,
+  CreateReleaseResult,
   ReleaseEmailPatch,
   ReleaseEmailUpdateResult,
   SendDetailView,
@@ -36,11 +40,11 @@ import { formatDay, toDay } from '../../logic/dates';
 import { allocationOrderKey, parseEditionAllocationCsv } from '../../logic/allocation';
 import {
   classifyFulfilment,
-  filterItemsForRelease,
   orderDedupeKey,
-  parseShopifyOrderExport,
 } from '../../logic/importer';
 import { generateMilestonePlan } from '../../logic/plan';
+import { emptyProductMatch, planIntake } from '../../logic/intake';
+import type { ParsedLineItem } from '../../logic/importer';
 import { inheritedSentStory, planReschedule, sentStoryForBatch } from '../../logic/reschedule';
 import {
   MASTER_TEMPLATES,
@@ -77,6 +81,8 @@ interface Store {
   events: BatchEvent[];
   /** What one team has raised for another, oldest first. */
   notifications: Notification[];
+  /** Every arrival of orders, oldest first. What `undoIntake` unwinds. */
+  intakes: Intake[];
   /** The email picker's library — seeded names, plus anything uploaded. */
   images: LibraryImage[];
 }
@@ -104,6 +110,7 @@ export class MockDataLayer implements DataLayer {
       sends: new Map(),
       events: [],
       notifications: [],
+      intakes: [],
       images: IMAGE_OPTIONS.map((name) => ({ name })),
     };
     this.hubspotDirectory = hubspotDirectory;
@@ -349,21 +356,39 @@ export class MockDataLayer implements DataLayer {
     const events = this._store.events
       .filter((e) => e.releaseId === releaseId)
       .sort((a, b) => b.at.localeCompare(a.at));
-    return this.settle({ release, batches, orders, sends, events });
+    const intakes = this._store.intakes
+      .filter((i) => i.releaseId === releaseId)
+      .sort((a, b) => b.at.localeCompare(a.at));
+    return this.settle({ release, batches, orders, sends, events, intakes });
   }
 
-  async createRelease(input: CreateReleaseInput): Promise<Release> {
+  async createRelease(
+    input: CreateReleaseInput,
+    intake?: IntakeInput,
+  ): Promise<CreateReleaseResult> {
     const nowIso = this.now().toISOString();
     // Dispatch anchors every plan and the delay notice is not a plan
     // milestone — neither can be switched off.
     const disabledTemplates = (input.disabledTemplates ?? []).filter(
       (ref) => ref !== 'pp-dispatch' && ref !== 'pp-delay',
     );
+    const claimed = input.productMatch?.lineItemTitles ?? [];
+    if (claimed.length > 0) this.refuseClaimed(claimed, null);
+
     const release: Release = {
       id: this._newId('release'),
       title: input.title.trim(),
       artist: input.artist.trim(),
-      shopifyProductIds: input.shopifyProductIds ?? [],
+      productMatch:
+        claimed.length > 0
+          ? {
+              lineItemTitles: claimed,
+              skus: input.productMatch?.skus ?? [],
+              shopifyProductIds: [],
+              confirmedAt: nowIso,
+              confirmedBy: this.currentUser().id,
+            }
+          : emptyProductMatch(),
       editionSize: input.editionSize,
       status: 'active',
       productKind: input.productKind,
@@ -376,7 +401,7 @@ export class MockDataLayer implements DataLayer {
     if (!release.artist) throw new Error('Artist is required');
     this._store.releases.set(release.id, release);
     // Prints get no batch up front: their Framed/Unframed batches are
-    // created by the import, from what was actually ordered.
+    // created by the arrival, from what was actually ordered.
     if (release.productKind !== 'print') {
       const batch: Batch = {
         id: this._newId('batch'),
@@ -389,58 +414,72 @@ export class MockDataLayer implements DataLayer {
       this._store.batches.set(batch.id, batch);
       this._addEvent(release.id, batch.id, 'batch_created', 'Batch 1 created (default batch)');
     }
-    return this.settle(release);
+
+    const record = intake ? this.takeIn(release, intake.items, intake.source) : null;
+    return this.settle({ release, intake: record });
   }
 
-  async importOrders(
+  async addOrders(
     releaseId: string,
-    csvText: string,
-    options: ImportOptions = {},
-  ): Promise<ImportSummary> {
+    items: ParsedLineItem[],
+    source: IntakeSource,
+  ): Promise<Intake> {
     const release = this.mustGet(this._store.releases, releaseId, 'release');
+    /* The first arrival on a release set up without a file is what confirms
+       its product match — the fields the create door would otherwise have
+       written. Without this the release claims nothing for ever, and a claim
+       on nothing now matches nothing. */
+    if (release.productMatch.lineItemTitles.length === 0 && items.length > 0) {
+      const titles = [...new Set(items.map((i) => i.lineItemTitle))];
+      this.refuseClaimed(titles, release.id);
+      release.productMatch = {
+        ...release.productMatch,
+        lineItemTitles: titles,
+        confirmedAt: this.now().toISOString(),
+        confirmedBy: this.currentUser().id,
+      };
+    }
+    return this.settle(this.takeIn(release, items, source));
+  }
 
-    const parsed = parseShopifyOrderExport(csvText);
-    const matchers = options.titleMatchers?.length ? options.titleMatchers : [release.title];
-    const { matched, filteredOut } = filterItemsForRelease(parsed.items, matchers);
-
-    // Dedupe against every order ever imported for this release — including
-    // removed ones, so a cancelled order in a re-uploaded export stays gone.
-    const seen = new Set(
-      [...this._store.orders.values()]
-        .filter((o) => o.releaseId === releaseId)
-        .map((o) => orderDedupeKey(o.shopifyOrderName, o.lineItemTitle)),
+  /**
+   * The one write path for orders, whatever brought them.
+   *
+   * The ITEMS are the write. No matcher is consulted and no CSV is parsed here
+   * — the caller ticked the products off the file and this stores that
+   * decision. It is also the seam the Shopify sync slides into: the same
+   * array, built from JSON.
+   */
+  private takeIn(release: Release, items: ParsedLineItem[], source: IntakeSource): Intake {
+    const nowIso = this.now().toISOString();
+    const intakeId = this._newId('intake');
+    const existing = [...this._store.orders.values()].filter((o) => o.releaseId === release.id);
+    const claimed = release.productMatch.lineItemTitles;
+    const plan = planIntake(
+      items,
+      claimed.length > 0 ? claimed : [...new Set(items.map((i) => i.lineItemTitle))],
+      existing,
+      release.productKind,
     );
 
-    let newOrders = 0;
-    let duplicatesSkipped = 0;
+    const batchesBefore = new Set(this.releaseBatches(release.id).map((b) => b.id));
+    const createdByBatch = new Map<string, string[]>();
     let missingEmail = 0;
     let missingHubspotContact = 0;
-    // Print orders route into Framed/Unframed batches by variant — the two
-    // flows ship on separate timelines with separate plans.
-    const createdByBatch = new Map<string, string[]>();
 
-    for (const item of matched) {
-      const key = orderDedupeKey(item.shopifyOrderName, item.lineItemTitle);
-      if (seen.has(key)) {
-        duplicatesSkipped += 1;
-        continue;
-      }
-      seen.add(key);
+    for (const item of plan.create) {
       const hubspotContactId = item.email ? (this.hubspotDirectory[item.email] ?? null) : null;
       const batch = this.intakeBatch(
         release,
-        /* The WHOLE line-item title, not the variant. `splitLineItemTitle`
-           takes everything after the LAST " - ", so a frame finish in the
-           title — "Falling Light - Framed - Oak" — leaves the variant as
-           "Oak", and `classifyFulfilment('Oak')` returns unframed: an
-           oak-framed print on the unframed timeline with no framing email.
-           Measured 30 Aug 2026, and behaviour-identical on all four fixtures,
-           whose variants carry the word themselves. */
+        /* The WHOLE line-item title, not the variant: a frame finish in the
+           last segment — "Falling Light - Framed - Oak" — leaves the variant
+           as "Oak", and an oak-framed print then ships on the unframed
+           timeline with no framing email. */
         release.productKind === 'print' ? classifyFulfilment(item.lineItemTitle) : null,
       );
       const order: Order = {
         id: this._newId('order'),
-        releaseId,
+        releaseId: release.id,
         batchId: batch.id,
         shopifyOrderName: item.shopifyOrderName,
         lineItemTitle: item.lineItemTitle,
@@ -451,37 +490,184 @@ export class MockDataLayer implements DataLayer {
         orderDate: item.orderDate,
         country: item.country,
         shopifyTags: item.shopifyTags,
+        intakeId,
+        importedAt: nowIso,
+        quantity: item.quantity,
+        sku: item.sku,
+        financialStatus: item.financialStatus,
+        fulfillmentStatus: item.fulfillmentStatus,
+        sourceOrderRef: `csv:${item.shopifyOrderName}`,
         removed: false,
       };
       this._store.orders.set(order.id, order);
       const list = createdByBatch.get(batch.id) ?? [];
       list.push(order.id);
       createdByBatch.set(batch.id, list);
-      newOrders += 1;
       if (!item.email) missingEmail += 1;
       else if (!hubspotContactId) missingHubspotContact += 1;
     }
 
+    /* A re-import refreshes what Shopify now says about an order it already
+       gave us. Read, stored, reported — never acted on: cancellations are
+       marked by hand in this tool and never inferred from a file. */
+    for (const item of items) {
+      const key = orderDedupeKey(item.shopifyOrderName, item.lineItemTitle);
+      const order = existing.find(
+        (o) => orderDedupeKey(o.shopifyOrderName, o.lineItemTitle) === key,
+      );
+      if (order && item.financialStatus) order.financialStatus = item.financialStatus;
+      if (order && item.fulfillmentStatus) order.fulfillmentStatus = item.fulfillmentStatus;
+    }
+
+    const batchesCreated = this.releaseBatches(release.id)
+      .filter((b) => !batchesBefore.has(b.id))
+      .map((b) => ({ batchId: b.id, name: b.name }));
+
     for (const [batchId, orderIds] of createdByBatch) {
       this._addEvent(
-        releaseId,
+        release.id,
         batchId,
         'orders_imported',
-        `${orderIds.length} order${orderIds.length === 1 ? '' : 's'} imported from Shopify export`,
-        { orderIds },
+        `${orderIds.length} order${orderIds.length === 1 ? '' : 's'} added from ${source.label}`,
+        { orderIds, intakeId },
       );
     }
 
-    return this.settle({
-      rowsParsed: parsed.rowsParsed,
-      newOrders,
-      duplicatesSkipped,
-      filteredOut,
+    const summary: ImportSummary = {
+      rowsParsed: items.length,
+      newOrders: plan.create.length,
+      shopifyOrders: plan.shopifyOrders,
+      collectors: plan.collectors,
+      duplicatesSkipped: plan.alreadyHere,
+      stillCancelled: plan.stillCancelled,
+      batchesCreated,
+      notes: plan.notes,
+      filteredOut: items.length - plan.create.length - plan.alreadyHere - plan.stillCancelled,
       missingHubspotContact,
       missingEmail,
-      issues: parsed.issues,
-    });
+      issues: [],
+    };
+    const record: Intake = {
+      id: intakeId,
+      releaseId: release.id,
+      source,
+      at: nowIso,
+      by: this.currentUser().id,
+      summary,
+      newestOrderDate: plan.newestOrderDate,
+    };
+    this._store.intakes.push(record);
+    return record;
   }
+
+  /** Refuses a line-item title another release already claims. */
+  private refuseClaimed(titles: string[], exceptReleaseId: string | null): void {
+    for (const release of this._store.releases.values()) {
+      if (release.id === exceptReleaseId) continue;
+      const clash = titles.find((t) => release.productMatch.lineItemTitles.includes(t));
+      if (clash) {
+        throw new Error(`“${clash}” is already claimed by ${release.title}`);
+      }
+    }
+  }
+
+  async claimantsOf(lineItemTitles: string[]): Promise<Claim[]> {
+    const claims: Claim[] = [];
+    for (const release of this._store.releases.values()) {
+      for (const title of lineItemTitles) {
+        if (!release.productMatch.lineItemTitles.includes(title)) continue;
+        claims.push({
+          lineItemTitle: title,
+          releaseId: release.id,
+          releaseTitle: release.title,
+          orderCount: [...this._store.orders.values()].filter(
+            (o) => o.releaseId === release.id && !o.removed,
+          ).length,
+          createdAt: release.createdAt,
+          createdBy: release.productMatch.confirmedBy ?? '',
+        });
+      }
+    }
+    return this.settle(claims);
+  }
+
+  async setProductMatch(
+    releaseId: string,
+    match: { lineItemTitles: string[]; skus: string[] },
+  ): Promise<Release> {
+    const release = this.mustGet(this._store.releases, releaseId, 'release');
+    this.refuseClaimed(match.lineItemTitles, releaseId);
+    release.productMatch = {
+      ...release.productMatch,
+      lineItemTitles: match.lineItemTitles,
+      skus: match.skus,
+      confirmedAt: this.now().toISOString(),
+      confirmedBy: this.currentUser().id,
+    };
+    return this.settle(release);
+  }
+
+  /**
+   * Unwind one arrival.
+   *
+   * HARD-deletes, and the reason is the dedupe set: a soft-removed order still
+   * counts as known (`removed` orders are deliberately kept in it so a
+   * cancelled order in a re-uploaded export stays gone), so "removing" the 294
+   * orders of a mis-dropped file would silently poison the import of the
+   * correct one. Refused the moment anything has sent, because then the
+   * collector's inbox is the record and it cannot be unwound.
+   */
+  async undoIntake(intakeId: string): Promise<void> {
+    const intake = this._store.intakes.find((i) => i.id === intakeId);
+    if (!intake) throw new Error(`Unknown intake: ${intakeId}`);
+    const orders = [...this._store.orders.values()].filter((o) => o.intakeId === intakeId);
+    const batchIds = new Set(orders.map((o) => o.batchId));
+    const sent = this.releaseSends(intake.releaseId).filter(
+      (s) => s.status === 'sent' && batchIds.has(s.batchId),
+    );
+    if (sent.length > 0) {
+      throw new Error(
+        `${sent.length} email${sent.length === 1 ? ' has' : 's have'} already gone out to these collectors — this import cannot be undone`,
+      );
+    }
+    for (const order of orders) this._store.orders.delete(order.id);
+    for (const { batchId } of intake.summary.batchesCreated) {
+      const stillUsed = [...this._store.orders.values()].some((o) => o.batchId === batchId);
+      if (stillUsed) continue;
+      for (const send of this.batchSends(batchId)) this._store.sends.delete(send.id);
+      this._store.batches.delete(batchId);
+    }
+    this._store.events = this._store.events.filter((e) => e.data.intakeId !== intakeId);
+    this._store.intakes = this._store.intakes.filter((i) => i.id !== intakeId);
+    await this.settle(undefined);
+  }
+
+  async deleteRelease(releaseId: string): Promise<void> {
+    const release = this.mustGet(this._store.releases, releaseId, 'release');
+    const sent = this.releaseSends(releaseId).filter((s) => s.status === 'sent');
+    if (sent.length > 0) {
+      throw new Error(
+        `${release.title} has sent ${sent.length} email${sent.length === 1 ? '' : 's'} — it cannot be deleted`,
+      );
+    }
+    for (const o of [...this._store.orders.values()]) {
+      if (o.releaseId === releaseId) this._store.orders.delete(o.id);
+    }
+    for (const s of [...this._store.sends.values()]) {
+      if (s.releaseId === releaseId) this._store.sends.delete(s.id);
+    }
+    for (const b of [...this._store.batches.values()]) {
+      if (b.releaseId === releaseId) this._store.batches.delete(b.id);
+    }
+    this._store.events = this._store.events.filter((e) => e.releaseId !== releaseId);
+    this._store.intakes = this._store.intakes.filter((i) => i.releaseId !== releaseId);
+    this._store.notifications = this._store.notifications.filter(
+      (n) => n.releaseId !== releaseId,
+    );
+    this._store.releases.delete(releaseId);
+    await this.settle(undefined);
+  }
+
 
   async importAllocations(releaseId: string, csvText: string): Promise<AllocationImportSummary> {
     this.mustGet(this._store.releases, releaseId, 'release');

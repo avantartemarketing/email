@@ -364,13 +364,13 @@ on-track FILLER — one sent on-track email would remove every future on-track
 from a regenerated plan. Only reachable through a whole-batch reschedule of a
 release with a sent filler; worth a decision.
 
-**Adding a release — designed, not built (30 Aug):** Tom, *"Design the flow for
+**Adding a release — built (30 Aug):** Tom, *"Design the flow for
 adding a new release to the dashboard. Medium term this will be through a sync
 with Shopify, but in the short term it will be a CSV download from Shopify per
 release of all the Orders."*
 
-The flow is drawn in the artifact below; `docs/design/add-a-release.md` is the
-build spec and `docs/explorations/add-a-release.html` is the artifact's source.
+`docs/design/add-a-release.md` is the build spec it was built from and
+`docs/explorations/add-a-release.html` is the design artifact's source.
 The spine: **drop the export first**, the app lists the products the file
 actually contains, and the operator ticks which ones are this release. The
 ticked strings become the stored product match — so the string that has to be
@@ -396,7 +396,28 @@ Also found and fixed in passing: the comment I had written that morning saying
 cannot tell a variant from a sibling release, which is the argument for the
 operator confirming the match rather than the matcher guessing harder.
 
-Not built. Four calls are Tom's to make first — see the artifact's last section.
+**What shipped.** `src/logic/intake.ts` is the new pure module — it reads a
+line-item title three deliberately separate ways (`productKeyOf` groups,
+`fulfilmentOf` routes, the display split does neither) and `planIntake` says
+what a file would do before anything is written. `NewReleaseModal` is two
+panes; `AddOrdersModal` is the recurring door on a release page ("Import
+orders" is now "Add orders"), pre-ticking by exact string equality against the
+stored match. `OrderIntakeDialog` is the file pane both share.
+`DataLayer.importOrders` is gone, replaced by `createRelease(input, intake?)`
+and `addOrders(releaseId, items, source)`; `Release.shopifyProductIds` is
+replaced by `productMatch`. `claimantsOf` backs the duplicate-release guard and
+`undoIntake` reverses a mis-dropped file — both refuse once anything has sent.
+`prove-screens` gained a *1b · adding a release* block; both of its assertions
+were made to fail on purpose before being kept, and the first run of that
+proof crashed with a 30-second timeout instead of reporting, which is why the
+block now checks the drop box survived a refused file and stops there if not.
+
+**Deliberately left for a later slice**, all of it additive: renaming a
+release (and `looksLikeRename` detection); `joinedSinceApproval` on the
+approval queue; a warn band when orders arrive for an audience already
+approved; refund-status-change bands; `setProductKind` after creation; and a
+"Set up without a file" door — the fileless path works at the layer, it just
+has no UI.
 
 **Artifacts live (publish with `url:` to update, never without):**
 - Prototype, Workbench-rd: https://claude.ai/code/artifact/ebfa534f-1267-4a64-99a5-7978167d3a9f
