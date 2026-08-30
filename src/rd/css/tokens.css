@@ -344,6 +344,7 @@
      typed so the three strips being folded into one cannot drift apart again,
      which is exactly how `--rd-head-control-h` came to exist. */
   --rd-tab-h: 30px;
+  --rd-subtab-h: 24px;          /* the level below a tab strip — see .rd-subtabs */
   --rd-btn-sec: #e2e5ea;
   --rd-btn-sec-hover: #d6dae0;
 

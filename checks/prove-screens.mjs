@@ -195,9 +195,87 @@ await screen('release detail · all orders', async () => {
 /* And the flow tab, which is the screen with three stacked tables on it — the
    one whose geometry has the most ways to go wrong. */
 await screen('release detail · a flow', async () => {
-  await page.getByRole('tab', { name: /^Framed \(/ }).click()
+  /* Two clicks now, and that is the point of the change: the batch tab is a
+     level down. Batches → the run. */
+  await page.getByRole('tab', { name: /^Batches \(/ }).click()
+  await page.waitForTimeout(200)
+  /* By class and text rather than by accessible name: the sub-tab's name
+     carries its count ("Framed 145"), and pinning a seeded number here would
+     make this check fail the next time the fixture grows an order. */
+  await page.locator('.rd-subtab', { hasText: 'Framed' }).first().click()
   await page.waitForTimeout(400)
 })
+
+/* The two levels are TWO levels. The owner, 29 Aug 2026: "The batches is a tab
+   and then the different batches is a sub level within that." Three things
+   make that true rather than merely intended, and each is a way the change
+   could quietly come undone:
+   - the top strip is fixed at three, however many times a release splits;
+   - the sub-level is captioned, which is what stops it reading as small tabs;
+   - it is drawn QUIETER than the strip above it. The first attempt used the
+     segmented control, whose selected item fills with ink under a strip whose
+     selected tab is a pale lozenge — the owner: "the styling looks off", and
+     it was, the hierarchy read upside down. */
+{
+  const what = 'release detail · the two levels'
+  const levels = await page.evaluate(() => {
+    const strip = document.querySelector('.rd-tabs')
+    const sub = document.querySelector('.rd-subtabs')
+    if (!strip || !sub) return null
+    const lum = (colour) => {
+      const m = /rgba?\(([^)]+)\)/.exec(colour)
+      if (!m) return null
+      const [r, g, b, a = '1'] = m[1].split(',').map((n) => Number(n))
+      // Composited over white, which is what everything here actually sits on.
+      const over = (c) => c * Number(a) + 255 * (1 - Number(a))
+      return 0.2126 * over(r) + 0.7152 * over(g) + 0.0722 * over(b)
+    }
+    const onTop = strip.querySelector('.rd-tab.on')
+    const onSub = sub.querySelector('.rd-subtab.on')
+    const cs = getComputedStyle(onSub)
+    return {
+      topTabs: [...strip.querySelectorAll('.rd-tab')].map((t) => t.textContent?.trim() ?? ''),
+      caption: sub.querySelector('.rd-subtabs-cap')?.textContent?.trim() ?? null,
+      subCount: sub.querySelectorAll('.rd-subtab').length,
+      hTop: Math.round(onTop.getBoundingClientRect().height),
+      hSub: Math.round(onSub.getBoundingClientRect().height),
+      /* A tab is a raised OBJECT — it has an edge and a shadow. A sub-tab is a
+         mark on the page and must have neither, or it is a small tab. */
+      subEdge: cs.borderTopWidth !== '0px' || cs.boxShadow !== 'none',
+      subInk: lum(cs.color),
+      subGround: lum(cs.backgroundColor),
+    }
+  })
+  if (!levels) faults.push(`${what}: no sub-level drawn under the tab strip`)
+  else {
+    if (levels.topTabs.length !== 3)
+      faults.push(
+        `${what}: the top strip has ${levels.topTabs.length} tabs — ${levels.topTabs.join(', ')}. ` +
+          'It is three destinations whatever a release does to itself',
+      )
+    if (!levels.caption)
+      faults.push(`${what}: the sub-level has no caption, which is what makes it not small tabs`)
+    if (levels.subCount < 2)
+      faults.push(`${what}: ${levels.subCount} sub-tab(s) — the seeded release has five batches`)
+    if (levels.hSub >= levels.hTop)
+      faults.push(`${what}: the sub-tab is ${levels.hSub}px against the tab's ${levels.hTop}px`)
+    if (levels.subEdge)
+      faults.push(
+        `${what}: the selected sub-tab has an edge or a relief of its own — that makes it a ` +
+          'raised object, which is what a tab is. A level down is a mark on the page',
+      )
+    /* The fault the owner reported, stated as a measurement: the ink-filled
+       segmented control put light text on a dark ground under a strip whose
+       open tab is a pale lozenge, so the quieter row was the louder mark. */
+    if (levels.subInk !== null && levels.subGround !== null && levels.subInk > levels.subGround)
+      faults.push(
+        `${what}: the selected sub-tab is inverted — ${Math.round(levels.subInk)} ink on ` +
+          `${Math.round(levels.subGround)} ground. A level down cannot be the darkest mark ` +
+          'on the page',
+      )
+  }
+}
+
 
 /* ---- 2b · the promise date overview --------------------------------------- */
 await screen('promise date overview', async () => {
@@ -440,7 +518,12 @@ await screen('my approvals', async () => {
   /* The strip opens on "All orders" now, which has no ticks — the reschedule
      lives on a flow tab, so the check has to go there rather than assume it
      is already the screen. */
-  await page.getByRole('tab', { name: /^Framed \(/ }).click()
+  await page.getByRole('tab', { name: /^Batches \(/ }).click()
+  await page.waitForTimeout(200)
+  /* By class and text rather than by accessible name: the sub-tab's name
+     carries its count ("Framed 145"), and pinning a seeded number here would
+     make this check fail the next time the fixture grows an order. */
+  await page.locator('.rd-subtab', { hasText: 'Framed' }).first().click()
   await page.waitForTimeout(400)
   const ticks = page.locator('table.rd-t27 tbody tr [role="checkbox"]')
   await ticks.nth(0).click()

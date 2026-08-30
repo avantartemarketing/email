@@ -916,6 +916,83 @@
   background: var(--rd-head-bg);
 }
 
+/* ---------- the level below a tab strip, 29 Aug 2026 ----------
+   The owner: "The batches is a tab and then the different batches is a sub
+   level within that." A release page's strip had grown to seven peers — two
+   views of the whole release and one tab per production run, all the same
+   size and shape — so the row said nothing about what belonged to what.
+
+   The tab strip keeps the three destinations. This is what picks WHICH of a
+   destination you are looking at, and three things make it read a level down
+   rather than as small tabs:
+
+   - **It is captioned.** No tab strip names what it is choosing between; this
+     one prints BATCH at its head. That is ruling 14's argument moved sideways
+     — with "BATCH" in front of it, "Framed 2" needs no explaining — and it is
+     the whole of why the row cannot be mistaken for a peer of the strip above.
+   - **It is quieter, not smaller.** The first draft used the segmented control
+     (`.rd-seg`), whose selected item fills with ink: the loudest mark on the
+     page, sitting UNDER a strip whose selected tab is a pale lozenge. The
+     owner, 29 Aug: "the styling looks off" — and it was, the hierarchy read
+     upside down. The selection here takes the inset wash, one step of ground,
+     and no border and no relief at all: the tab above it is a raised object,
+     this is a mark on the page.
+   - **It has no box when it is not chosen.** A tab wears its lozenge's border
+     transparent so nothing moves on selection; there is nothing to move here,
+     because an unchosen sub-tab is only a word. */
+.rd-subtabs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  /* Pulled up into the tab strip's own bottom margin: the two rows are one
+     control between them, and the gap the strip leaves for CONTENT is not the
+     gap that belongs between a heading and the thing it heads. */
+  margin: -10px 0 14px;
+}
+.rd-subtabs-cap {
+  margin-right: 9px;
+  font: var(--rd-weight-caps) var(--rd-size-caps-micro) var(--rd-font-text);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rd-ink-faint);
+}
+.rd-subtab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--rd-subtab-h);
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--rd-radius-control);
+  background: none;
+  font: 500 var(--rd-size-caption) var(--rd-font-text);
+  color: var(--rd-ink-tertiary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rd-subtab:hover:not(.on) {
+  background: var(--rd-hover-square);
+  color: var(--rd-ink);
+}
+.rd-subtab.on {
+  background: var(--rd-inset);
+  color: var(--rd-ink);
+  font-weight: var(--rd-weight-emphasis);
+  cursor: default;
+}
+/* The count is a second fact about the same row, so it steps back rather than
+   sitting at the name's weight — and lines up, because these are read as a
+   column even though they are drawn as a row. */
+.rd-subtab-n {
+  color: var(--rd-ink-faint);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.rd-subtab.on .rd-subtab-n {
+  color: var(--rd-ink-muted);
+}
+
 /* ---------- record cards ----------
    A form card and its title. `35a`/`35b` override the radius to 2px inline;
    the vocabulary's own is 10px, which is what every other card in the system

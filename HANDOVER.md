@@ -325,7 +325,44 @@ font by a scratch script, so the widths are honest):
 3. **A sub-rail inside the Batches tab** — batches down a 196px left column.
    The clearest hierarchy, and the most expensive in width.
 
-Awaiting Tom's pick; no app code changed.
+Tom picked option 1 — *"Option 1 but the styling looks off"* — and he was
+right. The exploration drew tier 2 as the kit's segmented control, whose
+selected item fills with INK: the loudest mark on the page, sitting under a
+strip whose open tab is a pale lozenge. The hierarchy read upside down.
+
+**Built, restyled** (`rd/components/SubTabs.tsx`, `.rd-subtabs` in
+redesign.css). Three things make the row a level down rather than small tabs:
+
+- **It is captioned.** `BATCH` in micro-caps at its head. No tab strip names
+  what it is choosing between; this is ruling 14's argument moved sideways, and
+  it is the load-bearing move.
+- **It is quieter, not smaller.** Selection is the inset wash — no border, no
+  relief. The tab above is a raised object; this is a mark on the page.
+- **The top strip is fixed at three**, whatever a release does to itself. An
+  unsplit release's third tab is still "Overview" and draws no sub-level, so
+  the "no batch language until a release splits" ruling is untouched.
+
+`ReleaseDetail` moved from one index into a flat list of seven to two pieces of
+state (`top` + `batchId`), which is the model the flat strip was drawing. A
+split selects its new batch after the reload by newest `createdAt`, since the
+id does not exist at click time.
+
+`prove-screens` gained a two-levels check: three tabs at the top, the sub-level
+captioned, shorter, with no edge or relief of its own, and never inverted (its
+text darker than its ground). Restoring the ink fill fails it two ways —
+demonstrated.
+
+**One demo gap:** the seeded world no longer has a single-batch release (the
+Vessel VIII patina split gave it a second), so the "Overview" path is not
+clickable in the prototype. It was verified by rendering with that split
+removed and is correct. Worth adding a never-split release back if that state
+matters in a demo.
+
+**Also noticed, not acted on:** `remainingSequence` drops a milestone whose ref
+has already been sent, which is right for a one-off stage and wrong for the
+on-track FILLER — one sent on-track email would remove every future on-track
+from a regenerated plan. Only reachable through a whole-batch reschedule of a
+release with a sent filler; worth a decision.
 
 **Artifacts live (publish with `url:` to update, never without):**
 - Prototype, Workbench-rd: https://claude.ai/code/artifact/ebfa534f-1267-4a64-99a5-7978167d3a9f

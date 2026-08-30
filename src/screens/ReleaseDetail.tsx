@@ -31,6 +31,7 @@ import {
   Why,
 } from '../ui/rd';
 import Tabs from '../rd/components/Tabs';
+import SubTabs from '../rd/components/SubTabs';
 import usePicked from '../rd/components/usePicked';
 import { DataTable } from '../ui/DataTable';
 import type { Column } from '../ui/DataTable';
@@ -50,7 +51,16 @@ export function ReleaseDetail(): ReactElement {
   const { releaseId } = useParams<{ releaseId: string }>();
   const { data } = useApp();
   const detail = useAsync(() => data.getRelease(releaseId!), [releaseId]);
-  const [selectedTab, setSelectedTab] = useState(0);
+  /* Two levels, two pieces of state — the owner, 29 Aug 2026: "The batches is
+     a tab and then the different batches is a sub level within that." It used
+     to be one index into a flat list of seven, which is exactly the model the
+     flat strip was drawing. */
+  const [top, setTop] = useState<'orders' | 'emails' | 'batches'>('orders');
+  const [batchId, setBatchId] = useState<string | null>(null);
+  /* A reschedule that splits creates a batch this render has never seen, so it
+     cannot be selected by id yet. The flag survives until the reload lands and
+     then takes the newest batch — the one the split just made. */
+  const [takeNewestBatch, setTakeNewestBatch] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [allocationOpen, setAllocationOpen] = useState(false);
   /* A date change is the moment an extra on-track email can appear, so it is
@@ -76,6 +86,20 @@ export function ReleaseDetail(): ReactElement {
     setDateJustChanged(false);
     if (missingFromDate.length > 0) setImageGapOpen(true);
   }, [dateJustChanged, missingFromDate.length]);
+
+  /* A split just made a batch, and the reload has now brought it. Newest by
+     `createdAt`, which is the split's own stamp — not "the last in the array",
+     because the array's order is the layer's business and this is a claim
+     about time. */
+  const loadedBatches = detail.data?.batches;
+  useEffect(() => {
+    if (!takeNewestBatch || !loadedBatches || loadedBatches.length === 0) return;
+    const newest = [...loadedBatches].sort((a, b) => a.createdAt.localeCompare(b.createdAt)).pop();
+    if (!newest) return;
+    setTakeNewestBatch(false);
+    setTop('batches');
+    setBatchId(newest.id);
+  }, [takeNewestBatch, loadedBatches]);
 
   if (detail.error) {
     return (
@@ -104,23 +128,24 @@ export function ReleaseDetail(): ReactElement {
      Most releases never split, so one batch means "the release" and carries no
      batch name. Print releases show their framed/unframed flows. */
   const singleBatch = batches.length === 1;
-  const batchTabs =
-    batches.length > 1
-      ? batches.map((b) => {
-          const active = d.orders.filter((o) => o.batchId === b.id && !o.removed).length;
-          return { key: b.id, label: `${b.name} (${active})` };
-        })
-      : [{ key: 'overview', label: 'Overview' }];
   const activeOrderCount = d.orders.filter((o) => !o.removed).length;
+  const batchCount = (id: string) => d.orders.filter((o) => o.batchId === id && !o.removed).length;
+  /* THREE, always. A release that splits eleven times still has three
+     destinations here; which of its runs you are looking at is a level down.
+     An unsplit release has no batch language anywhere, so its third tab is
+     "Overview" and no sub-level is drawn — there is nothing to choose. */
   const tabs = [
-    { key: 'orders', label: `All orders (${activeOrderCount})` },
-    { key: 'emails', label: 'All emails' },
-    ...batchTabs,
+    { key: 'orders' as const, label: `All orders (${activeOrderCount})` },
+    { key: 'emails' as const, label: 'All emails' },
+    {
+      key: 'batches' as const,
+      label: singleBatch ? 'Overview' : `Batches (${batches.length})`,
+    },
   ];
-  const tabIndex = Math.min(selectedTab, tabs.length - 1);
-  const showingOrders = tabIndex === 0;
-  const showingEmails = tabIndex === 1;
-  const batch = showingOrders || showingEmails ? undefined : batches[tabIndex - 2];
+  const showingOrders = top === 'orders';
+  const showingEmails = top === 'emails';
+  const batch =
+    top === 'batches' ? (batches.find((b) => b.id === batchId) ?? batches[0]) : undefined;
   const flaggedNoEmail = d.orders.filter((o) => !o.removed && !o.email);
   const flaggedNoContact = d.orders.filter((o) => !o.removed && o.email && !o.hubspotContactId);
 
@@ -172,18 +197,26 @@ export function ReleaseDetail(): ReactElement {
             }
           >
             There is no default — an email cannot be approved until its image is picked.
-            <button type="button" className="rd-inline-pill" onClick={() => setSelectedTab(1)}>
+            <button type="button" className="rd-inline-pill" onClick={() => setTop('emails')}>
               Pick images
             </button>
           </Bar>
         ) : null}
 
-        <Tabs
-          tabs={tabs}
-          value={tabs[tabIndex].key}
-          onPick={(key) => setSelectedTab(tabs.findIndex((t) => t.key === key))}
-          label="Release"
-        />
+        {/* The two rows are one control between them, so they are one child of
+            the stack — `.rd-subtabs` is pulled up into the strip's own bottom
+            margin, and a stack gap dropped between them would undo that. */}
+        <div>
+          <Tabs tabs={tabs} value={top} onPick={setTop} label="Release" />
+          {top === 'batches' && !singleBatch ? (
+            <SubTabs
+              caption="Batch"
+              tabs={batches.map((b) => ({ key: b.id, label: b.name, n: batchCount(b.id) }))}
+              value={batch?.id ?? batches[0].id}
+              onPick={setBatchId}
+            />
+          ) : null}
+        </div>
       </Stack>
 
       {showingOrders ? (
@@ -223,8 +256,10 @@ export function ReleaseDetail(): ReactElement {
           onChanged={() => detail.reload()}
           onBatchCreated={() => {
             detail.reload();
-            // The new batch lands at the end (sorted by creation).
-            setSelectedTab(batches.length + 2);
+            /* Not an id yet — the split's batch is created server-side and
+               arrives with the reload. `takeNewestBatch` hands it over when it
+               does. */
+            setTakeNewestBatch(true);
           }}
           onDateChanged={() => setDateJustChanged(true)}
         />
@@ -250,7 +285,7 @@ export function ReleaseDetail(): ReactElement {
           label: 'Pick the images',
           onClick: () => {
             setImageGapOpen(false);
-            setSelectedTab(1);
+            setTop('emails');
           },
         }}
         secondary={{ label: 'Later', onClick: () => setImageGapOpen(false) }}
