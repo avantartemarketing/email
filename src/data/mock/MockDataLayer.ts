@@ -429,7 +429,14 @@ export class MockDataLayer implements DataLayer {
       const hubspotContactId = item.email ? (this.hubspotDirectory[item.email] ?? null) : null;
       const batch = this.intakeBatch(
         release,
-        release.productKind === 'print' ? classifyFulfilment(item.variant) : null,
+        /* The WHOLE line-item title, not the variant. `splitLineItemTitle`
+           takes everything after the LAST " - ", so a frame finish in the
+           title — "Falling Light - Framed - Oak" — leaves the variant as
+           "Oak", and `classifyFulfilment('Oak')` returns unframed: an
+           oak-framed print on the unframed timeline with no framing email.
+           Measured 30 Aug 2026, and behaviour-identical on all four fixtures,
+           whose variants carry the word themselves. */
+        release.productKind === 'print' ? classifyFulfilment(item.lineItemTitle) : null,
       );
       const order: Order = {
         id: this._newId('order'),

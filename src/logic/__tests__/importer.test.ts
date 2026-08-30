@@ -28,6 +28,9 @@ describe('parseShopifyOrderExport', () => {
         lineItemTitle: 'Falling Light - Framed',
         variant: 'Framed',
         quantity: 1,
+        sku: 'FL-F',
+        financialStatus: 'paid',
+        fulfillmentStatus: 'unfulfilled',
         email: 'jane@example.com',
         collectorName: 'Jane Smith',
         orderDate: '2026-05-14',
@@ -125,10 +128,32 @@ describe('parseShopifyOrderExport', () => {
     expect(result.issues.some((i) => i.reason.includes('Created at'))).toBe(true);
   });
 
-  it('rejects files missing required columns', () => {
+  /* A fault about the FILE, and never a row: the two used to share a channel,
+     so an empty file was drawn as "1 row could not be read" over the body
+     "Everything else was imported." */
+  it('rejects files missing required columns as a whole-file fault', () => {
     const result = parseShopifyOrderExport('Foo,Bar\n1,2');
     expect(result.items).toHaveLength(0);
-    expect(result.issues[0].reason).toContain('Missing required column');
+    expect(result.issues).toEqual([]);
+    expect(result.fault).toEqual({
+      kind: 'not_an_export',
+      detail: 'No Name or Lineitem name column.',
+      columnsFound: ['Foo', 'Bar'],
+    });
+  });
+
+  it('names the separator when a re-saved export comes back semicolon-delimited', () => {
+    /* The likeliest false accusation: a genuine export opened and saved again
+       in Excel under a European locale parses as one column and would
+       otherwise be told it is not an order export at all. */
+    const result = parseShopifyOrderExport('Name;Email;Lineitem name\n#A1;a@b.c;Falling Light');
+    expect(result.fault?.kind).toBe('wrong_separator');
+    expect(result.fault?.detail).toContain('comma-delimited');
+  });
+
+  it('separates an empty file from a header with no rows under it', () => {
+    expect(parseShopifyOrderExport('').fault?.kind).toBe('empty');
+    expect(parseShopifyOrderExport('Name,Lineitem name').fault?.kind).toBe('no_rows');
   });
 
   it('falls back to the email local part when no billing/shipping name exists', () => {
@@ -179,8 +204,15 @@ describe('filterItemsForRelease', () => {
     expect(matched.map((i) => i.shopifyOrderName)).toEqual(['#AA1012']);
   });
 
-  it('passes everything through with no matchers', () => {
-    expect(filterItemsForRelease(items, []).matched).toHaveLength(3);
+  /* Inverted 30 Aug 2026. It used to pass everything through, which is safe
+     only while the one caller always supplies a title — and the moment a
+     release can exist with no confirmed product match, "match everything"
+     welds another release's collectors into its plan. An empty claim is a
+     claim on nothing. */
+  it('claims nothing when there are no matchers', () => {
+    const { matched, filteredOut } = filterItemsForRelease(items, []);
+    expect(matched).toHaveLength(0);
+    expect(filteredOut).toBe(3);
   });
 });
 

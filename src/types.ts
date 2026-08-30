@@ -342,6 +342,30 @@ export interface Notification {
   readBy?: string;
 }
 
+/**
+ * Something wrong with the FILE rather than with a row in it.
+ *
+ * The two used to share a channel, so an empty file was drawn as "1 row could
+ * not be read" over the body "Everything else was imported." A fault is not a
+ * row: it stops the flow before anything is written, and it is said in its own
+ * words rather than counted.
+ *
+ * The design this came from also proposed an `all_rows_failed` fault, for a
+ * file whose every row carries the same unreadable date. It is deliberately
+ * NOT here: the parser's stated philosophy is that a row with a missing field
+ * is "imported and flagged, never dropped", and a fault would drop a whole
+ * file of otherwise-good collectors over a date column nothing plans against.
+ * The real complaint was 296 copies of one sentence in a dialogue, which is a
+ * reporting problem and is fixed by collapsing identical issues where they are
+ * drawn.
+ */
+export interface ParseFault {
+  kind: 'empty' | 'wrong_separator' | 'not_an_export' | 'no_rows';
+  detail: string;
+  /** The columns the file DID have — what identifies a file dropped by mistake. */
+  columnsFound?: string[];
+}
+
 export interface ImportRowIssue {
   row: number;
   reason: string;

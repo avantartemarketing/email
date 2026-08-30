@@ -1,4 +1,4 @@
-import type { BatchFulfilment, ImportRowIssue } from '../types';
+import type { BatchFulfilment, ImportRowIssue, ParseFault } from '../types';
 import { parseCsv } from './csv';
 
 /**
@@ -21,6 +21,12 @@ export interface ParsedLineItem {
   lineItemTitle: string;
   variant: string;
   quantity: number;
+  /** Line-level, so never carried forward. Blank in some exports. */
+  sku: string | null;
+  /** Order-level, so carried like Email — blank on a continuation row. Read,
+      stored and reported; never acted on. Cancellations are marked by hand. */
+  financialStatus: string | null;
+  fulfillmentStatus: string | null;
   email: string | null;
   collectorName: string;
   orderDate: string;
@@ -34,7 +40,19 @@ export interface ParsedLineItem {
 
 export interface ParseResult {
   items: ParsedLineItem[];
+  /** Rows that could not be read. Per-ROW only — see `fault`. */
   issues: ImportRowIssue[];
+  /**
+   * Something wrong with the FILE, which is a different thing from something
+   * wrong with a row in it and used to travel down the same channel.
+   *
+   * An empty file produced one pseudo-issue at row 0, which `ImportIssues`
+   * drew as "1 row could not be read" over the body "Everything else was
+   * imported." — a reassurance that is false in exactly the case where a
+   * reassurance does damage. A fault is not a row and does not get counted
+   * like one.
+   */
+  fault: ParseFault | null;
   rowsParsed: number;
 }
 
@@ -63,8 +81,15 @@ function parseCreatedAt(value: string): string | null {
 
 export function parseShopifyOrderExport(csvText: string): ParseResult {
   const rows = parseCsv(csvText);
-  if (rows.length === 0) {
-    return { items: [], issues: [{ row: 0, reason: 'File is empty' }], rowsParsed: 0 };
+  const fault = (kind: ParseFault['kind'], detail: string, columnsFound?: string[]): ParseResult => ({
+    items: [],
+    issues: [],
+    fault: { kind, detail, ...(columnsFound ? { columnsFound } : {}) },
+    rowsParsed: Math.max(rows.length - 1, 0),
+  });
+
+  if (rows.length === 0 || (rows.length === 1 && rows[0].every((c) => !c.trim()))) {
+    return fault('empty', 'Nothing was read, and nothing was created.');
   }
 
   const header = rows[0].map((h) => h.trim());
@@ -75,16 +100,35 @@ export function parseShopifyOrderExport(csvText: string): ParseResult {
 
   const missing = REQUIRED_COLUMNS.filter((c) => !(c in colIndex));
   if (missing.length > 0) {
-    return {
-      items: [],
-      issues: [
-        {
-          row: 0,
-          reason: `Missing required column(s): ${missing.join(', ')} — is this a Shopify order export?`,
-        },
-      ],
-      rowsParsed: 0,
-    };
+    /* Diagnose on evidence rather than on the commonest guess. A genuine,
+       unmodified Shopify export merely opened and re-saved in Excel under a
+       European locale comes back semicolon-delimited: it parses as ONE column
+       and lands here, and telling that operator "this is not an order export"
+       sends them to the wrong door. If the header has no commas but does have
+       a separator we recognise, say THAT. Otherwise say only what is true —
+       these columns are missing — and name the columns found, which is what
+       actually identifies the file they dropped by mistake. */
+    const headerLine = header.join(',');
+    const separator = header.length === 1 && /[;\t]/.test(headerLine)
+      ? (headerLine.includes(';') ? 'semicolon' : 'tab')
+      : null;
+    if (separator) {
+      return fault(
+        'wrong_separator',
+        separator === 'semicolon'
+          ? 'Re-export from Shopify, or save it as CSV (comma-delimited).'
+          : 'Re-export from Shopify as CSV rather than tab-separated.',
+      );
+    }
+    return fault(
+      'not_an_export',
+      `No ${missing.join(' or ')} column.`,
+      header.filter(Boolean),
+    );
+  }
+
+  if (rows.length === 1) {
+    return fault('no_rows', 'The columns are right and there are no rows under them.');
   }
 
   const items: ParsedLineItem[] = [];
@@ -99,6 +143,8 @@ export function parseShopifyOrderExport(csvText: string): ParseResult {
       orderDate: string | null;
       country: string | null;
       shopifyTags: string[] | null;
+      financialStatus: string | null;
+      fulfillmentStatus: string | null;
     }
   >();
   let lastOrderName: string | null = null;
@@ -133,6 +179,13 @@ export function parseShopifyOrderExport(csvText: string): ParseResult {
     const countryHere =
       col(colIndex, cells, 'Shipping Country') || col(colIndex, cells, 'Billing Country');
     const tagsHere = col(colIndex, cells, 'Tags');
+    /* Both order-level, so blank on a continuation row and carried exactly as
+       Email is. Counted on the real Falling Light export: Financial Status is
+       "paid" on 294 rows and blank on 2 — and the 2 ARE the continuation rows,
+       so reading them without the carry-forward would store an empty status
+       for the second line item of a two-item order. */
+    const financialHere = col(colIndex, cells, 'Financial Status');
+    const fulfillmentHere = col(colIndex, cells, 'Fulfillment Status');
 
     const ctx = orderContext.get(orderName) ?? {
       email: null,
@@ -140,12 +193,16 @@ export function parseShopifyOrderExport(csvText: string): ParseResult {
       orderDate: null,
       country: null,
       shopifyTags: null,
+      financialStatus: null,
+      fulfillmentStatus: null,
     };
     if (emailRaw) ctx.email = emailRaw;
     const nameHere = billingName || shippingName;
     if (nameHere) ctx.collectorName = nameHere;
     if (createdAt) ctx.orderDate = createdAt;
     if (countryHere) ctx.country = countryHere;
+    if (financialHere) ctx.financialStatus = financialHere.toLowerCase();
+    if (fulfillmentHere) ctx.fulfillmentStatus = fulfillmentHere.toLowerCase();
     if (tagsHere)
       ctx.shopifyTags = tagsHere
         .split(',')
@@ -163,6 +220,9 @@ export function parseShopifyOrderExport(csvText: string): ParseResult {
       lineItemTitle,
       variant,
       quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
+      sku: col(colIndex, cells, 'Lineitem sku') || null,
+      financialStatus: ctx.financialStatus,
+      fulfillmentStatus: ctx.fulfillmentStatus,
       email: ctx.email,
       collectorName: ctx.collectorName ?? '',
       orderDate: ctx.orderDate ?? '',
@@ -182,6 +242,9 @@ export function parseShopifyOrderExport(csvText: string): ParseResult {
     if (!item.collectorName && ctx.collectorName) item.collectorName = ctx.collectorName;
     if (!item.orderDate && ctx.orderDate) item.orderDate = ctx.orderDate;
     if (!item.country && ctx.country) item.country = ctx.country;
+    if (!item.financialStatus && ctx.financialStatus) item.financialStatus = ctx.financialStatus;
+    if (!item.fulfillmentStatus && ctx.fulfillmentStatus)
+      item.fulfillmentStatus = ctx.fulfillmentStatus;
     if (item.shopifyTags.length === 0 && ctx.shopifyTags) item.shopifyTags = ctx.shopifyTags;
   }
 
@@ -197,7 +260,7 @@ export function parseShopifyOrderExport(csvText: string): ParseResult {
     }
   }
 
-  return { items, issues, rowsParsed: rows.length - 1 };
+  return { items, issues, fault: null, rowsParsed: rows.length - 1 };
 }
 
 /**
@@ -210,7 +273,12 @@ export function filterItemsForRelease(
   titleMatchers: string[],
 ): { matched: ParsedLineItem[]; filteredOut: number } {
   const matchers = titleMatchers.map((m) => m.trim().toLowerCase()).filter(Boolean);
-  if (matchers.length === 0) return { matched: items, filteredOut: 0 };
+  /* No matchers claims NOTHING. It used to claim everything, which is safe
+     only while the one caller always passes a title — and the moment a release
+     can exist without a confirmed product match, "match everything" quietly
+     welds another release's collectors into this one's plan, with a promise
+     date and a printing email. An empty claim is a claim on nothing. */
+  if (matchers.length === 0) return { matched: [], filteredOut: items.length };
   const matched = items.filter((item) => {
     const title = item.lineItemTitle.toLowerCase();
     /* Exact title, or "Title - Variant". A bare prefix match is not enough:
