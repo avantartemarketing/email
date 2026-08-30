@@ -10,6 +10,13 @@
  * thing. All people and emails are fictional.
  */
 
+/* One order in the Falling Light export carries a Night Garden line item, on a
+   continuation row with every order-level column blank.
+   Both halves of that are real Shopify behaviour and both are load-bearing:
+   a per-release export contains WHOLE ORDERS, so a collector who bought two
+   editions at once brings the other one along — which is what
+   `filterItemsForRelease` is for — and a second line item leaves the order's
+   own columns empty, which is what the parser's carry-forward is for. */
 const HEADER =
   'Name,Email,Financial Status,Paid at,Fulfillment Status,Currency,Subtotal,Created at,Lineitem quantity,Lineitem name,Lineitem price,Lineitem sku,Billing Name,Shipping Name,Shipping Country,Tags';
 
@@ -23,10 +30,9 @@ export const FALLING_LIGHT_CSV = `${HEADER}
 #AA10419,daan.vermeer@example.com,paid,2026-03-12 10:44:09 +0000,unfulfilled,EUR,620.00,2026-03-12 10:44:09 +0000,1,Falling Light - Framed,540.00,FL-FR,Daan Vermeer,Daan Vermeer,Netherlands,"vip,framed-upgrade"
 #AA10421,,paid,2026-03-12 11:03:26 +0000,unfulfilled,GBP,380.00,2026-03-12 11:03:26 +0000,1,Falling Light - Unframed,380.00,FL-UF,Harriet Boyle,Harriet Boyle,United Kingdom,
 #AA10422,ines.moreau@example.com,paid,2026-03-12 11:19:48 +0000,unfulfilled,EUR,540.00,2026-03-12 11:19:48 +0000,1,Falling Light - Framed,540.00,FL-FR,Inès Moreau,Inès Moreau,France,repeat-collector
-#AA10424,felix.brand@example.com,paid,2026-03-12 11:31:02 +0000,unfulfilled,GBP,45.00,2026-03-12 11:31:02 +0000,1,Falling Light Tote Bag,45.00,FL-TOTE,Felix Brand,Felix Brand,United Kingdom,
 #AA10425,amara.diallo@example.com,paid,2026-03-12 12:00:31 +0000,unfulfilled,GBP,540.00,2026-03-12 12:00:31 +0000,1,Falling Light - Framed,540.00,FL-FR,Amara Diallo,Amara Diallo,United Kingdom,vip
-#AA10427,noah.gallagher@example.org,paid,2026-03-12 12:26:55 +0000,unfulfilled,GBP,425.00,2026-03-12 12:26:55 +0000,1,Falling Light - Unframed,380.00,FL-UF,Noah Gallagher,Noah Gallagher,United Kingdom,repeat-collector
-,,,,,,,,1,Falling Light Tote Bag,45.00,FL-TOTE,,,,
+#AA10427,noah.gallagher@example.org,paid,2026-03-12 12:26:55 +0000,unfulfilled,GBP,800.00,2026-03-12 12:26:55 +0000,1,Falling Light - Unframed,380.00,FL-UF,Noah Gallagher,Noah Gallagher,United Kingdom,repeat-collector
+,,,,,,,,1,Night Garden - Framed,420.00,NG-FR,,,,
 #AA10412,jane.whitfield@example.com,paid,2026-03-12 09:14:02 +0000,unfulfilled,GBP,540.00,2026-03-12 09:14:02 +0000,1,Falling Light - Framed,540.00,FL-FR,Jane Whitfield,Jane Whitfield,United Kingdom,
 #AA10428,yuki.tanaka@example.com,paid,2026-03-13 08:12:19 +0000,unfulfilled,GBP,540.00,2026-03-13 08:12:19 +0000,1,Falling Light - Framed,540.00,FL-FR,Yuki Tanaka,Yuki Tanaka,United Kingdom,first-order
 #AA10430,lars.petersen@example.net,paid,2026-03-13 09:47:33 +0000,unfulfilled,GBP,380.00,2026-03-13 09:47:33 +0000,1,Falling Light - Unframed,380.00,FL-UF,,,United Kingdom,"vip,framed-upgrade"

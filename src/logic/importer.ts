@@ -214,7 +214,9 @@ export function filterItemsForRelease(
   const matched = items.filter((item) => {
     const title = item.lineItemTitle.toLowerCase();
     // Exact title, or "Title - Variant". A bare prefix match is not enough:
-    // "Falling Light" must not claim "Falling Light Tote Bag".
+    // "Night Garden" must not claim "Night Garden II", and "Falling Light"
+    // must not claim "Falling Light - Study" — an artist's second edition off
+    // the same image is a different release with its own promise.
     return matchers.some((m) => title === m || title.startsWith(`${m} - `));
   });
   return { matched, filteredOut: items.length - matched.length };

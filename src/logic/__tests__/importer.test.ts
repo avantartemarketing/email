@@ -160,12 +160,15 @@ describe('filterItemsForRelease', () => {
   const items = parseShopifyOrderExport(
     csv(
       '#AA1010,a@example.com,paid,,unfulfilled,GBP,540,2026-05-20 10:00:00 +0100,1,Falling Light - Framed,540,FL-F,A A,A A',
-      '#AA1011,b@example.com,paid,,unfulfilled,GBP,90,2026-05-20 11:00:00 +0100,1,Falling Light Tote Bag,90,TOTE,B B,B B',
+      /* The lookalike that actually occurs: a second edition off the same
+         image, sold as its own product with its own promise. A bare prefix
+         match would sweep its collectors into the first release's plan. */
+      '#AA1011,b@example.com,paid,,unfulfilled,GBP,90,2026-05-20 11:00:00 +0100,1,Falling Light Study - Framed,90,FL-S-F,B B,B B',
       '#AA1012,c@example.com,paid,,unfulfilled,GBP,1200,2026-05-20 12:00:00 +0100,1,Vessel VIII,1200,V8,C C,C C',
     ),
   ).items;
 
-  it('matches exact titles and "Title - Variant" forms, not lookalike products', () => {
+  it('matches exact titles and "Title - Variant" forms, not lookalike releases', () => {
     const { matched, filteredOut } = filterItemsForRelease(items, ['Falling Light']);
     expect(matched.map((i) => i.shopifyOrderName)).toEqual(['#AA1010']);
     expect(filteredOut).toBe(2);
