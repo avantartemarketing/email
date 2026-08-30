@@ -262,6 +262,29 @@ so. What changed underneath:
   used to live in the reschedule dialogue moved here with the preview. Made to
   fail three ways on purpose before being kept.
 
+**The brief, quoted and signed (29 Aug, same day):** Tom, on seeing it — *"When
+you're writing the email you should be able to see the delay reason the person
+who delayed it wrote. The flow is: Warehouse change date and delay write reason
+→ Goes to CRM to write email."* The reason was already on the writer and read
+as app copy: a blue advisory band, the same shape as the note above it saying
+whose queue this is, with the same sentence again inside the drafted body
+below. So `components/DelayReason.tsx` — one bar, three screens:
+
+- it QUOTES the reason, because they are somebody else's words, and SIGNS it
+  with the name and date, because "the person who delayed it" is somebody the
+  writer can go and ask;
+- it is on the **writer** (to write from), the **approval preview** (an
+  approver's question is "does this say what actually happened?", and until now
+  the only thing that could answer it was the email being judged) and the
+  **send's own page** (where anyone else lands asking why this went out);
+- the writer's "Requested by" fact box went, since the signature says it.
+
+`prove-screens` now checks the writer's brief against the row it was opened
+from — the same reason text, the same name — rather than only that a bar with
+the right heading exists; a generic unsigned bar fails it, demonstrated. A
+seeded-world test pins that `submitDelayCopy` does not consume the brief, so
+the approver still has it.
+
 `npm test` → 158 green. `npm run build` clean. `check:screens` clean.
 
 **Artifacts live (publish with `url:` to update, never without):**

@@ -24,6 +24,7 @@ import {
 import { DataTable } from '../ui/DataTable';
 import type { Column } from '../ui/DataTable';
 import { EmailPreview } from '../components/EmailPreview';
+import { DelayReason } from '../components/DelayReason';
 import { EditSendModal } from '../components/EditSendModal';
 
 /**
@@ -229,6 +230,10 @@ export function SendDetail(): ReactElement {
       }
     >
       <div className="rd-stack">
+        {/* First, above even the awaiting-copy note: on a delay send this is
+            what the whole record is ABOUT, and it is the one fact here nobody
+            can reconstruct from the email itself. */}
+        <DelayReason brief={send.brief} />
         {send.status === 'awaiting_copy' ? (
           <Bar tone="note" title="Waiting for the CRM team to write it">
             The delivery date changed and this email is the notice to collectors. The copy below is

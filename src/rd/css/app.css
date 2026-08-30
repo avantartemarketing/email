@@ -710,6 +710,16 @@
      own colour still carries the tone. */
   opacity: 0.86;
 }
+/* An attribution under a quoted note — who said it, and when.
+   29 Aug 2026: the delay brief is somebody else's words, so it is quoted and
+   signed. Run inline the byline wrapped mid-name ("— Jakob" / "Meijer, 24 Aug
+   2026") at the writer's dialogue width, measured at 1520px; a name broken
+   across two lines reads as two people. Its own line, and unbreakable. */
+.rd-barby {
+  margin-top: 4px;
+  white-space: nowrap;
+  opacity: 0.78;
+}
 
 /* ---------- A tag that carries a swatch ----------
    The owner, 28 Aug 2026: a frame finish wants "a little colour icon next to

@@ -26,6 +26,7 @@ import { DataTable } from '../ui/DataTable';
 import type { Column } from '../ui/DataTable';
 import Field from '../rd/components/Field';
 import { EmailPreview } from '../components/EmailPreview';
+import { DelayReason } from '../components/DelayReason';
 
 /**
  * The CRM team's worklist: delay emails somebody has to write.
@@ -298,8 +299,8 @@ export function EmailsToWrite(): ReactElement {
       title="Emails to write"
       facts={
         <span>
-          Delay emails waiting on the CRM team. Each one has collectors who have not been told
-          their delivery moved.
+          Production moves a delivery date and says why; writing to the collectors is this team's
+          job. Each row is a batch that has not been told yet.
         </span>
       }
     >
@@ -412,10 +413,9 @@ export function EmailsToWrite(): ReactElement {
           <>
             {/* Read before a word is typed. It is the only thing the person
                 who scheduled the delay knows that the writer does not, and it
-                is prose, so it cannot live in a cell. */}
-            <Bar tone="note" title="Why the date moved">
-              {writing.send.brief?.reason ?? 'No reason was recorded.'}
-            </Bar>
+                is prose, so it cannot live in a cell. Quoted and signed — see
+                `DelayReason`: these are somebody's words, not the app's. */}
+            <DelayReason brief={writing.send.brief} />
             {!writing.send.imageName ? (
               <Bar tone="warn" title="This email has no image">
                 {NO_IMAGE_YET} You can still write and send it for approval — the picture is picked
@@ -444,10 +444,11 @@ export function EmailsToWrite(): ReactElement {
                     ? formatDayShort(writing.send.brief.newPromiseDate)
                     : 'Not set',
                 },
-                {
-                  label: 'Requested by',
-                  value: writing.send.brief ? userName(writing.send.brief.requestedBy) : '—',
-                },
+                /* No "Requested by" box: the brief above is SIGNED now, and a
+                   fact box repeating the name two lines under the signature is
+                   the same fact spent twice. The four that are left are the
+                   ones the writer weighs — when, how many, from what, to
+                   what. */
               ]}
             />
             <div className="rd-fields">

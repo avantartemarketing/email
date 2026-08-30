@@ -32,6 +32,7 @@ import type { Column } from '../ui/DataTable';
 import usePicked from '../rd/components/usePicked';
 import { EmailPreview } from '../components/EmailPreview';
 import { ChangeSendDateModal } from '../components/ChangeSendDateModal';
+import { DelayReason } from '../components/DelayReason';
 import { RescheduleModal } from '../components/RescheduleModal';
 
 /**
@@ -607,6 +608,11 @@ export function MyApprovals(): ReactElement {
       >
         {preview ? (
           <>
+            {/* On a delay send, the brief the copy was written FROM. An
+                approver's question is "does this say what happened?", and
+                until now the only thing on this dialogue that could answer it
+                was the email itself — which is the thing being checked. */}
+            <DelayReason brief={preview.send.brief} />
             {!preview.send.imageName ? (
               <Bar tone="warn" title="This email has no image">
                 Pick one on the release's All emails tab and it lands on this send — it keeps its

@@ -669,6 +669,22 @@ describe('the delay-copy handoff', () => {
     await layer.setCurrentUser('user-tom');
   });
 
+  it('the brief outlives the writing — the approver reads what the copy was written FROM', async () => {
+    /* The owner, 29 Aug: "you should be able to see the delay reason the person
+       who delayed it wrote." Not only the writer: an approver's question is
+       "does this email say what actually happened?", and the only thing that
+       can answer it is the brief. So writing the copy must not consume it. */
+    const item = (await layer.listApprovalQueue()).find(
+      (i) => i.send.subject === 'A short delay on your Vessel VIII',
+    )!;
+    expect(item.send.brief).toBeDefined();
+    expect(item.send.brief!.reason).toContain('Patina');
+    expect(item.send.brief!.requestedBy).toBe('user-warehouse');
+    // And on the send's own page, which is where anyone else goes to ask.
+    const detail = await layer.getSendDetail(item.send.id);
+    expect(detail.send.brief!.reason).toBe(item.send.brief!.reason);
+  });
+
   it('and then it can be approved like anything else', async () => {
     const item = (await layer.listApprovalQueue()).find(
       (i) => i.send.subject === 'A short delay on your Vessel VIII',

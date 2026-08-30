@@ -263,11 +263,32 @@ await screen('emails to write', async () => {
   if (!verbs.some((v) => /write the email/i.test(v)))
     faults.push(`${what}: no "Write the email" on any row`)
 
+  /* What the row itself prints, read BY HEADING rather than by index — the
+     column list on this screen is a thing people add to, and an index would
+     silently start comparing the brief against the wrong cell. `Cap` truncates
+     in CSS, so `textContent` is the whole reason either way. */
+  const rowSays = await page.evaluate(() => {
+    const table = document.querySelector('table.rd-t27')
+    const heads = [...(table?.querySelectorAll('thead th') ?? [])].map(
+      (th) => th.textContent?.trim() ?? '',
+    )
+    const cells = [...(table?.querySelector('tbody tr')?.children ?? [])].map(
+      (c) => c.textContent?.trim() ?? '',
+    )
+    const at = (name) => {
+      const i = heads.findIndex((h) => h.toLowerCase() === name)
+      return i < 0 ? null : (cells[i] ?? null)
+    }
+    return { reason: at('reason for the delay'), requester: at('requested by') }
+  })
   await page.locator('table.rd-t27 tbody tr').first().click()
   await page.getByRole('dialog').waitFor()
   await page.waitForTimeout(400)
-  /* The brief is the reason this screen exists: the reason must be IN the
-     dialogue, above the fields, not merely capped in the row behind it. */
+  /* The brief is the reason this screen exists — the owner, 29 Aug: "When
+     you're writing the email you should be able to see the delay reason the
+     person who delayed it wrote." So three things, and the third is the one
+     worth a harness: it is in the dialogue, above the fields, and it is THIS
+     job's reason rather than a heading that could sit over anybody's. */
   const brief = await page.evaluate(() => {
     const bar = document.querySelector('.rd-dialog .rd-notebar')
     const fields = document.querySelector('.rd-dialog .rd-fields')
@@ -282,6 +303,21 @@ await screen('emails to write', async () => {
     if (!/why the date moved/i.test(brief.text))
       faults.push(`${what}: the brief bar does not say why the date moved`)
     if (!brief.above) faults.push(`${what}: the brief is drawn below the fields it briefs`)
+    if (!rowSays.reason)
+      faults.push(`${what}: no "Reason for the delay" column to compare the brief against`)
+    else if (!brief.text.includes(rowSays.reason))
+      faults.push(
+        `${what}: the brief does not carry the row's own reason — the row says ` +
+          `"${rowSays.reason.slice(0, 60)}" and the bar says "${brief.text.slice(0, 90)}"`,
+      )
+    /* And it is signed. "The person who delayed it" is somebody the writer can
+       go and ask, and an unsigned brief is a brief with nobody to query. */
+    if (!rowSays.requester)
+      faults.push(`${what}: no "Requested by" column to check the brief's signature against`)
+    else if (!brief.text.includes(rowSays.requester))
+      faults.push(
+        `${what}: the brief is unsigned — the row credits ${rowSays.requester} and the bar does not`,
+      )
   }
   const foot = await page.evaluate(() => {
     const btn = [...document.querySelectorAll('.rd-dialogfoot button')].find((b) =>
