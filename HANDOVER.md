@@ -364,10 +364,46 @@ on-track FILLER — one sent on-track email would remove every future on-track
 from a regenerated plan. Only reachable through a whole-batch reschedule of a
 release with a sent filler; worth a decision.
 
+**Adding a release — designed, not built (30 Aug):** Tom, *"Design the flow for
+adding a new release to the dashboard. Medium term this will be through a sync
+with Shopify, but in the short term it will be a CSV download from Shopify per
+release of all the Orders."*
+
+The flow is drawn in the artifact below; `docs/design/add-a-release.md` is the
+build spec and `docs/explorations/add-a-release.html` is the artifact's source.
+The spine: **drop the export first**, the app lists the products the file
+actually contains, and the operator ticks which ones are this release. The
+ticked strings become the stored product match — so the string that has to be
+exactly right is one nobody typed, and it is the same string the Shopify sync
+will match on.
+
+Four faults it fixes, each measured against this tree rather than asserted:
+
+- a mistyped title imports nothing and reports it as "296 other products";
+- **a live routing bug** — `classifyFulfilment` is passed the VARIANT, so
+  `Falling Light - Framed - Oak` yields variant `Oak` → `unframed`; an
+  oak-framed print goes on the unframed timeline with no framing email.
+  Passing the whole line-item title returns `framed`, and gives the identical
+  answer on all four fixtures, so the fix is behaviour-preserving;
+- an empty file draws *"1 row could not be read / Everything else was
+  imported"* — the reassurance is false in exactly the case where it does
+  damage;
+- nothing stops two operators creating the same release twice, which this
+  design would make MORE likely, so it ships a claimed-product guard.
+
+Also found and fixed in passing: the comment I had written that morning saying
+`'Falling Light'` must not claim `'Falling Light - Study'` — it does. Punctuation
+cannot tell a variant from a sibling release, which is the argument for the
+operator confirming the match rather than the matcher guessing harder.
+
+Not built. Four calls are Tom's to make first — see the artifact's last section.
+
 **Artifacts live (publish with `url:` to update, never without):**
 - Prototype, Workbench-rd: https://claude.ai/code/artifact/ebfa534f-1267-4a64-99a5-7978167d3a9f
 - Release tab hierarchies (3 options):
   https://claude.ai/code/artifact/ef6ad63b-8c3c-4515-9eda-6f4858e28490
+- Adding a release (the flow):
+  https://claude.ai/code/artifact/2e82bd2b-f263-4073-ab21-3de4cad8ec34
 - Before/after review: https://claude.ai/code/artifact/f4e228af-af0a-4f6c-9ca7-b111503fb81f
 - Dispatch bar studies (five options, drawn in the real system):
   https://claude.ai/code/artifact/dada54e1-0a78-4fbe-ae76-4388d5ee3cfa

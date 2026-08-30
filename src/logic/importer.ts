@@ -213,10 +213,15 @@ export function filterItemsForRelease(
   if (matchers.length === 0) return { matched: items, filteredOut: 0 };
   const matched = items.filter((item) => {
     const title = item.lineItemTitle.toLowerCase();
-    // Exact title, or "Title - Variant". A bare prefix match is not enough:
-    // "Night Garden" must not claim "Night Garden II", and "Falling Light"
-    // must not claim "Falling Light - Study" — an artist's second edition off
-    // the same image is a different release with its own promise.
+    /* Exact title, or "Title - Variant". A bare prefix match is not enough:
+       "Night Garden" must not claim "Night Garden II".
+
+       What this rule does NOT catch, measured 30 Aug 2026 rather than
+       assumed: a second edition named with the separator — "Falling Light -
+       Study" — IS claimed by "Falling Light", because it is indistinguishable
+       from a variant. Punctuation cannot tell a variant from a sibling
+       release, so nothing here can; the answer is for the operator to confirm
+       which line-item titles a release claims, not for this to guess harder. */
     return matchers.some((m) => title === m || title.startsWith(`${m} - `));
   });
   return { matched, filteredOut: items.length - matched.length };
