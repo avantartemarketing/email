@@ -226,7 +226,7 @@ export function ChangeSendDateModal({
               label="New date"
               value={date}
               controlId={dateId}
-              note="moves this email only — the delivery promise and the rest of the plan do not change"
+              note="moves this email only, not the delivery promise"
             >
               <input
                 id={dateId}

@@ -31,7 +31,7 @@ import { Skeleton } from './ui/rd';
 import Menu from './rd/components/Menu';
 import { ReleasesIndex } from './screens/ReleasesIndex';
 import { ReleaseDetail } from './screens/ReleaseDetail';
-import { ReleaseOverview } from './screens/ReleaseOverview';
+import { PromiseDateOverview } from './screens/PromiseDateOverview';
 import { EmailsToWrite } from './screens/EmailsToWrite';
 import { MyApprovals } from './screens/MyApprovals';
 import { SendDetail } from './screens/SendDetail';
@@ -172,7 +172,7 @@ function Shell({
   const [area, areaPath] = onReleases
     ? ['Releases', '/']
     : location.pathname.startsWith('/overview')
-      ? ['Release overview', '/overview']
+      ? ['Promise date overview', '/overview']
       : location.pathname.startsWith('/copy')
         ? ['Emails to write', '/copy']
         : ['My approvals', '/approvals'];
@@ -200,7 +200,7 @@ function Shell({
               to="/overview"
               className={({ isActive }) => (isActive ? 'rd-navrow on' : 'rd-navrow')}
             >
-              Release overview
+              Promise date overview
             </NavLink>
             <NavLink
               to="/copy"
@@ -269,7 +269,7 @@ function Shell({
             <Routes>
               <Route path="/" element={<ReleasesIndex />} />
               <Route path="/releases/:releaseId" element={<ReleaseDetail />} />
-              <Route path="/overview" element={<ReleaseOverview />} />
+              <Route path="/overview" element={<PromiseDateOverview />} />
               <Route path="/copy" element={<EmailsToWrite />} />
               <Route path="/approvals" element={<MyApprovals />} />
               <Route path="/sends/:sendId" element={<SendDetail />} />

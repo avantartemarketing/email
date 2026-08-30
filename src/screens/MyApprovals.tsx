@@ -459,16 +459,14 @@ export function MyApprovals(): ReactElement {
   const nextComing = coming[0];
 
   return (
-    <Page
-      title="My approvals"
-      facts={<span>Every send waiting on an approver. Any admin can approve any of them.</span>}
-    >
-      {!isAdmin ? (
-        <Bar tone="note" title="Approving is admin-only">
-          You can review every send here, move its date, or cancel it. Approving needs an admin.
-        </Bar>
-      ) : null}
-
+    /* No subtitle, and no band announcing that approving is admin-only. The
+       owner, 29 Aug 2026: "Remove all helper text." The restriction is not
+       lost with it — the shut Approve control carries its own reason in `Why`,
+       which is where the system rules it belongs: "never the only place
+       something is said: the control it wraps already carries the answer". A
+       band saying it a second time, to everyone, on arrival, is the helper
+       text. */
+    <Page title="My approvals">
       {/* Everything below is one stack at the standard card gap. Without it
           the band and both cards butted straight into each other: `.rd-headrow`
           zeroes the band's own margin because it is written to sit INSIDE a
@@ -544,7 +542,6 @@ export function MyApprovals(): ReactElement {
                   )} — it is in Coming up below.`
                 : 'Nothing waiting for approval. New and rescheduled comms plans land here before anything can send.'
             }
-            foot="overdue or going out inside seven days — approving an overdue send releases it in the next send run"
           />
 
           <DataTable
@@ -557,7 +554,6 @@ export function MyApprovals(): ReactElement {
             rowKey={(i) => i.send.id}
             onRowClick={(i) => setPreview(i)}
             empty="Nothing scheduled beyond the next 7 days. Sends appear here as soon as a release has a promise date and its plan is submitted."
-            foot="approving early is safe — open a row to approve it, move it, or cancel it"
           />
         </>
       )}

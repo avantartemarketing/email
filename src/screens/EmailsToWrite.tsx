@@ -59,10 +59,12 @@ import { DelayReason } from '../components/DelayReason';
  * page is open and so are its verbs. A delay notice a collector is owed must
  * not wait for the right person to come back from lunch, and a shut control
  * on this page would be claiming a restriction the data layer does not have.
- * What ops sees instead is a note saying whose desk this is.
+ * Ops used to get a note here saying whose desk this is; it went with the rest
+ * of the helper text on 29 Aug, and nothing was lost — the page never shut
+ * anything on them, so there was never anything to explain.
  */
 export function EmailsToWrite(): ReactElement {
-  const { data, currentUser, showToast, userName, refreshApprovals } = useApp();
+  const { data, showToast, userName, refreshApprovals } = useApp();
   const navigate = useNavigate();
   const queue = useAsync(() => data.listCopyQueue(), []);
 
@@ -75,7 +77,6 @@ export function EmailsToWrite(): ReactElement {
   const jobs = queue.data ?? [];
   const late = jobs.filter((j) => j.send.scheduledDate < today());
   const waiting = jobs.reduce((sum, j) => sum + j.recipientCount, 0);
-  const isCrm = currentUser.team === 'crm';
 
   const reload = () => {
     queue.reload();
@@ -295,23 +296,12 @@ export function EmailsToWrite(): ReactElement {
   ];
 
   return (
-    <Page
-      title="Emails to write"
-      facts={
-        <span>
-          Production moves a delivery date and says why; writing to the collectors is this team's
-          job. Each row is a batch that has not been told yet.
-        </span>
-      }
-    >
-      {!isCrm ? (
-        <Bar tone="note" title="This queue belongs to the CRM team">
-          You are signed in as {currentUser.name}, so nothing here is counted on your rail. You can
-          still write one — a collector waiting on a delay notice should not also wait for the
-          right person to be at their desk.
-        </Bar>
-      ) : null}
-
+    /* No subtitle, and no note explaining whose queue this is. The owner,
+       29 Aug 2026: "Remove all helper text." Both were the screen describing
+       itself to somebody reading it for the first time, and every reader after
+       that scans straight past. What is left says who owes what by being true:
+       the rail badge counts only for CRM, and the rows say what they are. */
+    <Page title="Emails to write">
       <Stack>
         <div className="rd-headrow">
           <div className="rd-kband">
@@ -363,11 +353,7 @@ export function EmailsToWrite(): ReactElement {
             rowKey={(j) => j.send.id}
             onRowClick={(j) => openWriter(j)}
             empty="Nothing to write. A delay email lands here the moment somebody changes a delivery date."
-            foot={
-              jobs.length > 0
-                ? 'each one starts from the release’s delay template with the reason patched in — edit it, then send it for approval'
-                : undefined
-            }
+
           />
         )}
       </Stack>

@@ -187,8 +187,8 @@ approve is one of two problems, and the queue now routes each to its remedy.
   email as a side effect (plan regenerated, delay notice lands at the top of
   the queue, pending, for the same approver).
 
-**Release overview (same round, renamed 29 Aug):** a rail item between Releases
-and Emails to write — every release opened out into the batches it ships in,
+**Promise date overview (same round, renamed twice on 29 Aug — Batches →
+Release overview → this):** a rail item between Releases and Emails to write — every release opened out into the batches it ships in,
 with active collector counts and the promised window (`listBatches()` on the
 DataLayer). It OPENS grouped by release via a new `defaultView` prop on
 DataTable (an initial view used only until the user changes anything), and
@@ -196,9 +196,11 @@ DataTable drops the grouped column from the grid while its bands are drawn —
 the band already prints the value, and a column repeating its own heading was
 two marks for one fact.
 
-Tom renamed it from Batches and sent a reference for the shape: *"Batches
-should be called Release overview, and look more like this. The Grouped
-headings wouldn't be in status lozenges though."* So:
+Tom renamed it and sent a reference for the shape: *"Batches should be called
+Release overview, and look more like this. The Grouped headings wouldn't be in
+status lozenges though."* Then, an hour later, *"Change Releases over view to
+Promise date overview"* — each rename moving the name closer to what the page
+is opened to find out. So:
 
 - the band stays ruling 14's caption-over-value and the release title stays
   BARE — a lozenge is a mark on a status or a category, and a release title is
@@ -216,8 +218,26 @@ headings wouldn't be in status lozenges though."* So:
 `prove-screens` asserts the page opens banded, that pressing a band actually
 removes rows (made to fail by restoring the old handler-less chevron), and —
 new, `checkNaming` — that a top-level screen's rail row, bar and title all say
-the same name. That last one exists because this rename changed two of the
+the same name. That last one exists because the first rename changed two of the
 three and left the bar saying "My approvals" over the release overview.
+
+**No helper text (29 Aug):** Tom, *"Remove all helper text like 'Every release
+in production, opened out into the batches it ships in — who has been promised
+what, and how many.'"* Gone from every worklist: the subtitle under each title,
+the explanatory clause in each table's foot (the COUNT stays — that is data),
+the band on Emails to write explaining whose queue it is, and the one on My
+approvals announcing that approving is admin-only. The restriction is not lost
+with that last one: the shut Approve control carries its reason in `Why`, which
+is where the kit rules it belongs — "never the only place something is said".
+
+What stayed, and the line it draws: **warnings** (an order with no email, an
+email with no image — they qualify a control), **empty states** (what a screen
+says when it has nothing is not helper text), **field notes** that carry a rule
+("required — the CRM writer works from this"), and the subhead on a RECORD
+screen, where it is the record's identity (artist · edition of 150 · Print)
+rather than the page describing itself. `checkNaming` now enforces that edge
+directly: a screen reached without a crumb is a worklist and may carry no
+`.rd-subhead` at all. Made to fail by putting one back.
 
 **The CRM handoff (29 Aug 2026)** — Tom: *"When someone schedules a delay, the
 job of writing the email goes to the CRM team. So we need it to trigger a

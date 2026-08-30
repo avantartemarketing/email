@@ -188,11 +188,9 @@ export function RescheduleModal({
           value={reason}
           onChange={setReason}
           multiline
-          /* The note carries the whole of what changed about this field. It
-             used to seed a paragraph the same person then rewrote, so its
-             wording barely mattered; now it is the only thing the writer will
-             know that you do. */
-          note="required — this is the brief the CRM writer works from, so say what actually happened"
+          /* Short, and still load-bearing: it names who reads this, which is
+             what makes somebody write a sentence rather than a word. */
+          note="required — the CRM writer works from this"
           noteNear={!reason.trim()}
         />
       </div>

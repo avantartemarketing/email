@@ -11,14 +11,14 @@ import { DataTable } from '../ui/DataTable';
 import type { Column } from '../ui/DataTable';
 
 /**
- * Every release in production, opened out into the batches it actually ships
- * in — who has been promised what, and how many of them there are.
+ * Every promise the business has made, grouped under the release that made it.
  *
- * The owner, 29 Aug 2026: "Batches should be called Release overview." The
- * rows are still batches; the SUBJECT is the release, and the name is what
- * says so. A page called Batches invites the reading that a batch is the unit
- * of work here, and it is not — a batch is what a release turns into when a
- * promise has to be split.
+ * Named twice on 29 Aug 2026: Batches → Release overview → **Promise date
+ * overview**. The rows never changed — they are batches — and each rename
+ * moved the name closer to what the page is actually opened to find out. A
+ * batch is not the unit of work; a release is not the question either; the
+ * question is *what have we told people, and when*. The promised dispatch is
+ * the only column here that anybody is ever chasing.
  *
  * ## The shape, from the reference the owner sent
  *
@@ -39,7 +39,7 @@ import type { Column } from '../ui/DataTable';
  * so it can be regrouped by dispatch window ("what ships in November?") or
  * flattened, and the choice is remembered like any other view.
  */
-export function ReleaseOverview(): ReactElement {
+export function PromiseDateOverview(): ReactElement {
   const { data } = useApp();
   const navigate = useNavigate();
   const list = useAsync(() => data.listBatches(), []);
@@ -132,22 +132,19 @@ export function ReleaseOverview(): ReactElement {
   ];
 
   return (
-    <Page
-      title="Release overview"
-      facts={
-        <span>
-          Every release in production, opened out into the batches it ships in — who has been
-          promised what, and how many.
-        </span>
-      }
-    >
+    /* No subtitle. The owner, 29 Aug 2026: "Remove all helper text like
+       'Every release in production, opened out into the batches it ships in
+       — who has been promised what, and how many.'" A sentence under the
+       title that describes the table under it is read once, by the person who
+       already knows, and never again. */
+    <Page title="Promise date overview">
       {list.data === null ? (
         <Card>
           <Skeleton rows={8} />
         </Card>
       ) : (
         <DataTable
-          table="release-overview"
+          table="promise-overview"
           noun="batch"
           nounPlural="batches"
           searchPlaceholder="Search releases and batches"
@@ -157,14 +154,12 @@ export function ReleaseOverview(): ReactElement {
           onRowClick={(r) => navigate(`/releases/${r.release.id}`)}
           defaultView={{ group: 'release' }}
           empty="No releases yet — import a release's orders and its batches appear here."
-          /* Nothing to say under an empty table: the empty state is written
-             for that, and "0 batches · across 0 releases" beside it is the
-             count contradicting the sentence next to it. */
-          foot={
-            rows.length > 0
-              ? `across ${plural(releaseCount, 'release')} · a release with one batch never mentions it — the dash is that batch`
-              : undefined
-          }
+          /* A count, and nothing else. What used to follow it — "a release
+             with one batch never mentions it, the dash is that batch" — was
+             the page explaining its own convention, which is the helper text
+             the owner asked to be rid of. Nothing under an empty table
+             either: the empty state is written for that. */
+          foot={rows.length > 0 ? `across ${plural(releaseCount, 'release')}` : undefined}
         />
       )}
     </Page>

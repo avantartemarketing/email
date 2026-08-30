@@ -142,8 +142,18 @@ async function checkNaming(what) {
     hop: document.querySelector('.rd-barhop')?.textContent?.trim() ?? null,
     title: document.querySelector('.rd-title')?.textContent?.trim() ?? '',
     rail: document.querySelector('.rd-navrow.on')?.firstChild?.textContent?.trim() ?? '',
+    sub: document.querySelector('.rd-subhead')?.textContent?.trim() ?? null,
   }))
   if (nav.hop !== null) return out
+  /* And a top-level screen carries NO subtitle. The owner, 29 Aug 2026:
+     "Remove all helper text like 'Every release in production, opened out into
+     the batches it ships in — who has been promised what, and how many.'" The
+     rule has a natural edge and this is it: a screen reached by a crumb is a
+     RECORD, and its subhead is that record's identity — an artist, an edition
+     size, the release a send belongs to. A worklist has no identity to state,
+     so anything under its title is the page describing itself. */
+  if (nav.sub !== null)
+    out.push(`${what}: a worklist with a subtitle — "${nav.sub.slice(0, 70)}"`)
   if (nav.here !== nav.title)
     out.push(`${what}: the bar says "${nav.here}" over a page titled "${nav.title}"`)
   if (nav.rail && nav.rail !== nav.title)
@@ -189,8 +199,8 @@ await screen('release detail · a flow', async () => {
   await page.waitForTimeout(400)
 })
 
-/* ---- 2b · the release overview ------------------------------------------- */
-await screen('release overview', async () => {
+/* ---- 2b · the promise date overview --------------------------------------- */
+await screen('promise date overview', async () => {
   await page.goto(`${BASE}/overview`, { waitUntil: 'networkidle' })
 })
 
@@ -198,11 +208,11 @@ await screen('release overview', async () => {
    band rows — a flat first paint means the default view never reached the
    table. ONE browser context serves the whole run and nothing clears
    localStorage, so this block must stay the run's first touch of /overview:
-   `ppc.table.release-overview.view` is unwritten here, which is what makes this read
+   `ppc.table.promise-overview.view` is unwritten here, which is what makes this read
    what a new visitor gets. Any later check that exercises this table's view
    controls has to run after it. */
 {
-  const what = 'release overview'
+  const what = 'promise date overview'
   const bands = await page.evaluate(
     () => document.querySelectorAll('table tr.rd-band').length,
   )
