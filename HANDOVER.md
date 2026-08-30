@@ -307,8 +307,30 @@ the approver still has it.
 
 `npm test` → 158 green. `npm run build` clean. `check:screens` clean.
 
+**Release tabs — three hierarchies (29 Aug, exploration, nothing built):** Tom,
+*"I think we need a visual difference between the tabs for all order, emails and
+batches. The batches is a tab and then the different batches is a sub level
+within that. Explore 3 ways of doing this."* The strip runs seven peers today —
+All orders, All emails, then one tab per batch, all the same size and shape, and
+it grows with every reschedule. Three options drawn in the real kit (the source
+is `docs/explorations/release-tabs.html`, inlined with the real CSS and the real
+font by a scratch script, so the widths are honest):
+
+1. **Two tiers, two kinds of control** — three tabs; Batches opens a second row
+   drawn as the kit's SEGMENTED control, which the system has already ruled is
+   "NOT a tab — it changes a value while the screen stays the screen". The rank
+   comes from the control's kind, not its size. Recommended.
+2. **One row, the batch inside its tab** — `Batches · Framed 2 ▾`, a tab that
+   is also a menu. Never grows; hides the list.
+3. **A sub-rail inside the Batches tab** — batches down a 196px left column.
+   The clearest hierarchy, and the most expensive in width.
+
+Awaiting Tom's pick; no app code changed.
+
 **Artifacts live (publish with `url:` to update, never without):**
 - Prototype, Workbench-rd: https://claude.ai/code/artifact/ebfa534f-1267-4a64-99a5-7978167d3a9f
+- Release tab hierarchies (3 options):
+  https://claude.ai/code/artifact/ef6ad63b-8c3c-4515-9eda-6f4858e28490
 - Before/after review: https://claude.ai/code/artifact/f4e228af-af0a-4f6c-9ca7-b111503fb81f
 - Dispatch bar studies (five options, drawn in the real system):
   https://claude.ai/code/artifact/dada54e1-0a78-4fbe-ae76-4388d5ee3cfa

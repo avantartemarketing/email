@@ -1,0 +1,495 @@
+<style>
+/* The document's own frame. Every colour and size here is a kit token: the
+   whole point of the page is that three options are judged in the product's
+   own skin, and a second palette around them would be a second opinion about
+   what grey means. Single-theme on purpose — Workbench-rd is a light system
+   and has no dark palette to honour, so this paints its ground explicitly and
+   stays put. */
+body {
+  margin: 0;
+  padding: 0 0 96px;
+  background: var(--rd-band);
+  color: var(--rd-ink);
+  font: 400 14px/1.55 var(--rd-font-text);
+  -webkit-font-smoothing: antialiased;
+}
+.ex {
+  max-width: 1288px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+.ex-head {
+  padding: 72px 0 8px;
+  max-width: 62ch;
+}
+.ex-eyebrow {
+  font: var(--rd-weight-caps) var(--rd-size-caps-micro) var(--rd-font-text);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--rd-ink-faint);
+}
+.ex-head h1 {
+  margin: 10px 0 12px;
+  font: 500 30px/1.2 var(--rd-font-text);
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+}
+.ex-lede {
+  margin: 0;
+  color: var(--rd-ink-tertiary);
+  font-size: 14.5px;
+}
+.ex-lede b {
+  font-weight: var(--rd-weight-emphasis);
+  color: var(--rd-ink);
+}
+
+/* A section: the argument on the left at reading width, the rendered thing
+   below it at the width it will really be drawn at. */
+.ex-sec {
+  margin-top: 56px;
+}
+.ex-rule {
+  height: 1px;
+  background: var(--rd-border);
+  margin: 0 0 28px;
+}
+.ex-no {
+  font: var(--rd-weight-caps) var(--rd-size-caps-micro) var(--rd-font-text);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--rd-ink-faint);
+}
+.ex-sec h2 {
+  margin: 8px 0 10px;
+  font: 500 21px/1.25 var(--rd-font-text);
+  letter-spacing: -0.008em;
+}
+.ex-sec p {
+  margin: 0 0 4px;
+  max-width: 68ch;
+  color: var(--rd-ink-tertiary);
+}
+.ex-sec p b {
+  font-weight: var(--rd-weight-emphasis);
+  color: var(--rd-ink);
+}
+
+/* The mock: a slice of the real work area, on the app's own white, hairlined
+   so it reads as a screen laid on the desk rather than as more page. */
+.ex-screen {
+  margin: 22px 0 0;
+  background: var(--rd-canvas);
+  border: 1px solid var(--rd-border);
+  border-radius: var(--rd-radius-card);
+  padding: 22px 24px 0;
+  overflow: hidden;
+}
+.ex-screen + .ex-screen {
+  margin-top: 14px;
+}
+.ex-cap {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  color: var(--rd-ink-faint);
+}
+.ex-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.ex-title span:first-child {
+  font: 500 22px/1.2 var(--rd-font-text);
+  letter-spacing: -0.008em;
+}
+/* A stub of whatever the tab opened onto — enough surface for the strip to be
+   the top edge of something, and no more. */
+.ex-stub {
+  margin: 0 -24px;
+  border-top: 1px solid var(--rd-border);
+  background: var(--rd-head-bg);
+  height: 92px;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  font-size: 12.5px;
+  color: var(--rd-ink-faint);
+}
+.ex-stub.tall {
+  height: 148px;
+}
+/* Deep enough for an open popover to finish inside the screen it belongs to —
+   the mock clips its own overflow, and a menu cut off at the fourth item was
+   showing option 2 losing a batch it does not lose. */
+.ex-stub.deep {
+  height: 236px;
+}
+
+/* Two lists of consequences, side by side. */
+.ex-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px 32px;
+  margin-top: 22px;
+  max-width: 1000px;
+}
+.ex-col h3 {
+  margin: 0 0 8px;
+  font: var(--rd-weight-caps) var(--rd-size-caps-micro) var(--rd-font-text);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--rd-ink-faint);
+}
+.ex-col ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--rd-ink-tertiary);
+}
+.ex-col li {
+  margin-bottom: 6px;
+}
+.ex-col li b {
+  font-weight: var(--rd-weight-emphasis);
+  color: var(--rd-ink);
+}
+
+/* Option 1's second tier: the kit's segmented control, which right-aligns
+   itself wherever it is normally used. Here it leads a row. */
+.ex-tier2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -4px 0 14px;
+}
+.ex-tier2 .rd-seg {
+  margin-left: 0;
+}
+.ex-tier2 .rd-seg button {
+  font-variant-numeric: tabular-nums;
+}
+.ex-count {
+  color: var(--rd-ink-faint);
+  opacity: 0.75;
+}
+/* On the selected segment the ground is ink, so a faint grey count reads as a
+   smudge. Measured at 2x: it inherits the white and steps back by opacity
+   instead. */
+.rd-seg button.on .ex-count {
+  color: inherit;
+  opacity: 0.6;
+}
+
+/* Option 2's chevron and separator inside the tab. */
+.ex-chev {
+  color: var(--rd-ink-faint);
+}
+.ex-dot {
+  color: var(--rd-ink-faint);
+  font-weight: 400;
+}
+/* The kit's own popover, opened in place — `.rd-menuwrap` is what makes the
+   float position against the tab rather than against the page, and using the
+   kit's classes is what makes its items look like its items. */
+.ex-menuwrap .rd-float {
+  min-width: 200px;
+}
+
+/* Option 3's sub-rail. */
+.ex-split {
+  display: flex;
+  margin: 0 -24px;
+  border-top: 1px solid var(--rd-border);
+  min-height: 188px;
+}
+.ex-subrail {
+  width: 196px;
+  flex: none;
+  padding: 12px 12px 12px 24px;
+  border-right: 1px solid var(--rd-border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ex-subcap {
+  padding: 0 10px 6px;
+  font: var(--rd-weight-caps) var(--rd-size-caps-micro) var(--rd-font-text);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--rd-ink-faint);
+}
+.ex-subrail .rd-navrow {
+  width: 100%;
+  justify-content: space-between;
+}
+.ex-subrail .rd-navrow span {
+  color: var(--rd-ink-faint);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.ex-subbody {
+  flex: 1;
+  min-width: 0;
+  background: var(--rd-head-bg);
+  padding: 16px 24px;
+  font-size: 12.5px;
+  color: var(--rd-ink-faint);
+}
+
+.ex-verdict {
+  margin-top: 56px;
+  padding: 26px 28px;
+  background: var(--rd-canvas);
+  border: 1px solid var(--rd-border);
+  border-radius: var(--rd-radius-card);
+}
+.ex-verdict h2 {
+  margin: 0 0 10px;
+  font: 500 19px/1.25 var(--rd-font-text);
+}
+.ex-verdict p {
+  margin: 0 0 10px;
+  max-width: 74ch;
+  color: var(--rd-ink-tertiary);
+}
+.ex-verdict p:last-child {
+  margin-bottom: 0;
+}
+.ex-verdict b {
+  font-weight: var(--rd-weight-emphasis);
+  color: var(--rd-ink);
+}
+@media (max-width: 900px) {
+  .ex-head h1 { font-size: 25px; }
+  .ex-screen { overflow-x: auto; }
+}
+</style>
+
+<div class="ex">
+  <header class="ex-head">
+    <div class="ex-eyebrow">Falling Light · the release page</div>
+    <h1>Three ways to separate the tabs from the batches</h1>
+    <p class="ex-lede">
+      The strip runs seven peers. <b>All orders</b> is everything on the release, <b>All emails</b>
+      is everything it sends, and the five after them are one production run each — but nothing
+      in the row says so. Every option below keeps the same seven destinations and changes only
+      what rank they are drawn at. Each is rendered in the real system, at the width the release
+      page actually gets.
+    </p>
+  </header>
+
+  <section class="ex-sec">
+    <div class="ex-rule"></div>
+    <div class="ex-no">As it is now</div>
+    <h2>Seven peers</h2>
+    <p>
+      A batch created by yesterday's reschedule arrives beside the two views that belong to the
+      whole release, at the same size, in the same shape. The strip grows with every split, and
+      the two tabs anybody uses daily drift further left as it does.
+    </p>
+    <div class="ex-screen">
+      <div class="ex-title"><span>Falling Light</span><span class="rd-tag rd-tag-blue">Active</span></div>
+      <div class="rd-tabs" role="tablist">
+        <button type="button" class="rd-tab on">All orders (293)</button>
+        <button type="button" class="rd-tab">All emails</button>
+        <button type="button" class="rd-tab">Framed (145)</button>
+        <button type="button" class="rd-tab">Unframed (136)</button>
+        <button type="button" class="rd-tab">Framed 2 (6)</button>
+        <button type="button" class="rd-tab">Framed 3 (4)</button>
+        <button type="button" class="rd-tab">Unframed 2 (2)</button>
+      </div>
+      <div class="ex-stub">293 orders</div>
+    </div>
+  </section>
+
+  <section class="ex-sec">
+    <div class="ex-rule"></div>
+    <div class="ex-no">Option 1</div>
+    <h2>Two tiers, and two different kinds of control</h2>
+    <p>
+      Three tabs, and picking <b>Batches</b> opens a second row beneath it. The second row is not
+      a smaller tab strip — it is the kit's segmented control, and the system has already ruled
+      the difference: <em>“a segmented toggle is NOT a tab — it changes a value while the screen
+      stays the screen, where a tab changes what is on screen.”</em> That is exactly the relation
+      here. Once you are inside Batches the screen stays the batch screen; you are choosing which
+      run you are looking at.
+    </p>
+    <div class="ex-screen">
+      <div class="ex-title"><span>Falling Light</span><span class="rd-tag rd-tag-blue">Active</span></div>
+      <div class="rd-tabs" role="tablist">
+        <button type="button" class="rd-tab on">All orders (293)</button>
+        <button type="button" class="rd-tab">All emails</button>
+        <button type="button" class="rd-tab">Batches (5)</button>
+      </div>
+      <div class="ex-stub">293 orders</div>
+    </div>
+    <p class="ex-cap">Batches shut — three destinations, and the row cannot grow.</p>
+    <div class="ex-screen">
+      <div class="ex-title"><span>Falling Light</span><span class="rd-tag rd-tag-blue">Active</span></div>
+      <div class="rd-tabs" role="tablist">
+        <button type="button" class="rd-tab">All orders (293)</button>
+        <button type="button" class="rd-tab">All emails</button>
+        <button type="button" class="rd-tab on">Batches (5)</button>
+      </div>
+      <div class="ex-tier2">
+        <div class="rd-seg">
+          <button type="button" class="on">Framed <span class="ex-count">145</span></button>
+          <button type="button">Unframed <span class="ex-count">136</span></button>
+          <button type="button">Framed 2 <span class="ex-count">6</span></button>
+          <button type="button">Framed 3 <span class="ex-count">4</span></button>
+          <button type="button">Unframed 2 <span class="ex-count">2</span></button>
+        </div>
+      </div>
+      <div class="ex-stub tall">Framed · 145 collectors · promised 19 – 26 Sept 2026</div>
+    </div>
+    <p class="ex-cap">Batches open — every run still one click away, and unmistakably a tier down.</p>
+    <div class="ex-cols">
+      <div class="ex-col">
+        <h3>What it buys</h3>
+        <ul>
+          <li><b>The rank is in the shape, not the size.</b> A smaller tab is still a tab; a
+            different control is a different level.</li>
+          <li>Every batch stays <b>one click away and on screen</b> — nothing is hidden behind a
+            menu.</li>
+          <li>The top row is <b>fixed at three</b> whatever a release does to itself.</li>
+        </ul>
+      </div>
+      <div class="ex-col">
+        <h3>What it costs</h3>
+        <ul>
+          <li>A second row, ~34px, on the batch tab only.</li>
+          <li>The segmented control <b>runs out of width around eight batches</b>; beyond that it
+            needs to wrap or scroll.</li>
+          <li>One CSS change: the control right-aligns itself everywhere it is used today.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="ex-sec">
+    <div class="ex-rule"></div>
+    <div class="ex-no">Option 2</div>
+    <h2>One row; the batch rides inside its own tab</h2>
+    <p>
+      Still three tabs, but the third one carries the batch you are on and opens a list. The strip
+      never gains a row and never gains a member — it says <b>Batches · Framed 2</b> the way a
+      breadcrumb would, so the answer to “where am I?” is in the same place whatever you clicked.
+    </p>
+    <div class="ex-screen">
+      <div class="ex-title"><span>Falling Light</span><span class="rd-tag rd-tag-blue">Active</span></div>
+      <div class="rd-tabs" role="tablist">
+        <button type="button" class="rd-tab">All orders (293)</button>
+        <button type="button" class="rd-tab">All emails</button>
+        <span class="rd-menuwrap ex-menuwrap">
+          <button type="button" class="rd-tab on">
+            Batches <span class="ex-dot">·</span> Framed 2 (6)
+            <svg class="ex-chev" width="10" height="10" viewBox="0 0 10 10" aria-hidden focusable="false"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="rd-float">
+            <div class="rd-floathd">Batch</div>
+            <button type="button">Framed · 145</button>
+            <button type="button">Unframed · 136</button>
+            <button type="button" class="on">✓&nbsp; Framed 2 · 6</button>
+            <button type="button">Framed 3 · 4</button>
+            <button type="button">Unframed 2 · 2</button>
+          </div>
+        </span>
+      </div>
+      <div class="ex-stub deep">Framed 2 · 6 collectors · promised 14 – 21 Oct 2026</div>
+    </div>
+    <p class="ex-cap">The list open. Shut, the strip is three chips and the third one names where you are.</p>
+    <div class="ex-cols">
+      <div class="ex-col">
+        <h3>What it buys</h3>
+        <ul>
+          <li><b>One row for ever.</b> Thirty batches cost the same width as two.</li>
+          <li>The open batch is <b>named in the strip</b>, so the page always says where you are
+            without a second surface.</li>
+          <li>The menu is the kit's existing popover — no new vocabulary at all.</li>
+        </ul>
+      </div>
+      <div class="ex-col">
+        <h3>What it costs</h3>
+        <ul>
+          <li>The batch list is <b>hidden until you ask for it</b>: you cannot see that Framed 3
+            exists without opening the menu.</li>
+          <li>One control doing two jobs — enter the tab, and change the batch.</li>
+          <li>Moving between two batches is two clicks, where the flat strip is one.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="ex-sec">
+    <div class="ex-rule"></div>
+    <div class="ex-no">Option 3</div>
+    <h2>The batches become a sub-rail inside the tab</h2>
+    <p>
+      Three tabs, and the Batches tab opens onto a split: the runs down the left, the run's own
+      screen to the right. The hierarchy is not signalled — it is <b>physical</b>. Nothing about a
+      list nested inside a pane can be read as a peer of the thing above it.
+    </p>
+    <div class="ex-screen">
+      <div class="ex-title"><span>Falling Light</span><span class="rd-tag rd-tag-blue">Active</span></div>
+      <div class="rd-tabs" role="tablist">
+        <button type="button" class="rd-tab">All orders (293)</button>
+        <button type="button" class="rd-tab">All emails</button>
+        <button type="button" class="rd-tab on">Batches (5)</button>
+      </div>
+      <div class="ex-split">
+        <nav class="ex-subrail">
+          <div class="ex-subcap">Batch</div>
+          <button type="button" class="rd-navrow on">Framed <span>145</span></button>
+          <button type="button" class="rd-navrow">Unframed <span>136</span></button>
+          <button type="button" class="rd-navrow">Framed 2 <span>6</span></button>
+          <button type="button" class="rd-navrow">Framed 3 <span>4</span></button>
+          <button type="button" class="rd-navrow">Unframed 2 <span>2</span></button>
+        </nav>
+        <div class="ex-subbody">Framed · 145 collectors · promised 19 – 26 Sept 2026<br />comms plan, orders, batch history</div>
+      </div>
+    </div>
+    <div class="ex-cols">
+      <div class="ex-col">
+        <h3>What it buys</h3>
+        <ul>
+          <li><b>The clearest hierarchy of the three</b>, and the only one that does not depend on
+            somebody learning a convention.</li>
+          <li>Scales to any number of batches — the list scrolls in its own column.</li>
+          <li>You can <b>read the whole set while working on one</b>: which runs exist, how big,
+            in what order.</li>
+        </ul>
+      </div>
+      <div class="ex-col">
+        <h3>What it costs</h3>
+        <ul>
+          <li><b>196px off a table that is already wide</b> — the orders table inside a batch is
+            fourteen columns.</li>
+          <li>A second vertical navigation on a page that already has the shell's rail six inches
+            to its left.</li>
+          <li>The most work to build, and the one that changes the batch screen's layout rather
+            than only its heading.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <div class="ex-verdict">
+    <h2>Where I would land</h2>
+    <p>
+      <b>Option 1.</b> It is the only one whose hierarchy comes from a distinction the system has
+      already made and written down, which means it will read the same way the next time somebody
+      nests something. It costs one row on one tab, hides nothing, and fixes the top strip at
+      three members permanently.
+    </p>
+    <p>
+      Take <b>option 2</b> instead if releases routinely run past eight batches — that is where
+      the segmented control stops fitting and the menu stops being a compromise. Take
+      <b>option 3</b> only if the batch list becomes something people scan rather than something
+      they pick from; today it is five rows read once.
+    </p>
+    <p>
+      All three leave <b>All orders</b> and <b>All emails</b> exactly where they are, which is the
+      half of the strip that gets used every day.
+    </p>
+  </div>
+</div>
