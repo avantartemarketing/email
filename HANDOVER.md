@@ -419,8 +419,33 @@ approved; refund-status-change bands; `setProductKind` after creation; and a
 "Set up without a file" door — the fileless path works at the layer, it just
 has no UI.
 
+**Edition allocation — analysed, not built (31 Aug):** Tom sent
+`TEMPLATE_Edition_Allocation_Tool.xlsx`, the workbook that decides which collector
+gets print 1 of 150, and asked how it could be built into this tool. Full write-up in
+`docs/design/edition-allocation.md` and the artifact below. The short of it: the
+workbook's output tab IS the allocation CSV `src/logic/allocation.ts` already imports,
+so the tool is the consumer and this would make it the producer. It needs one concept
+the tool lacks — the **artwork**, between release and order.
+
+**And it turned up a live bug that should not wait for any of that.** This upload is
+the FIRST REAL SHOPIFY EXPORT the project has seen, and the fixtures were written from
+an assumption it contradicts. Real line items say "Black Abachi Wood Frame — UV
+protective acrylic"; the word *framed* never appears, and a frame is a SEPARATE LINE
+ITEM, not a variant. `classifyFulfilment` tests `/framed/i` on the title and returns
+`framed` for **0 of 1,760 frame line items** across 3,668 real orders, 42% of which are
+framed. Running the real Ai Weiwei export through the real add-a-release flow:
+`proposeRelease` calls a print release a *sculpture*, proposes the title
+"Guardian (Purple)", justifies only an unframed batch, and the one-product guard
+refuses the release outright. Same regex again in `MockDataLayer.importAllocations`
+(framed orders draw doubled rows today), and `recipientCount` does not de-duplicate by
+email, so a four-print collector gets four copies of every email. The fix is a join on
+order + SKU art code, not a better regex — measured at 439/631 framed/unframed with 2
+unmatched frames, against 0/1,511 today. Slice 1 in the doc, half a day.
+
 **Artifacts live (publish with `url:` to update, never without):**
 - Prototype, Workbench-rd: https://claude.ai/code/artifact/ebfa534f-1267-4a64-99a5-7978167d3a9f
+- Numbering the Edition (the allocation workbook, read and costed):
+  https://claude.ai/code/artifact/5147d703-854d-4203-84cc-24fd9738a4fe
 - Release tab hierarchies (3 options):
   https://claude.ai/code/artifact/ef6ad63b-8c3c-4515-9eda-6f4858e28490
 - Adding a release (the flow):
