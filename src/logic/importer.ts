@@ -301,12 +301,70 @@ export function orderDedupeKey(shopifyOrderName: string, lineItemTitle: string):
 }
 
 /**
- * Which print flow a line item belongs to. Framed and unframed prints ship
- * on separate timelines (framing adds weeks and its own email), so print
- * imports route into a Framed or Unframed batch by variant. Anything that
- * doesn't say "framed" — including "Print Only" and blank variants — is
- * treated as unframed: no framing promise is safer than a wrong one.
+ * Which print flow a line item's own TITLE claims.
+ *
+ * Kept, and no longer the answer on its own. Measured against the first real
+ * Shopify exports the project has seen — 3,668 orders across six releases,
+ * 42% of them framed — this returns `unframed` for every single one of the
+ * 1,760 frame line items in them, because a real Avant Arte line item reads
+ * "Black Abachi Wood Frame - UV protective acrylic" and the word *framed*
+ * never appears in the shop's vocabulary at all.
+ *
+ * So it is now the FALLBACK, under `isFrameLine`. It still earns its place:
+ * a hand-written fixture, a re-export from another shop, or a title that does
+ * say "Framed" is answered correctly and without a SKU.
  */
 export function classifyFulfilment(variant: string): BatchFulfilment {
   return /framed/i.test(variant) && !/unframed/i.test(variant) ? 'framed' : 'unframed';
+}
+
+/**
+ * Is this line item a FRAME rather than a print?
+ *
+ * The thing the tool had wrong. Framing is not a variant of the print — it is
+ * its own line item on the same order, with its own SKU and its own price:
+ *
+ *     #82098  MURAK-FLOWE-PE-DRAW         Flowers of Heaven, 2018 - Draw
+ *     #82098  MURAK-FLOWE-FR-WHITEABACH   Flowers of Heaven, 2018 - White Abachi wood frame - …
+ *
+ * The SKU is the reliable half: segment three is `FR` for a frame and `PE` or
+ * `TL` for a print, across all six releases on file. The title fallback is for
+ * an export with no SKU column, and is deliberately narrow — it wants the word
+ * as its own token, so "Framed" (a print variant that says its own fulfilment)
+ * is not mistaken for a frame line.
+ */
+export function isFrameLine(item: { lineItemTitle: string; sku?: string | null }): boolean {
+  const kind = skuSegment(item.sku, 2);
+  /* The THIRD segment, not any segment. `FL-FR` in a two-part hand-written SKU
+     is a framed PRINT, not a frame line, and a looser `-FR` test read every
+     one of them as a frame and emptied the fixture's framed batch. */
+  if (kind) return kind === 'FR';
+  return /\bframe\b/i.test(item.lineItemTitle);
+}
+
+/** One zero-based dash segment of a SKU, upper-cased. Null unless the SKU has
+    the full `ARTIST-ARTWORK-KIND-…` shape, so a short SKU never answers. */
+function skuSegment(sku: string | null | undefined, index: number): string | null {
+  if (!sku) return null;
+  const parts = sku.split('-');
+  return parts.length >= 3 ? (parts[index]?.toUpperCase() ?? null) : null;
+}
+
+/**
+ * `ARTIST-ARTWORK` from a SKU — what a print line and its frame line share.
+ *
+ * Preferred over the title for the join, and measurably so: on the Ai Weiwei
+ * export, joining on the title leaves four frames unmatched and joining on the
+ * art code leaves two. The two it recovers are Albers frames whose line-item
+ * name differs from the print's by one comma —
+ * "Homage to the Square (Red)" against "Homage to the Square, (Red)".
+ *
+ * Null when the SKU cannot supply one, which is what the title fallback in
+ * `artworkKeyOf` is for. This reads a naming convention nobody in this repo
+ * controls, so it is never the only way to join.
+ */
+export function artCodeOf(sku: string | null | undefined): string | null {
+  if (!sku) return null;
+  const parts = sku.split('-');
+  return parts.length >= 3 ? parts.slice(0, 2).join('-').toUpperCase() : null;
 }

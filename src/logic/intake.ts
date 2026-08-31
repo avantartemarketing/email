@@ -6,7 +6,13 @@ import type {
   ProductMatch,
 } from '../types';
 import type { ParsedLineItem } from './importer';
-import { classifyFulfilment, orderDedupeKey, splitLineItemTitle } from './importer';
+import {
+  artCodeOf,
+  classifyFulfilment,
+  isFrameLine,
+  orderDedupeKey,
+  splitLineItemTitle,
+} from './importer';
 
 /**
  * Reading a Shopify export as a set of PRODUCTS, and reconciling it against
@@ -50,9 +56,77 @@ export function productKeyOf(lineItemTitle: string): string {
   return (i === -1 ? lineItemTitle : lineItemTitle.slice(0, i)).trim();
 }
 
-/** What decides the batch. The whole title — see the note above. */
+/** What a line item's own title claims. Never the answer on its own — see
+    `resolveFulfilments`, which joins a frame line to the print it frames. */
 export function fulfilmentOf(lineItemTitle: string): BatchFulfilment {
   return classifyFulfilment(lineItemTitle);
+}
+
+/**
+ * What a print line and its frame line have in common.
+ *
+ * The SKU's art code when there is one, the product key when there is not.
+ * Both halves are needed: a real export has SKUs and the art code is the
+ * stronger join, but a hand-written fixture may not, and a release must still
+ * be importable from a file with the column missing.
+ */
+export function artworkKeyOf(item: Pick<ParsedLineItem, 'lineItemTitle' | 'sku'>): string {
+  return artCodeOf(item.sku) ?? productKeyOf(item.lineItemTitle);
+}
+
+/** The join key a print line and its frame line share. Built in one place so
+    the three readers below cannot drift apart on the separator. */
+function artworkOrderKey(item: Pick<ParsedLineItem, 'shopifyOrderName' | 'lineItemTitle' | 'sku'>): string {
+  return `${item.shopifyOrderName.trim().toLowerCase()}::${artworkKeyOf(item).toLowerCase()}`;
+}
+
+/**
+ * Every print line's fulfilment, keyed by `orderDedupeKey`.
+ *
+ * This is the correction. Framing used to be read off the line item's own
+ * title, which is a question that title cannot answer: the print line says
+ * "- Draw" or "- Pre-order" — the sales channel — and the framing is a
+ * SEPARATE line on the same order. So a print is framed when a frame line
+ * exists beside it, on the same Shopify order, for the same artwork.
+ *
+ * Measured on the Ai Weiwei export, which is real: 439 framed and 631
+ * unframed print lines, against 0 and 1,511 before.
+ *
+ * Two things it deliberately does not do:
+ *   - it never demotes a title that says framed for itself. A fixture reading
+ *     "Falling Light - Framed" has no frame line to find and is still framed;
+ *   - a frame line with no print line beside it (two of the 441 on that
+ *     export — a frame added to an order whose print sits elsewhere) is left
+ *     alone rather than guessed at. `planIntake` reports it.
+ */
+export function resolveFulfilments(items: ParsedLineItem[]): Map<string, BatchFulfilment> {
+  const framedArtworks = new Set<string>();
+  for (const item of items) {
+    if (isFrameLine(item)) {
+      framedArtworks.add(artworkOrderKey(item));
+    }
+  }
+  const out = new Map<string, BatchFulfilment>();
+  for (const item of items) {
+    if (isFrameLine(item)) continue;
+    const framed =
+      framedArtworks.has(artworkOrderKey(item)) ||
+      fulfilmentOf(item.lineItemTitle) === 'framed';
+    out.set(orderDedupeKey(item.shopifyOrderName, item.lineItemTitle), framed ? 'framed' : 'unframed');
+  }
+  return out;
+}
+
+/** Frame lines whose print is not in the file. Reported, never guessed at. */
+export function orphanFrameLines(items: ParsedLineItem[]): ParsedLineItem[] {
+  const prints = new Set(
+    items
+      .filter((i) => !isFrameLine(i))
+      .map(artworkOrderKey),
+  );
+  return items.filter(
+    (i) => isFrameLine(i) && !prints.has(artworkOrderKey(i)),
+  );
 }
 
 /** One distinct `Lineitem name` in a file, with everything the row shows. */
@@ -70,6 +144,19 @@ export interface FileProduct {
   shopifyOrders: number;
   fulfilment: BatchFulfilment;
   skus: string[];
+  /** A frame line, not a print. It is an attribute of a print, not an order. */
+  isFrame: boolean;
+  /**
+   * Does the TITLE itself say which batch this is — "Falling Light - Framed"?
+   *
+   * In a real export it never does: the suffix is the sales channel, and two
+   * orders of one title can land in different batches depending on whether a
+   * frame line sits beside them. So `fulfilment` above is the title's claim
+   * and this says whether that claim means anything. A row that does not
+   * declare must not be drawn wearing a batch's name — it would be right
+   * about some of its orders and wrong about the rest.
+   */
+  declaresFulfilment: boolean;
 }
 
 /**
@@ -82,16 +169,23 @@ export interface FileProduct {
  * The two totals are different quantities and the screen states both.
  */
 export function productsInFile(items: ParsedLineItem[]): FileProduct[] {
-  const byTitle = new Map<string, { lines: number; orders: Set<string>; skus: Set<string> }>();
+  const byTitle = new Map<
+    string,
+    { lines: number; orders: Set<string>; skus: Set<string>; frame: boolean }
+  >();
   for (const item of items) {
     const entry = byTitle.get(item.lineItemTitle) ?? {
       lines: 0,
       orders: new Set<string>(),
       skus: new Set<string>(),
+      frame: false,
     };
     entry.lines += 1;
     entry.orders.add(item.shopifyOrderName);
     if (item.sku) entry.skus.add(item.sku);
+    /* One title can carry both a print SKU and a frame SKU only in a broken
+       export; if any row of it is a frame, the row is drawn as one. */
+    if (isFrameLine(item)) entry.frame = true;
     byTitle.set(item.lineItemTitle, entry);
   }
   return [...byTitle.entries()]
@@ -106,6 +200,8 @@ export function productsInFile(items: ParsedLineItem[]): FileProduct[] {
         shopifyOrders: e.orders.size,
         fulfilment: fulfilmentOf(lineItemTitle),
         skus: [...e.skus].sort(),
+        isFrame: e.frame,
+        declaresFulfilment: !e.frame && /framed/i.test(lineItemTitle),
       };
     })
     .sort((a, b) => b.lines - a.lines || a.lineItemTitle.localeCompare(b.lineItemTitle));
@@ -130,8 +226,8 @@ export function shopifyOrderCount(items: ParsedLineItem[], titles: string[]): nu
  * segment with "Falling Light", so no guard can separate them. It is drawn,
  * unticked, with its count, and ticking it is a deliberate act.
  *
- * The product kind proposes SCULPTURE unless some row says framed. The
- * tempting rule is the other way round — any " - " means a variant means a
+ * The product kind proposes SCULPTURE unless the file carries a frame line or
+ * some row says framed. The tempting rule is the other way round — any " - " means a variant means a
  * print — but a bronze sold in finishes ("Vessel VIII - Patina") would then
  * take the printing-and-framing sequence, and the mistake would not look like
  * one: both finishes route to "Unframed" and the batch column reads tidily.
@@ -141,17 +237,28 @@ export function proposeRelease(products: FileProduct[]): {
   title: string;
   productKind: ProductKind;
 } {
+  /* A frame line in the file is the strongest evidence there is that this is a
+     print release. The old test — does some title say "framed" — called every
+     real Avant Arte export a sculpture, because a real frame line reads
+     "White Abachi wood frame" and the word framed is not in the shop's
+     vocabulary. */
+  const hasFrameLines = products.some((p) => p.isFrame);
   const saysFulfilment = (p: FileProduct) => /framed/i.test(p.lineItemTitle);
-  const anyFramed = products.some(
-    (p) => /framed/i.test(p.lineItemTitle) && !/unframed/i.test(p.lineItemTitle),
-  );
+  const anyFramed =
+    hasFrameLines ||
+    products.some((p) => /framed/i.test(p.lineItemTitle) && !/unframed/i.test(p.lineItemTitle));
   const productKind: ProductKind = anyFramed ? 'print' : 'sculpture';
 
-  /* The biggest product in the file is the one it is an export of. Its whole
-     group comes with it — every variant of the same first segment. */
-  const lead = products[0]?.productKey ?? '';
+  /* The biggest product in the file is the one it is an export of, and it is
+     never a frame — a frame is an attribute of the print beside it. Its whole
+     group comes with it: every variant of the same first segment. */
+  const lead = (products.find((p) => !p.isFrame) ?? products[0])?.productKey ?? '';
   const group = products.filter((p) => p.productKey === lead);
-  const proposed = productKind === 'print' ? group.filter(saysFulfilment) : group;
+  /* Where the file carries frame lines, fulfilment is a JOIN and no title
+     declares it, so the whole group is proposed. The filter below only means
+     anything in the older shape, where a title says "- Framed" for itself. */
+  const proposed =
+    productKind === 'print' && !hasFrameLines ? group.filter(saysFulfilment) : group;
 
   return {
     lineItemTitles: (proposed.length > 0 ? proposed : group).map((p) => p.lineItemTitle),
@@ -208,6 +315,11 @@ export interface IntakePlan {
   collectors: number;
   /** Fulfilments the new orders need. Empty for a sculpture. */
   fulfilments: BatchFulfilment[];
+  /** Each created item's fulfilment, by `orderDedupeKey`. The write reads this
+      rather than re-deriving from the title, so preview and write agree. */
+  fulfilmentByOrder: Map<string, BatchFulfilment>;
+  /** Frame lines folded into the print beside them instead of becoming orders. */
+  framesAbsorbed: number;
   newestOrderDate: string | null;
   notes: IntakeNote[];
 }
@@ -234,6 +346,15 @@ export function planIntake(
   const seenInFile = new Set<string>();
   let alreadyHere = 0;
   let stillCancelled = 0;
+  let framesAbsorbed = 0;
+
+  /* Resolved once, over the WHOLE file. A frame line is not an order — it is
+     how the print beside it becomes framed — so the join has to see every
+     line, ticked or not, before anything is created. */
+  const fulfilmentByOrder = resolveFulfilments(items);
+  const resolved = (item: ParsedLineItem): BatchFulfilment =>
+    fulfilmentByOrder.get(orderDedupeKey(item.shopifyOrderName, item.lineItemTitle)) ??
+    fulfilmentOf(item.lineItemTitle);
 
   /* An order spanning both fulfilments, and an order carrying a line item this
      release is not claiming — both computed over the WHOLE file, because both
@@ -245,6 +366,14 @@ export function planIntake(
 
   for (const item of items) {
     if (!claimed.has(item.lineItemTitle)) continue;
+    /* A framed purchase is ONE thing to make and ship, carried on two Shopify
+       lines. The frame line sets the print's fulfilment and stops there;
+       creating an order for it too would double every framed collector in the
+       counts, in the batches and in the allocation. */
+    if (isFrameLine(item)) {
+      framesAbsorbed += 1;
+      continue;
+    }
     const key = orderDedupeKey(item.shopifyOrderName, item.lineItemTitle);
     if (seenInFile.has(key)) {
       /* A repeat WITHIN the file. Not a skip: on a first-ever import "already
@@ -280,7 +409,9 @@ export function planIntake(
     const siblings = byOrder.get(item.shopifyOrderName) ?? [];
     if (productKind === 'print') {
       const fulfilments = new Set(
-        siblings.filter((s) => claimed.has(s.lineItemTitle)).map((s) => fulfilmentOf(s.lineItemTitle)),
+        siblings
+          .filter((s) => claimed.has(s.lineItemTitle) && !isFrameLine(s))
+          .map(resolved),
       );
       if (fulfilments.size > 1) {
         note({
@@ -291,7 +422,7 @@ export function planIntake(
         });
       }
     }
-    const foreign = siblings.find((s) => !claimed.has(s.lineItemTitle));
+    const foreign = siblings.find((s) => !claimed.has(s.lineItemTitle) && !isFrameLine(s));
     if (foreign) {
       note({
         kind: 'other_release',
@@ -334,10 +465,21 @@ export function planIntake(
   }
 
   const fulfilments =
-    productKind === 'print'
-      ? [...new Set(create.map((i) => fulfilmentOf(i.lineItemTitle)))].sort()
-      : [];
+    productKind === 'print' ? [...new Set(create.map(resolved))].sort() : [];
   const dates = create.map((i) => i.orderDate).filter(Boolean).sort();
+
+  /* A frame with no print beside it in this file. Not blocked and not guessed
+     at: it is usually a frame added to an order whose print sits in another
+     release's export, and the operator is the one who knows. */
+  for (const orphan of orphanFrameLines(items)) {
+    if (!claimed.has(orphan.lineItemTitle)) continue;
+    note({
+      kind: 'frame_without_print',
+      order: orphan.shopifyOrderName,
+      what: 'Frame, no print',
+      detail: orphan.lineItemTitle,
+    });
+  }
 
   return {
     create,
@@ -346,6 +488,8 @@ export function planIntake(
     shopifyOrders: new Set(create.map((i) => i.shopifyOrderName)).size,
     collectors: new Set(create.map((i) => i.email ?? `anon:${i.shopifyOrderName}`)).size,
     fulfilments,
+    fulfilmentByOrder,
+    framesAbsorbed,
     newestOrderDate: dates.length > 0 ? dates[dates.length - 1] : null,
     notes: notes.sort((a, b) => a.order.localeCompare(b.order)),
   };

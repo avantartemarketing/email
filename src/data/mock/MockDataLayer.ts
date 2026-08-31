@@ -197,6 +197,20 @@ export class MockDataLayer implements DataLayer {
   }
 
   /**
+   * How many PEOPLE an email reaches, which is not how many orders are in the
+   * batch. A collector who bought two artworks from one release has two orders
+   * and receives one email; an order with no email address receives none. The
+   * field is drawn as "N collectors", so it counts collectors.
+   */
+  private batchRecipientCount(batchId: string): number {
+    return new Set(
+      this.activeBatchOrders(batchId)
+        .map((o) => o.email)
+        .filter((e): e is string => Boolean(e)),
+    ).size;
+  }
+
+  /**
    * Where release-level events land when no more specific batch applies:
    * the oldest batch, or null while a print release has no orders yet.
    */
@@ -309,7 +323,7 @@ export class MockDataLayer implements DataLayer {
           templateRef: s.templateRef,
           type: s.type,
           batchName: this._store.batches.get(s.batchId)?.name ?? '',
-          recipientCount: this.activeBatchOrders(s.batchId).length,
+          recipientCount: this.batchRecipientCount(s.batchId),
         })),
         pendingApprovalCount: sends.filter((s) => s.status === 'pending_approval').length,
         overdueCount: overdue.length,
@@ -471,11 +485,15 @@ export class MockDataLayer implements DataLayer {
       const hubspotContactId = item.email ? (this.hubspotDirectory[item.email] ?? null) : null;
       const batch = this.intakeBatch(
         release,
-        /* The WHOLE line-item title, not the variant: a frame finish in the
-           last segment — "Falling Light - Framed - Oak" — leaves the variant
-           as "Oak", and an oak-framed print then ships on the unframed
-           timeline with no framing email. */
-        release.productKind === 'print' ? classifyFulfilment(item.lineItemTitle) : null,
+        /* The plan's answer, never re-derived here. Framing is a JOIN — a
+           frame is its own Shopify line item beside the print — so no reading
+           of this item's own title can produce it, and computing it twice is
+           how the preview and the write drift apart. */
+        release.productKind === 'print'
+          ? (plan.fulfilmentByOrder.get(
+              orderDedupeKey(item.shopifyOrderName, item.lineItemTitle),
+            ) ?? classifyFulfilment(item.lineItemTitle))
+          : null,
       );
       const order: Order = {
         id: this._newId('order'),
@@ -711,7 +729,14 @@ export class MockDataLayer implements DataLayer {
         // Multi-line-item orders: prefer the sheet rows whose fulfilment
         // matches this line item's variant (Framed ↔ Framed, everything
         // else ↔ Print Only); fall back to the whole order's rows.
-        const wantFramed = /framed/i.test(order.variant) && !/unframed/i.test(order.variant);
+        /* The order's OWN recorded fulfilment, via its batch — not a reading of
+           its variant. The variant of a real framed order is "Draw" or
+           "Pre-order" (the sales channel), so the old test was false for every
+           framed order ever imported and both line items of a framed purchase
+           fell through to the whole order's rows. */
+        const wantFramed =
+          this._store.batches.get(order.batchId)?.fulfilment === 'framed' ||
+          classifyFulfilment(order.variant) === 'framed';
         // Multi-line-item detection looks at ALL of the order's line items,
         // removed ones included: the sheet reflects the order as placed, so
         // a surviving line item must still take only its own rows.
@@ -1255,7 +1280,7 @@ export class MockDataLayer implements DataLayer {
           send,
           release,
           batch,
-          recipientCount: this.activeBatchOrders(send.batchId).length,
+          recipientCount: this.batchRecipientCount(send.batchId),
           releaseBatchCount: this.releaseBatches(release.id).length,
           notification: unread.get(send.id) ?? null,
         };
@@ -1345,7 +1370,7 @@ export class MockDataLayer implements DataLayer {
           send,
           release,
           batch,
-          recipientCount: this.activeBatchOrders(send.batchId).length,
+          recipientCount: this.batchRecipientCount(send.batchId),
           releaseBatchCount: this.releaseBatches(release.id).length,
           lastSent: this.lastSentInfo(send.batchId),
         };

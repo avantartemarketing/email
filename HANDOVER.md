@@ -427,7 +427,14 @@ workbook's output tab IS the allocation CSV `src/logic/allocation.ts` already im
 so the tool is the consumer and this would make it the producer. It needs one concept
 the tool lacks — the **artwork**, between release and order.
 
-**And it turned up a live bug that should not wait for any of that.** This upload is
+**Slice 1 of that is now BUILT (31 Aug)** — the framing join. See the doc's Slices
+section for exactly what shipped and what it measured. The rest is designed, not built.
+The owner also answered the gating question: *"we don't do bundles anymore but used to"*
+— so a SKU maps to exactly one artwork and the bundle-expansion problem is gone; only
+the mid-flight Murakami release still needs a certificate decision for its 109 bundle
+orders, which is a backfill rather than a system requirement.
+
+**The bug it turned up, and why it should not have waited.** This upload is
 the FIRST REAL SHOPIFY EXPORT the project has seen, and the fixtures were written from
 an assumption it contradicts. Real line items say "Black Abachi Wood Frame — UV
 protective acrylic"; the word *framed* never appears, and a frame is a SEPARATE LINE
@@ -437,10 +444,25 @@ framed. Running the real Ai Weiwei export through the real add-a-release flow:
 `proposeRelease` calls a print release a *sculpture*, proposes the title
 "Guardian (Purple)", justifies only an unframed batch, and the one-product guard
 refuses the release outright. Same regex again in `MockDataLayer.importAllocations`
-(framed orders draw doubled rows today), and `recipientCount` does not de-duplicate by
-email, so a four-print collector gets four copies of every email. The fix is a join on
-order + SKU art code, not a better regex — measured at 439/631 framed/unframed with 2
-unmatched frames, against 0/1,511 today. Slice 1 in the doc, half a day.
+(a framed order took the wrong sheet rows), and `recipientCount` counted order rows
+while being drawn as "N collectors". ⚠ I first reported that last one as "a four-print
+collector gets four copies of every email" — WRONG, and corrected: a send is one job
+per BATCH, not per order, so the count was a label that lied, not a send that
+duplicated.
+
+All of it is fixed. `isFrameLine` reads the SKU's third segment; `resolveFulfilments`
+frames a print when a frame line sits beside it on the same order for the same artwork;
+frame lines are ABSORBED rather than becoming orders, because a framed purchase is one
+thing to make and ship. `HARBOUR_LIGHT_CSV` is a real-SHAPED anonymised fixture (the
+real export carries live names, emails and addresses, which must not enter the repo)
+and `src/logic/__tests__/framing.test.ts` has 17 tests, regressed on purpose first.
+On the real export: 1,070 orders + 441 frames absorbed = 1,511 lines, both batches
+justified, 439 framed / 631 unframed, 2 orphan frames reported, product kind `print`.
+
+**Still broken, and needing slice 2 (the artwork model):** the proposed title is one
+colourway, and the one-product guard still refuses a multi-colourway release —
+confirmed in the browser: *"Harbour Light (Dawn) and Harbour Light (Dusk) cannot share
+a release."*
 
 **Artifacts live (publish with `url:` to update, never without):**
 - Prototype, Workbench-rd: https://claude.ai/code/artifact/ebfa534f-1267-4a64-99a5-7978167d3a9f

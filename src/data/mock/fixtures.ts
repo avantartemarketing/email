@@ -319,6 +319,45 @@ export const FALLING_LIGHT_CSV = `${HEADER}
 #AA10915,kai.gallagher@example.com,paid,2026-04-26 14:09:00 +0000,unfulfilled,GBP,540.00,2026-04-26 14:09:00 +0000,1,Falling Light - Unframed,540.00,SKU,Kai Gallagher,Kai Gallagher,United Kingdom,
 `;
 
+/**
+ * A real-SHAPED export: how Avant Arte's Shopify actually names things.
+ *
+ * Written 31 Aug 2026, after the first genuine Shopify order exports reached
+ * the project inside the edition-allocation workbook. Everything above this
+ * was invented, and it invented the wrong convention — `Falling Light -
+ * Framed` — so the framed/unframed split passed its tests for months and
+ * would have put every real collector in the Unframed batch.
+ *
+ * What real exports do, and what this reproduces:
+ *   - a line item's suffix is the SALES CHANNEL — "- Draw", "- Pre-order",
+ *     "- Private", "- Public" — never the fulfilment;
+ *   - **framing is a separate line item on the same order**, with its own SKU
+ *     and its own price, whose title reads "White Abachi wood frame - UV
+ *     protective acrylic". The word *framed* appears nowhere in the file;
+ *   - SKUs are `ARTIST-ARTWORK-KIND-VARIANT`, where KIND is `FR` for a frame
+ *     and `PE`/`TL` for a print, and `-UPGRADE` means museum-grade acrylic;
+ *   - one release carries several artworks — three colourways here — and a
+ *     collector may buy more than one in a single order;
+ *   - a frame line whose print sits in another release's export (#RS2107),
+ *     which is real and rare: two of 441 on the file this was drawn from.
+ *
+ * The collectors are fictional, as everywhere else in this file. The real
+ * export carries live names, emails, postal addresses and phone numbers, and
+ * none of that belongs in a repository.
+ */
+export const HARBOUR_LIGHT_CSV = `${HEADER}
+#RS2101,elena.marchetti@example.com,paid,2026-05-02 09:12:04 +0000,unfulfilled,GBP,1240.00,2026-05-02 09:12:03 +0000,1,Harbour Light (Dawn) - Public,620.00,RSTON-HARBD-TL-PUBLIC,Elena Marchetti,Elena Marchetti,United Kingdom,"framed,first-order"
+,,,,,,,,1,Harbour Light (Dawn) - Black Abachi wood frame - UV protective acrylic,620.00,RSTON-HARBD-FR-BLACKABACH,,,,
+#RS2102,tomas.b@example.org,paid,2026-05-02 09:31:47 +0000,unfulfilled,GBP,620.00,2026-05-02 09:31:46 +0000,1,Harbour Light (Dawn) - Public,620.00,RSTON-HARBD-TL-PUBLIC,Tomas Brandt,Tomas Brandt,Germany,
+#RS2103,aiko.tanaka@example.com,paid,2026-05-02 10:04:19 +0000,unfulfilled,GBP,1860.00,2026-05-02 10:04:18 +0000,1,Harbour Light (Dusk) - Public,620.00,RSTON-HARBK-TL-PUBLIC,Aiko Tanaka,Aiko Tanaka,Japan,"vip,framed"
+,,,,,,,,1,Harbour Light (Dusk) - White Abachi wood frame - Museum-grade acrylic,740.00,RSTON-HARBK-FR-WHITEABACH-UPGRADE,,,,
+,,,,,,,,1,Harbour Light (Dawn) - Public,620.00,RSTON-HARBD-TL-PUBLIC,,,,
+#RS2104,priya.nair@example.com,paid,2026-05-02 11:22:58 +0000,unfulfilled,GBP,620.00,2026-05-02 11:22:57 +0000,1,Harbour Light (Tide) - Pre-order,620.00,RSTON-HARBT-TL-PREORDER,Priya Nair,Priya Nair,India,
+#RS2105,,paid,2026-05-02 12:40:11 +0000,unfulfilled,GBP,1240.00,2026-05-02 12:40:10 +0000,1,Harbour Light (Dusk) - Private,620.00,RSTON-HARBK-TL-PRIVATE,Nils Ferreira,Nils Ferreira,Portugal,framed
+,,,,,,,,1,Harbour Light (Dusk) - Natural Abachi wood frame - UV protective acrylic,620.00,RSTON-HARBK-FR-NATURALABA,,,,
+#RS2106,"okoro, chidi"@example.org,paid,2026-05-03 08:05:33 +0000,unfulfilled,GBP,620.00,2026-05-03 08:05:32 +0000,1,Harbour Light (Tide) - Public,620.00,RSTON-HARBT-TL-PUBLIC,"Okoro, Chidi","Okoro, Chidi",Nigeria,
+#RS2107,marion.lefevre@example.com,paid,2026-05-03 09:47:26 +0000,unfulfilled,GBP,740.00,2026-05-03 09:47:25 +0000,1,Night Garden - White Abachi wood frame - UV protective acrylic,740.00,RSTON-NIGHT-FR-WHITEABACH,Marion Lefevre,Marion Lefevre,France,framed`;
+
 export const VESSEL_VIII_CSV = `${HEADER}
 #AA10501,imogen.clarke@example.com,paid,2026-04-02 09:10:00 +0100,unfulfilled,GBP,2400.00,2026-04-02 09:10:00 +0100,1,Vessel VIII,2400.00,V8,Imogen Clarke,Imogen Clarke,United Kingdom,
 #AA10502,henrik.dahl@example.com,paid,2026-04-02 09:32:00 +0100,unfulfilled,EUR,2400.00,2026-04-02 09:32:00 +0100,1,Vessel VIII,2400.00,V8,Henrik Dahl,Henrik Dahl,France,first-order

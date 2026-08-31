@@ -313,7 +313,18 @@ export function FileProductsTable({
 
 /** The batch a ticked print row routes to. Sculpture rows have no batch. */
 export function batchTagFor(p: FileProduct, kind: ProductKind): ReactElement | null {
+  /* A frame is not going into a batch — it is how the print beside it becomes
+     framed — so it must not be drawn wearing a batch's name. Saying "Unframed"
+     against "Black Abachi wood frame" is the old bug spelled out on screen,
+     and ticking that row moves nobody into the Unframed batch. */
+  if (p.isFrame) return <Tag tone="stone">Frame</Tag>;
   if (kind !== 'print') return null;
+  /* Only where the title declares it. In a real export the suffix is the sales
+     channel, and two orders of one title land in different batches depending on
+     whether a frame line sits beside them — so a tag here would be right about
+     some of the row's orders and wrong about the rest. The batch count the file
+     justifies is stated once, in "What this creates", where it is true. */
+  if (!p.declaresFulfilment) return null;
   return p.fulfilment === 'framed' ? (
     <Tag tone="steel">Framed</Tag>
   ) : (

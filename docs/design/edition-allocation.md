@@ -7,9 +7,12 @@ functionality into this post purchase tool."*
 
 Published as an artifact: https://claude.ai/code/artifact/5147d703-854d-4203-84cc-24fd9738a4fe
 
-Nothing here is built. Everything below was re-derived from the file, or measured by
-running this repo's own code over the real export it contains — the sheet's own
-summaries are not quoted, because two of them turned out to be wrong.
+Everything below was re-derived from the file, or measured by running this repo's own
+code over the real export it contains — the sheet's own summaries are not quoted,
+because two of them turned out to be wrong.
+
+**Status:** slice 1 (the framing join) is built and pushed. Slices 2–5 are designed,
+not built. See *Slices* below.
 
 ## What the workbook is
 
@@ -95,9 +98,13 @@ timeline, the printing and signing emails are dropped as well (sculpture), and t
 one-product guard blocks the release from being created at all.
 
 Two more found while checking: `MockDataLayer.importAllocations` carries the same
-regex, so a framed order already draws its rows twice in All orders; and
-`recipientCount` counts order rows without de-duplicating by email, so a collector who
-bought four prints receives four copies of every email.
+regex, so a framed order takes the wrong sheet rows; and `recipientCount` counted
+order rows while being drawn as "N collectors", so it overstated the audience for
+every multi-artwork collector.
+
+*(Corrected 31 Aug, after reading the send path properly: a send is one job per
+BATCH, not one per order, so nobody was receiving duplicate emails. The count was a
+label that lied, not a send that duplicated. Both are fixed below.)*
 
 **The fix is a join, not a better regex.** An order line is framed when a frame line
 exists on the same order for the same artwork. Both halves are already parsed — `sku`
@@ -164,10 +171,22 @@ the result holds: 1,190 numbers, no gaps, no splits, 135 of 770 above strict ran
 
 ## Slices
 
-1. **Fix the framing join** — half a day, ships alone, nothing depends on it. Fulfilment
-   from the SKU with the title as fallback; join frame to print on order + art code;
-   the same regex in `MockDataLayer.importAllocations`; de-duplicate `recipientCount`
-   by email; add the real export as a fixture so it cannot regress silently again.
+1. ~~**Fix the framing join**~~ — **shipped 31 Aug.** `isFrameLine` reads the SKU's
+   third segment (`FR`), `artCodeOf`/`artworkKeyOf` give the join key, and
+   `resolveFulfilments` frames a print when a frame line sits beside it on the same
+   order for the same artwork. Frame lines are **absorbed** rather than becoming
+   orders of their own — a framed purchase is one thing to make and ship. The write
+   path reads the plan's answer instead of re-deriving it, `importAllocations` reads
+   the order's batch, and `recipientCount` counts distinct emails. A real-*shaped*
+   anonymised fixture (`HARBOUR_LIGHT_CSV`) and 17 tests guard it; both halves of the
+   fix were regressed on purpose first and reported nine and one named failures.
+   Measured on the real Ai Weiwei export: 1,070 orders and 441 frames absorbed
+   against 1,511 order rows before, both batches justified, 439 framed / 631
+   unframed, 2 orphan frames reported. **Not fixed, and needing slice 2:** the
+   proposed title is still one colourway ("Guardian (Purple)"), and the one-product
+   guard still refuses a three-colourway release — verified in the browser, the
+   dialogue says *"Harbour Light (Dawn) and Harbour Light (Dusk) cannot share a
+   release."*
 2. **Artworks as a confirmed record** — about a week. Fixes the title, the sculpture
    misclassification and the one-product guard. No allocator needed.
 3. **The allocator as pure logic, no UI** — about a week. Invariants that *cannot* pass
@@ -177,11 +196,16 @@ the result holds: 1,190 numbers, no gaps, no splits, 135 of 770 above strict ran
 5. **Changes worklist, pinned numbers, freeze after telling a collector** — the
    quarter-sized one; needs the answers below.
 
-## Six questions only the owner can answer
+## Questions for the owner
 
-1. **Does "Set of Four" ship as four numbered prints?** If so, real demand per artwork
-   is 298, not 187 — 111 orders hold no per-artwork number at all. This gates
-   everything, and the answer is in an artist contract, not in any system here.
+1. ~~**Does "Set of Four" ship as four numbered prints?**~~ **Answered 31 Aug:**
+   *"we don't do bundles anymore but used to."* So no future release needs a SKU that
+   delivers several artworks, and the design collapses — a SKU maps to exactly one
+   artwork and `SkuComposition` is not needed. The measured allocation result that
+   applies is the simpler one: matched numbers, no gaps, 22 of 770 orders above strict
+   rank. It leaves one OPERATIONAL question, not a design one: Murakami is mid-flight
+   and did have a bundle, so those 109 orders still need a decision about what goes on
+   their certificates. That is a backfill.
 2. **Is edition size per artwork or per release?** It is on `Release` today and shown in
    the identity line; moving it touches the releases index and add-a-release.
 3. **Do edition numbers appear in the emails?** Still open from an earlier round. No

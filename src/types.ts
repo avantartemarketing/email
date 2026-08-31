@@ -134,7 +134,8 @@ export type IntakeNoteKind =
   | 'both_batches'
   | 'other_release'
   | 'quantity'
-  | 'not_paid';
+  | 'not_paid'
+  | 'frame_without_print';
 
 /**
  * Something in the file worth knowing before the write, in three short cells.
