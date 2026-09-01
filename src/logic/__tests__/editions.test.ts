@@ -40,6 +40,41 @@ describe('the rule: largest set first, oldest first inside it', () => {
     expect(plan.faults).toEqual([]);
   });
 
+  /* The workbook's practised-but-unwritten middle key (found 1 Sep 2026, the
+     owner asking "don't framed orders get lower edition numbers?"): within a
+     set size, every framed order is numbered before every unframed one — in
+     the real sheet's size-2 cohort, 199 framed hold editions before all 97
+     print-only. It sits ABOVE the date key, so an older unframed order still
+     waits behind a newer framed one. */
+  it('numbers a framed order before an OLDER unframed one of the same size', () => {
+    const unframedOlder = order('#30', 'A', { orderDate: '2026-05-01' });
+    const framedNewer = order('#31', 'A', { orderDate: '2026-05-08', framed: true });
+    const plan = planAllocation([unframedOlder, framedNewer]);
+    expect(first(plan, framedNewer)).toBe('1');
+    expect(first(plan, unframedOlder)).toBe('2');
+  });
+
+  it('never lets framing beat set size — a larger unframed set still wins', () => {
+    const set = ['A', 'B'].map((k) => order('#41', k, { orderDate: '2026-05-09' }));
+    const framedSingle = order('#40', 'A', { orderDate: '2026-05-01', framed: true });
+    const plan = planAllocation([framedSingle, ...set]);
+    expect(first(plan, set[0])).toBe('1');
+    expect(first(plan, framedSingle)).toBe('2');
+  });
+
+  it('counts an order framed if ANY of its prints is — the sheet’s two mixed orders sat with the framed', () => {
+    const mixed = [
+      order('#50', 'A', { framed: true }),
+      order('#50', 'B', { framed: false }),
+    ];
+    const allUnframed = ['A', 'B'].map((k) =>
+      order('#49', k, { orderDate: '2026-04-01' }),
+    );
+    const plan = planAllocation([...allUnframed, ...mixed]);
+    expect(first(plan, mixed[0])).toBe('1');
+    expect(first(plan, allUnframed[0])).toBe('2');
+  });
+
   it('breaks a tie by date, and a shared day by order number', () => {
     const a = order('#12', 'A', { orderDate: '2026-05-03' });
     const b = order('#11', 'A', { orderDate: '2026-05-01' });

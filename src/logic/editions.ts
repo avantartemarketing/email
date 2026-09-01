@@ -15,7 +15,15 @@ import { artworkKeyOf, productKeyOf } from './intake';
  * each row by set size. The largest set size in column O gets priority 1,
  * smaller sets get progressively lower priority."* So: collectors who bought
  * the most artworks get the lowest numbers, oldest order first within a group.
- * That rule is kept, as data (`DEFAULT_RULE`), because it is the business's
+ *
+ * The comment is not the whole rule. The sheet's own allocation order (1 Sep
+ * 2026, the owner: "don't framed orders get lower edition numbers?") carries a
+ * middle key the comment never states: within every set size, ALL framed
+ * orders are numbered before ALL print-only orders — 770 orders, no
+ * exception (size-2 cohort: 199 framed hold editions before all 97 unframed).
+ * The two real orders that mixed framed and unframed prints were both sorted
+ * with the framed, so "framed" is an order-level ANY, not an ALL. All three
+ * keys are kept, as data (`DEFAULT_RULE`), because they are the business's
  * rule and not this module's to change.
  *
  * ## The correction
@@ -76,14 +84,18 @@ export interface AllocationOrderInput {
 }
 
 export interface AllocationRule {
-  /** The only shipped value. Declared as data so a release could one day
+  /** The only shipped values. Declared as data so a release could one day
       choose differently without this module changing. */
   priority: 'largest_set_first';
+  /** The workbook's practised-but-unwritten middle key: within a set size,
+      an order with ANY framed print outranks an all-unframed one. */
+  within: 'framed_first';
   tieBreak: 'oldest_order_first';
 }
 
 export const DEFAULT_RULE: AllocationRule = {
   priority: 'largest_set_first',
+  within: 'framed_first',
   tieBreak: 'oldest_order_first',
 };
 
@@ -228,12 +240,16 @@ export function planAllocation(
     /* rule.priority — the only shipped value sorts biggest set first. */
     const size = new Set(b.map((i) => i.artworkKey)).size - new Set(a.map((i) => i.artworkKey)).size;
     if (size !== 0) return size;
+    /* rule.within — framed before unframed. ANY framed print counts: the
+       sheet's two mixed orders both sat in the framed cohort. */
+    const framed = Number(b.some((i) => i.framed)) - Number(a.some((i) => i.framed));
+    if (framed !== 0) return framed;
     /* rule.tieBreak — oldest first; the order number settles a shared day. */
     const day = (a[0].orderDate || '9999').localeCompare(b[0].orderDate || '9999');
     if (day !== 0) return day;
     return orderNumberRank(a[0].shopifyOrderName) - orderNumberRank(b[0].shopifyOrderName);
   });
-  void rule; // both fields have one value today; the sort above IS the rule
+  void rule; // every field has one value today; the sort above IS the rule
 
   let numbered = 0;
   for (const step of steps) {

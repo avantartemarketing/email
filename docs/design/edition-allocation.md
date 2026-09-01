@@ -40,6 +40,16 @@ The ordering rule, in a cell comment on `Order Matrix!P1`: *"Ranks each row by s
 size. The largest set size in column O gets priority 1, smaller sets get progressively
 lower priority."* Tie-break inside a group is oldest order first. It holds in the data.
 
+**Correction (1 Sep, the owner: "don't framed orders get lower edition numbers?"):**
+the comment is not the whole rule. The sheet's own allocation order carries a middle
+key it never states — within every set size, ALL framed orders are numbered before
+ALL print-only orders, with no exception across the 770-order census (size-2 cohort:
+199 framed hold editions before all 97 unframed; same shape at every size). The two
+orders that mix framed and unframed prints both sit in the framed cohort, so "framed"
+is an order-level ANY. The practised rule is therefore: **set size desc → framed
+before unframed → oldest first** — and that three-key rule is what `DEFAULT_RULE`
+in `src/logic/editions.ts` now implements.
+
 ## The four faults
 
 1. **A comma in a title becomes a print.** `Codes!B` runs
