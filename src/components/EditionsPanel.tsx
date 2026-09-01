@@ -24,6 +24,38 @@ import { Bar, Btn, Card, CardHead, Dialog, Facts, Stack, Why } from '../ui/rd';
  *     with the first as its Why. The workbook passed silently over exactly
  *     this; the whole point of the tab is that this tool cannot.
  */
+
+/**
+ * The published prototype runs inside the artifact viewer, which blocks every
+ * page-initiated download — an anchor click there does NOTHING, silently. The
+ * viewer instead mediates saves through its own confirm, reached via
+ * `claude.use('downloads')`. The real app has no `window.claude`, so the
+ * anchor path below stays what production uses; this is the prototype's door,
+ * and without it the one button the owner most wants to press is inert
+ * exactly where he presses it.
+ */
+async function handToViewer(
+  fileName: string,
+  csv: string,
+): Promise<'saved' | 'declined' | 'no-viewer'> {
+  const claude = (
+    window as { claude?: { use?: (name: string) => Promise<unknown> } }
+  ).claude;
+  if (!claude?.use) return 'no-viewer';
+  try {
+    const downloads = (await claude.use('downloads')) as {
+      save: (request: { filename: string; data: string }) => Promise<unknown>;
+    } | null;
+    if (!downloads) return 'no-viewer';
+    await downloads.save({ filename: fileName, data: csv });
+    return 'saved';
+  } catch {
+    /* Declined, rate-limited, or a lifecycle error — the viewer answered or
+       cannot. Never fall through to an anchor the same viewer blocks. */
+    return 'declined';
+  }
+}
+
 export function EditionsPanel({
   release,
   activeOrders,
@@ -73,13 +105,18 @@ export function EditionsPanel({
 
   const exportCsv = async (): Promise<void> => {
     const { fileName, csv } = await data.allocationCsv(release.id);
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast(`${fileName} — ${plural(csv.split('\n').length - 1, 'row')}`);
+    const rows = plural(csv.split('\n').length - 1, 'row');
+    const handed = await handToViewer(fileName, csv);
+    if (handed === 'declined') return; // their answer; no toast, no second door
+    if (handed === 'no-viewer') {
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    showToast(`${fileName} — ${rows}`);
   };
 
   const clear = async (): Promise<void> => {
