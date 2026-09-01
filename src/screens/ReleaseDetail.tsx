@@ -52,7 +52,7 @@ import { ReleaseOrdersTable } from '../components/ReleaseOrdersTable';
 
 export function ReleaseDetail(): ReactElement {
   const { releaseId } = useParams<{ releaseId: string }>();
-  const { data, showToast, userName } = useApp();
+  const { data, showToast, userName, users } = useApp();
   const detail = useAsync(() => data.getRelease(releaseId!), [releaseId]);
   /* Two levels, two pieces of state — the owner, 29 Aug 2026: "The batches is
      a tab and then the different batches is a sub level within that." It used
@@ -77,6 +77,7 @@ export function ReleaseDetail(): ReactElement {
      identically to the right one. */
   const [undoing, setUndoing] = useState<Intake | null>(null);
   const [undoBusy, setUndoBusy] = useState(false);
+  const [approverOpen, setApproverOpen] = useState(false);
   // The shell's path ends at the record this screen is showing.
   useCrumb(detail.data?.release.title);
 
@@ -193,6 +194,16 @@ export function ReleaseDetail(): ReactElement {
             {d.release.editionSize ? ` · edition of ${d.release.editionSize}` : ''}
           </span>
           {productKindTag(d.release.productKind)}
+          {/* Whose list this release's emails sit on. A button, because the
+              approver is set HERE — there is no settings page hiding it. */}
+          <button
+            type="button"
+            className="rd-linkbtn"
+            onClick={() => setApproverOpen(true)}
+            title="Change who approves this release's emails"
+          >
+            Approver · {userName(d.release.approverId)}
+          </button>
         </>
       }
       actions={
@@ -359,6 +370,45 @@ export function ReleaseDetail(): ReactElement {
             </Bar>
           </>
         ) : null}
+      </Dialog>
+      <Dialog
+        open={approverOpen}
+        size="sm"
+        title="Who approves this release's emails?"
+        onClose={() => setApproverOpen(false)}
+        secondary={{ label: 'Cancel', onClick: () => setApproverOpen(false) }}
+      >
+        {/* Admins only: the name on the list must be a person `approveSend`
+            will actually let through. Naming is not gating — any admin can
+            still cover — this decides whose list the work sits on. */}
+        <div className="rd-fields">
+          {users
+            .filter((u) => u.role === 'admin')
+            .map((u) => (
+              <button
+                key={u.id}
+                type="button"
+                role="radio"
+                aria-checked={u.id === d.release.approverId}
+                className={u.id === d.release.approverId ? 'rd-pickrow on' : 'rd-pickrow'}
+                onClick={() => {
+                  void data
+                    .setApprover(d.release.id, u.id)
+                    .then(() => {
+                      setApproverOpen(false);
+                      showToast(`Approver — ${u.name}`);
+                      detail.reload();
+                    })
+                    .catch((err: unknown) =>
+                      showToast(err instanceof Error ? err.message : String(err), true),
+                    );
+                }}
+              >
+                <span className="rd-pickname">{u.name}</span>
+                <span className="rd-picknote">{u.email}</span>
+              </button>
+            ))}
+        </div>
       </Dialog>
       <AddOrdersModal
         open={importOpen}

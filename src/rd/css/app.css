@@ -896,6 +896,37 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+/* The chooser: one button per path, name over blurb — the same pickrow
+   shape the dialogs use, drawn on the tour's own card. */
+.rd-tourpaths {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 16px 12px;
+}
+.rd-tourpath {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  padding: 8px 10px;
+  border: 1px solid var(--rd-border);
+  border-radius: var(--rd-radius-control);
+  background: var(--rd-card);
+  cursor: pointer;
+}
+.rd-tourpath:hover {
+  border-color: var(--rd-primary);
+}
+.rd-tourpath-name {
+  font-size: var(--rd-size-field);
+  font-weight: var(--rd-weight-emphasis);
+  color: var(--rd-ink);
+}
+.rd-tourpath-blurb {
+  font-size: var(--rd-size-caption);
+  color: var(--rd-ink-muted);
+}
 /* The clock: autoplay made visible, so the advance never comes as a surprise. */
 .rd-tourclock {
   flex: 1;

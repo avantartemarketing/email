@@ -770,24 +770,32 @@ await screen('my approvals', async () => {
   await page.goto(`${BASE}/`, { waitUntil: 'networkidle' })
   await page.locator('.rd-navrow', { hasText: 'Take the tour' }).click()
   await page.locator('.rd-tour').waitFor({ timeout: 4000 })
+
+  /* The chooser: four paths, exactly — the owner split the tour by job, and
+     a path lost to a refactor would silently shrink the guide. */
+  const pathCount = await page.locator('.rd-tourpath').count()
+  if (pathCount !== 4)
+    faults.push(`${what}: the chooser offers ${pathCount} paths, the owner asked for 4`)
+
+  await page.locator('.rd-tourpath', { hasText: 'A release, from file' }).click()
+  await page.waitForTimeout(400)
   /* Autoplay is the viewer's pace, not the check's — take the wheel. */
   await page.locator('.rd-tourfoot button', { hasText: 'Pause' }).click()
 
   const next = page.locator('.rd-tourfoot button', { hasText: 'Next' })
-  await next.click() // step 2: the releases table, spotlit
-  await page.waitForTimeout(600)
+  await page.waitForTimeout(1200) // step 1: the releases table, spotlit
   const hole = await page.evaluate(() => {
     const box = document.querySelector('.rd-tourhole')?.getBoundingClientRect()
     return box ? { w: Math.round(box.width), h: Math.round(box.height) } : null
   })
   if (!hole || hole.w < 100 || hole.h < 60)
     faults.push(
-      `${what}: step 2 should spotlight the releases table, but the hole is ` +
+      `${what}: step 1 should spotlight the releases table, but the hole is ` +
         `${hole ? `${hole.w}×${hole.h}px` : 'missing'} — the scrim is covering the thing ` +
         'the caption is talking about',
     )
 
-  await next.click() // step 3: New release, a real file dropped and read
+  await next.click() // step 2: New release, a real file dropped and read
   const imported = await page
     .locator('.rd-dialog .rd-importlist tbody tr')
     .first()

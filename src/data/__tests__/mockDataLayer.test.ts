@@ -844,6 +844,22 @@ describe('adding a release from a file', () => {
   });
 });
 
+describe('the named approver', () => {
+  it('defaults every release to Elani — "it\'s Elani for every one"', async () => {
+    const summaries = await layer.listReleases();
+    for (const s of summaries) expect(s.release.approverId).toBe('user-approver');
+  });
+
+  it('can be reassigned to another admin, and refuses a non-admin', async () => {
+    const { release } = await releaseByTitle('Blue Interval');
+    const changed = await layer.setApprover(release.id, 'user-crm');
+    expect(changed.approverId).toBe('user-crm');
+    // an approver who can't approve is a list nobody can clear
+    await expect(layer.setApprover(release.id, 'user-pm')).rejects.toThrow(/admin/);
+    await layer.setApprover(release.id, 'user-approver'); // leave the world as found
+  });
+});
+
 // Type-level assertion that the mock stays swappable: the screens only ever
 // see DataLayer, and MockDataLayer must keep satisfying it.
 const _interfaceCheck: DataLayer = null as unknown as MockDataLayer;

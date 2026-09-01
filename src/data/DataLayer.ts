@@ -45,6 +45,8 @@ export interface CreateReleaseInput {
   productMatch?: { lineItemTitles: string[]; skus: string[] };
   /** Milestones switched off for this release (dispatch can't be). */
   disabledTemplates?: TemplateRef[];
+  /** Who approves this release's emails. Unset takes the standing default. */
+  approverId?: string;
 }
 
 /**
@@ -155,6 +157,12 @@ export interface DataLayer {
    * importing one export into two releases.
    */
   setProductMatch(releaseId: string, match: { lineItemTitles: string[]; skus: string[] }): Promise<Release>;
+  /**
+   * Name who approves this release's emails. Must be an admin — the same
+   * standing `approveSend` checks, so the name on the list is always a person
+   * who can actually clear it.
+   */
+  setApprover(releaseId: string, userId: string): Promise<Release>;
   /** Which releases already claim any of these titles. Empty means free. */
   claimantsOf(lineItemTitles: string[]): Promise<Claim[]>;
   /**

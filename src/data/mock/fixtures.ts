@@ -1929,6 +1929,9 @@ export const HUBSPOT_DIRECTORY: Record<string, string> = {
  * purpose — Maya approves sends AND writes delay copy, Jakob does neither,
  * and collapsing the two would make one of those people impossible.
  */
+/** "For the time being, it's Elani for every one" — the owner, 1 Sep 2026. */
+export const DEFAULT_APPROVER_ID = 'user-approver';
+
 export const USERS = [
   {
     id: 'user-tom',
@@ -1949,6 +1952,15 @@ export const USERS = [
     name: 'Nadia Ferreira',
     email: 'nadia.ferreira@avantarte.com',
     role: 'operator' as const,
+    team: 'crm' as const,
+  },
+  /* The owner named the standing approver by first name only (1 Sep 2026:
+     "it's Elani for every one"), and a surname is not ours to invent. */
+  {
+    id: 'user-approver',
+    name: 'Elani',
+    email: 'elani@avantarte.com',
+    role: 'admin' as const,
     team: 'crm' as const,
   },
   {

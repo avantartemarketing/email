@@ -39,6 +39,7 @@ import type {
 } from '../DataLayer';
 import { formatDay, toDay } from '../../logic/dates';
 import { allocationOrderKey, parseEditionAllocationCsv } from '../../logic/allocation';
+import { DEFAULT_APPROVER_ID } from './fixtures';
 import {
   classifyFulfilment,
   orderDedupeKey,
@@ -417,6 +418,9 @@ export class MockDataLayer implements DataLayer {
       disabledTemplates,
       templateOverrides: {},
       templateImages: {},
+      /* "It's Elani for every one" — the standing default until somebody
+         names a different admin on the release. */
+      approverId: input.approverId ?? DEFAULT_APPROVER_ID,
       createdAt: nowIso,
     };
     if (!release.title) throw new Error('Release title is required');
@@ -635,6 +639,17 @@ export class MockDataLayer implements DataLayer {
       confirmedAt: this.now().toISOString(),
       confirmedBy: this.currentUser().id,
     };
+    return this.settle(release);
+  }
+
+  async setApprover(releaseId: string, userId: string): Promise<Release> {
+    const release = this.mustGet(this._store.releases, releaseId, 'release');
+    const user = this._store.users.find((u) => u.id === userId);
+    if (!user) throw new Error(`Unknown user: ${userId}`);
+    if (user.role !== 'admin') {
+      throw new Error(`${user.name} can't approve sends — the approver must be an admin`);
+    }
+    release.approverId = userId;
     return this.settle(release);
   }
 

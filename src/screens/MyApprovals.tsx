@@ -74,7 +74,7 @@ import { RescheduleModal } from '../components/RescheduleModal';
  * tab nobody visited. Both honest verbs are on the row now.
  */
 export function MyApprovals(): ReactElement {
-  const { data, isAdmin, showToast, userName, refreshApprovals } = useApp();
+  const { data, isAdmin, showToast, userName, refreshApprovals, currentUser } = useApp();
   const navigate = useNavigate();
   const queue = useAsync(() => data.listApprovalQueue(), []);
   const picked = usePicked();
@@ -347,6 +347,24 @@ export function MyApprovals(): ReactElement {
       caption: 'BATCH',
       value: (i) => (i.releaseBatchCount > 1 ? i.batch.name : null),
       cell: (i) => (i.releaseBatchCount > 1 ? <Tag tone="teal">{i.batch.name}</Tag> : <None />),
+    },
+    {
+      id: 'approver',
+      /* Whose list this sits on — the release names its approver now. "You"
+         rather than your own name, because the question this column answers
+         is "is this mine", not "who is that". Any admin can still approve;
+         the name says who is EXPECTED to. */
+      title: 'Approver',
+      kind: 'choice',
+      caption: 'APPROVER',
+      value: (i) =>
+        i.release.approverId === currentUser.id ? 'You' : userName(i.release.approverId),
+      cell: (i) =>
+        i.release.approverId === currentUser.id ? (
+          <span className="rd-ink">You</span>
+        ) : (
+          userName(i.release.approverId)
+        ),
     },
     {
       id: 'recipients',

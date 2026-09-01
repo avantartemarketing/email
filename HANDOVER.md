@@ -506,6 +506,41 @@ dialogue he called confusing: Change delivery date on a batch with NO promise da
 used to render the whole form and only refuse at Save; it now says at the door that
 nothing is promised yet and points to Set promise date on the batch.
 
+**The rule gained a middle key (1 Sep, later):** Tom: "don't framed orders get
+lower edition numbers? Check the spreadsheet." He was right — the sheet's own
+allocation order carries a key its written comment never states: within every
+set size, ALL framed orders are numbered before ALL print-only (770 orders, no
+exception; the two mixed orders sit with the framed, so framed is an
+order-level ANY). `DEFAULT_RULE` is now set size desc → framed first → oldest
+first, with tests for each edge. A full workbook audit followed ("review the
+spreadsheet for any more hidden stuff like that") — findings: dormant AP
+machinery (SKU `AP`/`APGIFT`/`APARTIST` segments or an `APSALE` tag →
+`Is_AP`, zero rows in this census), a manual `Exclude?` gate filtered before
+allocation, the historical bundle expansion (`Codes`/`SKU Map` Set Size +
+Print 1..10 — Tom: bundles are dead), frame colour by keyword search
+(Black/White/Natural anywhere in the title), 26 partially-refunded orders all
+keeping their numbers, and the `Order Matrix` summing only its first five
+product columns (its zero-flag orders were hand-slotted at the sheet's head).
+None of the dormant machinery was built — reported to Tom instead.
+
+**Per-release approver (1 Sep):** Tom: "for each release we should be able to
+set the approver. For the time being, it's Elani for every one."
+`Release.approverId` (always set; default `user-approver`, the fixture user
+"Elani" — first name only, a surname is not ours to invent), settable via
+`setApprover` (admins only) from the **Approver · Elani** button in the
+release header. My approvals gains an Approver column ("You" when it's you).
+Naming is not gating: any admin still approves.
+
+**Guided tour — now FOUR PATHS (1 Sep, same round):** Tom: "split the Take a
+Tour into a few paths." The tour opens on a chooser (`TOUR_PATHS` in
+`tourSteps.ts`): 1 release-from-file-to-numbered-editions, 2 emails + each
+batch's plan (drives a real image pick), 3 a delay — whole batch AND partial
+split — through the CRM writer to Send for approval, 4 approval day (switches
+user to Elani via the who-chip, approves for real). Finishing a path returns
+to the chooser. prove-screens §6 asserts the chooser offers exactly 4 paths
+and path 1's file-drop reaches the read-file pane (failed once via a
+3-path slice, then a broken drop selector, before being kept).
+
 **Guided tour — built (1 Sep):** Tom: "Make an animated guide running end to end
 on how this works", answered as: for new team members, inside the prototype, the
 full lifecycle, ~2 minutes brisk. It is **"Take the tour"** in the rail —

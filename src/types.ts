@@ -173,6 +173,14 @@ export interface Release {
   templateOverrides: Partial<Record<TemplateRef, ReleaseTemplateOverride>>;
   /** Hero image picked per slot; unset slots use the HubSpot master's image. */
   templateImages: Partial<Record<ImageSlot, string>>;
+  /**
+   * Who approves this release's emails — a user id, always set. The owner,
+   * 1 Sep 2026: "for each release we should be able to set the approver. For
+   * the time being, it's Elani for every one." Naming is not gating: any
+   * admin can still approve (a named approver goes on holiday and the delay
+   * notice does not wait) — this says whose list the work sits on.
+   */
+  approverId: string;
   createdAt: string;
 }
 
