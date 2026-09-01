@@ -499,6 +499,13 @@ edge-case rows untouched. Harbour's #RS2134 is the seeded full-set buyer (all th
 colourways) and holds edition 1 of each; its demand also now exceeds the seeded
 edition size of 40, so the Editions tab shows the over-edition note doing its job. The releases-index seed test now expects five titles.
 
+**Owner's naming round (1 Sep):** the tab is **Edition allocation** and sits SECOND,
+right after All orders — his words: "Call the tab Edition allocation, and put it after
+All orders." The prove-screens strip assertion pins that order. Same round fixed a
+dialogue he called confusing: Change delivery date on a batch with NO promise date
+used to render the whole form and only refuse at Save; it now says at the door that
+nothing is promised yet and points to Set promise date on the batch.
+
 **Remaining is slice 5:** the Auto/Review/Info changes worklist (tags vs line items),
 pinned numbers for edition requests, and freezing a number once a collector has been
 told — which waits on Tom's "edition numbers in emails?" answer.

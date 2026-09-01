@@ -150,16 +150,18 @@ export function ReleaseDetail(): ReactElement {
      "Overview" and no sub-level is drawn — there is nothing to choose. */
   const tabs = [
     { key: 'orders' as const, label: `All orders (${activeOrderCount})` },
+    /* The fourth destination, added 1 Sep 2026 when the allocation calculator
+       moved in from the workbook — the "three, always" ruling above was about
+       not multiplying tabs per batch, not a cap on destinations. The owner
+       named it and seated it: "Call the tab Edition allocation, and put it
+       after All orders." It reads orders and writes onto them, so sitting
+       beside the orders is where it belongs. */
+    { key: 'editions' as const, label: 'Edition allocation' },
     { key: 'emails' as const, label: 'All emails' },
     {
       key: 'batches' as const,
       label: singleBatch ? 'Overview' : `Batches (${batches.length})`,
     },
-    /* The fourth destination, added 1 Sep 2026 when the allocation calculator
-       moved in from the workbook. The "three, always" ruling above was about
-       not multiplying tabs per batch — a split still never adds a tab — not a
-       cap on what the page can do. */
-    { key: 'editions' as const, label: 'Editions' },
   ];
   const showingOrders = top === 'orders';
   const showingEmails = top === 'emails';

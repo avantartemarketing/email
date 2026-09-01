@@ -249,14 +249,15 @@ await screen('release detail · a flow', async () => {
   if (!levels) faults.push(`${what}: no sub-level drawn under the tab strip`)
   else {
     /* Four DESTINATIONS, fixed — the ruling was never the number, it was that
-       a release splitting eleven times still adds no tab. Editions joined the
-       strip on 1 Sep 2026 when the allocation calculator moved in; the count
-       moves only when the page gains a destination, never when a release
-       changes shape. */
-    if (levels.topTabs.length !== 4 || !levels.topTabs[3]?.startsWith('Editions'))
+       a release splitting eleven times still adds no tab. Edition allocation
+       joined the strip on 1 Sep 2026 when the calculator moved in, and the
+       owner seated it second: "Call the tab Edition allocation, and put it
+       after All orders." The count moves only when the page gains a
+       destination, never when a release changes shape. */
+    if (levels.topTabs.length !== 4 || levels.topTabs[1] !== 'Edition allocation')
       faults.push(
         `${what}: the top strip reads ${levels.topTabs.join(', ')} — four fixed destinations ` +
-          'ending in Editions, whatever a release does to itself',
+          'with Edition allocation second, whatever a release does to itself',
       )
     if (!levels.caption)
       faults.push(`${what}: the sub-level has no caption, which is what makes it not small tabs`)
@@ -291,7 +292,7 @@ await screen('release detail · a flow', async () => {
    here is the saying — the fault named on screen, the primary shut because of
    it, and no export offered for a numbering known to be broken. */
 await screen('release detail · editions', async () => {
-  await page.locator('.rd-tab', { hasText: 'Editions' }).click()
+  await page.locator('.rd-tab', { hasText: 'Edition allocation' }).click()
   await page.waitForTimeout(500)
 })
 {

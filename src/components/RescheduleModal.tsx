@@ -134,6 +134,32 @@ export function RescheduleModal({
 
   const groupName = batchLabel ?? 'this release';
 
+  /* No promise date means this is the wrong door, and the dialogue says so AT
+     the door. It used to render the whole form — date, reason, a live "what
+     happens when you save" — and only the save's refusal revealed that none of
+     it could ever happen: the owner filled everything in and then met
+     "set one first" over his own answers, 1 Sep 2026. A change needs something
+     to change; the first date is a different act (no delay, no CRM email) and
+     it lives on the batch. */
+  if (!batch.promiseDate) {
+    return (
+      <Dialog
+        open={open}
+        size="md"
+        onClose={close}
+        title={batchLabel ? `Change delivery date — ${batchLabel}` : 'Change delivery date'}
+        secondary={{ label: 'Close', onClick: close }}
+      >
+        <Bar tone="note" title={`${groupName} has no promise date yet`}>
+          Nothing has been promised, so there is no date to change and no delay email for the
+          CRM team to write. Set the first date with <b>Set promise date</b> on{' '}
+          {batchLabel ? `the ${batchLabel} batch` : 'the Overview tab'} — the full comms plan
+          is created from it.
+        </Bar>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog
       open={open}

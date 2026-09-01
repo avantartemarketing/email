@@ -7,7 +7,7 @@ import { plural } from '../ui/format';
 import { Bar, Btn, Card, CardHead, Dialog, Facts, Stack, Why } from '../ui/rd';
 
 /**
- * The Editions tab — the workbook, as a button.
+ * The Edition allocation tab — the workbook, as a button.
  *
  * The rule it runs is the sheet's own, stated in that sheet's comment on
  * `Order Matrix!P1`: the largest set gets priority 1, oldest first inside a
@@ -137,7 +137,7 @@ export function EditionsPanel({
   if (activeOrders === 0) {
     return (
       <Card>
-        <CardHead title="Editions" />
+        <CardHead title="Edition allocation" />
         <Facts items={[{ label: 'Orders to number', value: 0 }]} />
       </Card>
     );
@@ -145,7 +145,7 @@ export function EditionsPanel({
   if (!plan) {
     return (
       <Card>
-        <CardHead title="Editions" />
+        <CardHead title="Edition allocation" />
       </Card>
     );
   }
@@ -169,7 +169,7 @@ export function EditionsPanel({
 
       <Card>
         <CardHead
-          title="Editions"
+          title="Edition allocation"
           actions={
             <>
               {plan.numbered > 0 ? (
