@@ -491,7 +491,13 @@ fixture invented before it existed) — two collectors both holding edition 21, 
 case is kept deliberately**, so seeded Falling Light's Editions tab demos the refusal
 state: fault named on screen, Allocate shut with a Why, no export offered. Harbour
 Light (new fifth seeded release, three colourways from `HARBOUR_LIGHT_CSV`) demos the
-clean allocate → export path. The releases-index seed test now expects five titles.
+clean allocate → export path. The owner then asked for 100+ orders per example release
+(1 Sep): every seeded release now clears it — Blue Interval 112, Falling Light 293,
+Harbour Light 137, Night Garden 125, Vessel VIII 104 — grown by generated collectors
+in the fixtures' own style, every one of them in `HUBSPOT_DIRECTORY`, hand-written
+edge-case rows untouched. Harbour's #RS2134 is the seeded full-set buyer (all three
+colourways) and holds edition 1 of each; its demand also now exceeds the seeded
+edition size of 40, so the Editions tab shows the over-edition note doing its job. The releases-index seed test now expects five titles.
 
 **Remaining is slice 5:** the Auto/Review/Info changes worklist (tags vs line items),
 pinned numbers for edition requests, and freezing a number once a collector has been

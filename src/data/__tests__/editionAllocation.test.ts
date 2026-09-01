@@ -49,9 +49,13 @@ describe('allocating Harbour Light — three artworks, nothing numbered yet', ()
     const numbers = rs2103.map((o) => o.allocations?.[0]?.editionNumber);
     expect(numbers[0]).toBeDefined();
     expect(numbers[0]).toBe(numbers[1]);
-    /* And the whole-set buyer holds the LOWEST number of the ones issued to
-       multi-artwork orders — largest set first is the rule. */
-    expect(rs2103.every((o) => o.allocations?.[0]?.editionNumber === '1')).toBe(true);
+
+    /* And the rule: the release's first FULL-SET buyer — #RS2134 bought all
+       three colourways — holds number 1 of every artwork, however late they
+       bought. Largest set first is the sheet's own priority. */
+    const fullSet = detail.orders.filter((o) => o.shopifyOrderName === '#RS2134');
+    expect(fullSet).toHaveLength(3);
+    expect(fullSet.every((o) => o.allocations?.[0]?.editionNumber === '1')).toBe(true);
   });
 
   it('re-running keeps every number and numbers nothing twice', async () => {
