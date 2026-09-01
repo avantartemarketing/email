@@ -6,6 +6,7 @@ import type {
   ProductMatch,
 } from '../types';
 import type { ParsedLineItem } from './importer';
+import { artworksInFile, proposeArtworks, releaseTitleFor } from './artworks';
 import {
   artCodeOf,
   classifyFulfilment,
@@ -231,6 +232,10 @@ export function shopifyOrderCount(items: ParsedLineItem[], titles: string[]): nu
  * print — but a bronze sold in finishes ("Vessel VIII - Patina") would then
  * take the printing-and-framing sequence, and the mistake would not look like
  * one: both finishes route to "Unframed" and the batch column reads tidily.
+ *
+ * The SET of rows comes from `artworksInFile` now, not from a shared title
+ * prefix: a release is one artist's, and the SKU states the artist. See
+ * `src/logic/artworks.ts`.
  */
 export function proposeRelease(products: FileProduct[]): {
   lineItemTitles: string[];
@@ -249,11 +254,15 @@ export function proposeRelease(products: FileProduct[]): {
     products.some((p) => /framed/i.test(p.lineItemTitle) && !/unframed/i.test(p.lineItemTitle));
   const productKind: ProductKind = anyFramed ? 'print' : 'sculpture';
 
-  /* The biggest product in the file is the one it is an export of, and it is
-     never a frame — a frame is an attribute of the print beside it. Its whole
-     group comes with it: every variant of the same first segment. */
-  const lead = (products.find((p) => !p.isFrame) ?? products[0])?.productKey ?? '';
-  const group = products.filter((p) => p.productKey === lead);
+  /* The artworks the file states, and the ones worth proposing — the lead
+     artwork's, plus everything by the same artist. A release is one artist's,
+     and the SKU says which; the old rule took every variant of one product
+     TITLE, which called Guardian (Purple) the whole release and then refused
+     to let Green join it. */
+  const artworks = artworksInFile(products);
+  const proposedArtworks = proposeArtworks(artworks);
+  const inProposal = new Set(proposedArtworks.flatMap((a) => a.lineItemTitles));
+  const group = products.filter((p) => inProposal.has(p.lineItemTitle));
   /* Where the file carries frame lines, fulfilment is a JOIN and no title
      declares it, so the whole group is proposed. The filter below only means
      anything in the older shape, where a title says "- Framed" for itself. */
@@ -262,7 +271,7 @@ export function proposeRelease(products: FileProduct[]): {
 
   return {
     lineItemTitles: (proposed.length > 0 ? proposed : group).map((p) => p.lineItemTitle),
-    title: lead,
+    title: releaseTitleFor(proposedArtworks),
     productKind,
   };
 }

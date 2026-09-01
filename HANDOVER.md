@@ -427,7 +427,7 @@ workbook's output tab IS the allocation CSV `src/logic/allocation.ts` already im
 so the tool is the consumer and this would make it the producer. It needs one concept
 the tool lacks — the **artwork**, between release and order.
 
-**Slice 1 of that is now BUILT (31 Aug)** — the framing join. See the doc's Slices
+**Slices 1 AND 2 are now BUILT (31 Aug)** — the framing join, and artworks. See the doc's Slices
 section for exactly what shipped and what it measured. The rest is designed, not built.
 The owner also answered the gating question: *"we don't do bundles anymore but used to"*
 — so a SKU maps to exactly one artwork and the bundle-expansion problem is gone; only
@@ -459,10 +459,22 @@ and `src/logic/__tests__/framing.test.ts` has 17 tests, regressed on purpose fir
 On the real export: 1,070 orders + 441 frames absorbed = 1,511 lines, both batches
 justified, 439 framed / 631 unframed, 2 orphan frames reported, product kind `print`.
 
-**Still broken, and needing slice 2 (the artwork model):** the proposed title is one
-colourway, and the one-product guard still refuses a multi-colourway release —
-confirmed in the browser: *"Harbour Light (Dawn) and Harbour Light (Dusk) cannot share
-a release."*
+**Slice 2, the artwork model, is in too.** `src/logic/artworks.ts` groups a file into
+artworks on the SKU's ART CODE and proposes the lead artwork's ARTIST — on the real
+Guardian export that is exactly the three AWEI1 colourways, dropping the stray JALBE
+and ANTON lines. The release is named by what its artworks share, so the title is now
+**"Guardian"** rather than "Guardian (Purple)", and the one-product guard is a
+one-ARTIST guard, so a multi-colourway release can finally be created. Driven end to
+end in a browser: a real-shaped file creates "Harbour Light", 7 orders, 2 batches.
+
+⚠ Two lessons from that round, both worth keeping: `prove-screens` caught a live bug
+on the render BEFORE anything was regressed on purpose ("Dawn"/"Dusk" share the prefix
+`Harbour Light (D`, so the title stopped mid-word); and the first version of its guard
+assertion tested for wording the fix had already deleted — a check that could never
+fail, exactly the fault this project criticises the workbook for. Assert invariants,
+not sentences.
+
+**Next is slice 3:** `src/logic/editions.ts`, the allocator, as pure logic with no UI.
 
 **Artifacts live (publish with `url:` to update, never without):**
 - Prototype, Workbench-rd: https://claude.ai/code/artifact/ebfa534f-1267-4a64-99a5-7978167d3a9f

@@ -11,8 +11,8 @@ Everything below was re-derived from the file, or measured by running this repo'
 code over the real export it contains — the sheet's own summaries are not quoted,
 because two of them turned out to be wrong.
 
-**Status:** slice 1 (the framing join) is built and pushed. Slices 2–5 are designed,
-not built. See *Slices* below.
+**Status:** slices 1 (the framing join) and 2 (artworks) are built and pushed.
+Slices 3–5 are designed, not built. See *Slices* below.
 
 ## What the workbook is
 
@@ -187,8 +187,28 @@ the result holds: 1,190 numbers, no gaps, no splits, 135 of 770 above strict ran
    guard still refuses a three-colourway release — verified in the browser, the
    dialogue says *"Harbour Light (Dawn) and Harbour Light (Dusk) cannot share a
    release."*
-2. **Artworks as a confirmed record** — about a week. Fixes the title, the sculpture
-   misclassification and the one-product guard. No allocator needed.
+2. ~~**Artworks as a confirmed record**~~ — **shipped 31 Aug.** `src/logic/artworks.ts`
+   groups a file into artworks on the SKU's **art code** (`RSTON-HARBD`), folding each
+   frame into the artwork it frames. `proposeArtworks` proposes the lead artwork's
+   **artist** — on the real Guardian export that is exactly the three `AWEI1` colourways,
+   dropping the two stray `JALBE` lines and one `ANTON` line riding along on shared
+   orders — and never proposes an artwork with no print line. `releaseTitleFor` names
+   the release by what its artworks share. The one-product guard is now a one-ARTIST
+   guard: a release is one artist's, which the SKU states, so two colourways of one work
+   are no longer refused.
+
+   On the real export: title **"Guardian"** (was "Guardian (Purple)"), kind `print`,
+   39 of 45 rows ticked, 1,067 orders, 438 frames absorbed, both batches, 439 framed /
+   631 unframed.
+
+   `prove-screens` earned its keep twice. It caught a real bug on the render *before*
+   anything was regressed on purpose — "Harbour Light (Dawn)" and "(Dusk)" share the
+   prefix `Harbour Light (D`, so the title stopped mid-word; `releaseTitleFor` now cuts
+   only at a boundary that is a boundary in *every* name. And the first version of its
+   guard assertion looked for the old wording ("cannot share a release"), which the fix
+   had already deleted — a check that could never fail, which is precisely the fault
+   this document criticises the workbook for. It asserts the invariant now: the
+   dialogue draws **no** fail bar over two colourways of one work.
 3. **The allocator as pure logic, no UI** — about a week. Invariants that *cannot* pass
    vacuously (the workbook's failed by comparing zero to zero). Prove it by reproducing
    the workbook's own 857-row output, then by catching its 13 mismatches.

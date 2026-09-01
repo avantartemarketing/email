@@ -327,8 +327,14 @@ addingARelease: {
     break addingARelease
   }
 
-  /* And the real thing. Two products, their counts, and a shut primary that
-     names the one fact a Shopify export does not carry. */
+  /* And the real thing — in the shape a real Avant Arte export actually has,
+     which the invented fixtures did not: two colourways of one work, framing as
+     its own LINE ITEM rather than a variant, and four-segment SKUs whose third
+     segment says FR. Three things have to hold on the render:
+     the release is named after the WORK and not one colourway; the frame line
+     is drawn as a frame rather than wearing a batch's name; and the primary is
+     shut only for the artist, never by the old one-product guard, which
+     refused every real multi-colourway release outright. */
   const header =
     'Name,Email,Financial Status,Paid at,Fulfillment Status,Currency,Subtotal,Created at,' +
     'Lineitem quantity,Lineitem name,Lineitem price,Lineitem sku,Billing Name,Shipping Name,' +
@@ -338,9 +344,10 @@ addingARelease: {
     `2026-06-01 10:00:00 +0000,1,${title},500,${sku},Collector ${n},Collector ${n},United Kingdom,`
   const csv = [
     header,
-    row(1, 'Harbour Light - Framed', 'HL-FR'),
-    row(2, 'Harbour Light - Framed', 'HL-FR'),
-    row(3, 'Harbour Light - Unframed', 'HL-UF'),
+    row(1, 'Harbour Light (Dawn) - Public', 'RSTON-HARBD-TL-PUBLIC'),
+    row(2, 'Harbour Light (Dawn) - Public', 'RSTON-HARBD-TL-PUBLIC'),
+    row(3, 'Harbour Light (Dusk) - Public', 'RSTON-HARBK-TL-PUBLIC'),
+    row(3, 'Harbour Light (Dusk) - Black Abachi wood frame', 'RSTON-HARBK-FR-BLACKABACH'),
   ].join('\n')
   await page.setInputFiles('.rd-importdrop input', {
     name: 'harbour-light.csv',
@@ -362,22 +369,55 @@ addingARelease: {
       shut: primary instanceof HTMLButtonElement ? primary.disabled : null,
       why: document.querySelector('.rd-dialogfoot .rd-tip')?.textContent?.trim() ?? '',
       title: document.querySelector('.rd-dialoghd, .rd-dialog h2')?.textContent?.trim() ?? '',
+      bar: document.querySelector('.rd-dialog .rd-failbar')?.textContent?.trim() ?? '',
+      releaseTitle:
+        [...document.querySelectorAll('.rd-dialog input')]
+          .map((i) => (i instanceof HTMLInputElement ? i.value : ''))
+          .find(Boolean) ?? '',
     }
   })
-  if (pane.rows.length !== 2)
-    faults.push(`${what}: ${pane.rows.length} product rows for a file with two products`)
+  if (pane.rows.length !== 3)
+    faults.push(`${what}: ${pane.rows.length} product rows for a file with three line items`)
   else {
-    if (!pane.rows.some((r) => r.includes('Framed') && r.includes('2')))
-      faults.push(`${what}: the framed row does not carry its count — ${pane.rows[0].join(' | ')}`)
+    const dawn = pane.rows.find((r) => r.join(' ').includes('Dawn'))
+    if (!dawn?.includes('2'))
+      faults.push(`${what}: the Dawn row does not carry its count — ${dawn?.join(' | ')}`)
+    /* A frame is not going into a batch. Drawing "Unframed" against a wood
+       frame is the old bug spelled out on screen. */
+    const frame = pane.rows.find((r) => r.join(' ').toLowerCase().includes('wood frame'))
+    if (!frame?.some((c) => c === 'Frame'))
+      faults.push(`${what}: the frame line is not drawn as a frame — ${frame?.join(' | ')}`)
+    if (frame?.some((c) => /^Unframed$/.test(c)))
+      faults.push(`${what}: the frame line is wearing a batch's name — ${frame.join(' | ')}`)
   }
   if (!/harbour-light\.csv/.test(pane.title))
     faults.push(`${what}: pane two's title does not carry the file name — "${pane.title}"`)
   if (!/3 orders from 3 Shopify orders/.test(pane.foot))
     faults.push(`${what}: the foot does not state both totals — "${pane.foot}"`)
+  /* Named after the WORK, not one of its colourways. */
+  if (pane.releaseTitle !== 'Harbour Light')
+    faults.push(
+      `${what}: the release is proposed as "${pane.releaseTitle}" — a release of two ` +
+        'colourways is named after the work',
+    )
   if (pane.shut !== true)
     faults.push(`${what}: the primary is open with no artist — a Shopify export has no artist column`)
   if (!/artist/i.test(pane.why))
     faults.push(`${what}: the shut primary does not say what is missing — "${pane.why}"`)
+  /* And never REFUSED. Two colourways of one work are one release, and the
+     dialogue must draw no fail bar over them at all.
+     Asserted as "the bar is empty", not as the absence of a particular
+     sentence: the first draft of this check looked for the old wording
+     ("cannot share a release"), which the fix had already deleted — so it was
+     a check that could never fail, which is the exact fault this file exists
+     to catch in the workbook. */
+  if (pane.bar !== '')
+    faults.push(
+      `${what}: two colourways of one work are refused — the dialogue draws ` +
+        `"${pane.bar.replace(/\s+/g, ' ').slice(0, 90)}"`,
+    )
+  if (pane.why !== '' && !/artist/i.test(pane.why))
+    faults.push(`${what}: the primary is shut for something other than the artist — "${pane.why}"`)
 }
 
 await page.keyboard.press('Escape')

@@ -7,11 +7,11 @@ import type { ParsedLineItem, ParseResult } from '../logic/importer';
 import type { FileProduct } from '../logic/intake';
 import {
   planIntake,
-  productKeyOf,
   proposeRelease,
   shopifyOrderCount,
   skusFor,
 } from '../logic/intake';
+import { artworksInFile } from '../logic/artworks';
 import { formatDayShort } from '../logic/dates';
 import { TEMPLATE_LABELS, plural } from '../ui/format';
 import { useApp } from '../ui/AppContext';
@@ -119,23 +119,35 @@ export function NewReleaseModal({
       return next;
     });
 
+  const artworks = useMemo(() => (parse ? artworksInFile(parse.products) : []), [parse]);
   const items: ParsedLineItem[] = parse ? tickedItems(parse.result.items, ticked) : [];
   const plan = useMemo(
     () => (parse ? planIntake(parse.result.items, [...ticked], [], productKind) : null),
     [parse, ticked, productKind],
   );
 
-  /* One release is one product. Two ticked products with different first
-     segments is not a release with two names — it is two releases, and the
-     flow says so rather than welding them. */
-  const groups = [...new Set([...ticked].map(productKeyOf))].sort();
+  /* A release is one ARTIST, not one product. It used to be one product, and
+     that was wrong on every real release: Ai Weiwei's Guardian is three
+     colourways and Murakami's release is four prints, so the guard refused to
+     create the very thing it was meant to protect. What it now refuses is the
+     case that really is two releases — two artists in one tick. */
+  const tickedArtworks = artworks.filter((a) =>
+    a.lineItemTitles.some((t) => ticked.has(t)),
+  );
+  const artists = [...new Set(tickedArtworks.map((a) => a.artistCode).filter(Boolean))].sort();
+  const twoArtists =
+    artists.length > 1
+      ? tickedArtworks.filter((a) => a.artistCode === artists[0] || a.artistCode === artists[1])
+      : [];
   const clash = claims.find((c) => ticked.has(c.lineItemTitle));
 
   const why =
     ticked.size === 0
       ? 'Tick at least one product.'
-      : groups.length > 1
-        ? `Tick one product — ${groups[0]} and ${groups[1]} cannot share a release.`
+      : artists.length > 1
+        ? `Tick one artist — ${twoArtists[0]?.name} and ${
+            twoArtists.find((a) => a.artistCode === artists[1])?.name
+          } are different artists.`
         : clash
           ? `“${clash.lineItemTitle}” already belongs to ${clash.releaseTitle}.`
           : !artist.trim()
@@ -219,10 +231,11 @@ export function NewReleaseModal({
                 Open {clash.releaseTitle}
               </button>
             </Bar>
-          ) : groups.length > 1 ? (
-            <Bar tone="fail" title="Two products are ticked">
-              {groups[0]} and {groups[1]}. A release is one product — create one, then add the
-              other from its own page.
+          ) : artists.length > 1 ? (
+            <Bar tone="fail" title="Two artists are ticked">
+              {twoArtists[0]?.name} and{' '}
+              {twoArtists.find((a) => a.artistCode === artists[1])?.name}. A release is one
+              artist — create one, then add the other from its own page.
             </Bar>
           ) : null}
 
