@@ -29,6 +29,7 @@ import { useAsync } from './ui/useAsync';
 import { needsApprovingNow } from './logic/approvals';
 import { Skeleton } from './ui/rd';
 import Menu from './rd/components/Menu';
+import { Tour } from './components/Tour';
 import { ReleasesIndex } from './screens/ReleasesIndex';
 import { ReleaseDetail } from './screens/ReleaseDetail';
 import { PromiseDateOverview } from './screens/PromiseDateOverview';
@@ -92,6 +93,7 @@ function Shell({
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState(initialUser);
   const [whoOpen, setWhoOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
   const [crumb, setCrumb] = useState<string | null>(null);
   /* Bumped by refreshApprovals; the rail's badge is keyed on it. */
   const [queueTick, setQueueTick] = useState(0);
@@ -216,6 +218,12 @@ function Shell({
               My approvals
               {queueCount.data ? <span className="rd-navcount">{queueCount.data}</span> : null}
             </NavLink>
+            {/* The guide, where a new starter's eye lands first. It drives the
+                real app, so it can never say something the product no longer
+                does — see Tour.tsx. */}
+            <button type="button" className="rd-navrow" onClick={() => setTourOpen(true)}>
+              Take the tour
+            </button>
           </div>
         </nav>
 
@@ -277,6 +285,8 @@ function Shell({
             </Routes>
           </div>
         </div>
+
+        <Tour open={tourOpen} onClose={() => setTourOpen(false)} />
 
         {toast ? (
           <div className={toast.error ? 'rd-toast rd-toast-bad' : 'rd-toast'} role="status">

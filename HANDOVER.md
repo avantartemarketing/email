@@ -506,6 +506,27 @@ dialogue he called confusing: Change delivery date on a batch with NO promise da
 used to render the whole form and only refuse at Save; it now says at the door that
 nothing is promised yet and points to Set promise date on the batch.
 
+**Guided tour — built (1 Sep):** Tom: "Make an animated guide running end to end
+on how this works", answered as: for new team members, inside the prototype, the
+full lifecycle, ~2 minutes brisk. It is **"Take the tour"** in the rail —
+`src/components/Tour.tsx` (spotlight overlay: one hole whose box-shadow is the
+scrim, caption card bottom-centre, autoplay clock with Pause/Back/Next/End) and
+`src/components/tourSteps.ts` (the 13-step script). Nothing is a recording: each
+step performs real clicks — the tour drops a real CSV into New release (Harbour
+Lantern, `RSTOL-LANT*`, deliberately not Harbour Light so the claim guard stays
+quiet), ticks a Falling Light row and fills the reschedule form, presses
+Allocate on Harbour Light. So the guide breaks in front of the maintainer if a
+button moves — and prove-screens §6 makes that official: rail opens the tour, a
+real-sized spotlight appears, the file-drop step actually reaches the read-file
+pane, End tour clears the overlay (made to fail once by breaking the drop
+selector; it named the fault). Driver gotchas already learned, in the code as
+comments: `clickText` refuses disabled controls (Read the file enables a beat
+after the drop label flips), `waitForText('.rd-title', …)` is how a step knows a
+navigation landed (the OLD table still matches structural selectors), and All
+orders is spotlit via `.rd-workscroll` because the table's own rect is its
+scrollWidth. Everything the tour mutates vanishes on refresh — the last card
+says so.
+
 **Remaining is slice 5:** the Auto/Review/Info changes worklist (tags vs line items),
 pinned numbers for edition requests, and freezing a number once a collector has been
 told — which waits on Tom's "edition numbers in emails?" answer.

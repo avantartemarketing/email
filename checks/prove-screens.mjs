@@ -755,6 +755,59 @@ await screen('my approvals', async () => {
     )
 }
 
+/* ---- 6 · the guided tour drives the real app -----------------------------
+   The tour is not a recording: each step performs real clicks against the
+   live screens, so the thing to prove is not the captions but the DRIVING.
+   Three invariants: the rail opens it and a spotlight of real size appears
+   over the releases table; stepping forward reaches the file-drop step and
+   the New release dialogue is actually in its read-the-file state (the
+   hardest driver — a synthetic drop plus an async file read); ending the
+   tour takes the overlay away. If a button the script presses is renamed or
+   moved, this is where it breaks — in front of the maintainer, not the new
+   starter the tour was built for. */
+{
+  const what = 'guided tour'
+  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' })
+  await page.locator('.rd-navrow', { hasText: 'Take the tour' }).click()
+  await page.locator('.rd-tour').waitFor({ timeout: 4000 })
+  /* Autoplay is the viewer's pace, not the check's — take the wheel. */
+  await page.locator('.rd-tourfoot button', { hasText: 'Pause' }).click()
+
+  const next = page.locator('.rd-tourfoot button', { hasText: 'Next' })
+  await next.click() // step 2: the releases table, spotlit
+  await page.waitForTimeout(600)
+  const hole = await page.evaluate(() => {
+    const box = document.querySelector('.rd-tourhole')?.getBoundingClientRect()
+    return box ? { w: Math.round(box.width), h: Math.round(box.height) } : null
+  })
+  if (!hole || hole.w < 100 || hole.h < 60)
+    faults.push(
+      `${what}: step 2 should spotlight the releases table, but the hole is ` +
+        `${hole ? `${hole.w}×${hole.h}px` : 'missing'} — the scrim is covering the thing ` +
+        'the caption is talking about',
+    )
+
+  await next.click() // step 3: New release, a real file dropped and read
+  const imported = await page
+    .locator('.rd-dialog .rd-importlist tbody tr')
+    .first()
+    .waitFor({ timeout: 8000 })
+    .then(() => true)
+    .catch(() => false)
+  if (!imported)
+    faults.push(
+      `${what}: the file-drop step never reached the read file — the New release dialogue ` +
+        'is not showing the products the tour dropped, so the tour is narrating a screen ' +
+        'it failed to drive',
+    )
+
+  await page.locator('.rd-tourfoot button', { hasText: 'End tour' }).click()
+  if (await page.locator('.rd-tour').count())
+    faults.push(`${what}: End tour left the overlay up`)
+  /* The tour hands the app back as-is — close the dialogue it opened. */
+  await page.locator('.rd-dialogx').click().catch(() => {})
+}
+
 for (const url of missed) faults.push(`the app asked for ${url} and did not get it`)
 
 await browser.close()

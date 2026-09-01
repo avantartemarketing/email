@@ -827,3 +827,103 @@
   font: var(--rd-weight-body) var(--rd-size-caption) var(--rd-font-text);
   color: var(--rd-ink-muted);
 }
+
+/* ---------- The guided tour, 1 Sep 2026 ----------
+   A spotlight over the real app while a script drives it. One element is the
+   whole scrim: the hole's oversized box-shadow dims everything it is not,
+   which is what lets the light MOVE — animate the hole and the darkness
+   follows. Nothing here blocks the pointer; the tour narrates, it does not
+   take the controls away. */
+.rd-tour {
+  position: fixed;
+  inset: 0;
+  z-index: 60; /* above the dialogue layer — the tour spotlights dialogues */
+  pointer-events: none;
+}
+.rd-tourhole {
+  position: fixed;
+  border-radius: var(--rd-radius-card);
+  box-shadow:
+    0 0 0 200vmax var(--rd-scrim),
+    0 0 0 2px var(--rd-primary);
+  transition:
+    top var(--rd-dur-draw) var(--rd-ease),
+    left var(--rd-dur-draw) var(--rd-ease),
+    width var(--rd-dur-draw) var(--rd-ease),
+    height var(--rd-dur-draw) var(--rd-ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .rd-tourhole {
+    transition: none;
+  }
+}
+.rd-tourcard {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  width: min(560px, calc(100vw - 32px));
+  background: var(--rd-card);
+  border: 1px solid var(--rd-border);
+  border-radius: var(--rd-radius-card);
+  box-shadow: var(--rd-shadow-float);
+  pointer-events: auto;
+}
+.rd-tourcap {
+  padding: 14px 16px 10px;
+}
+.rd-tourtitle {
+  font-size: var(--rd-size-section);
+  font-weight: var(--rd-weight-emphasis);
+  color: var(--rd-ink);
+  margin-bottom: 4px;
+}
+.rd-tourtext {
+  font-size: var(--rd-size-field);
+  line-height: 1.5;
+  color: var(--rd-ink-body);
+}
+.rd-tourfoot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--rd-hairline-row);
+}
+.rd-tourcount {
+  font-size: var(--rd-size-caption);
+  color: var(--rd-ink-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* The clock: autoplay made visible, so the advance never comes as a surprise. */
+.rd-tourclock {
+  flex: 1;
+  height: 3px;
+  border-radius: var(--rd-radius-meter);
+  background: var(--rd-hairline-row);
+  overflow: hidden;
+}
+.rd-tourclock-fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: var(--rd-primary);
+  transform-origin: left;
+  animation-name: rd-tour-fill;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+@keyframes rd-tour-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rd-tourclock-fill {
+    animation: none;
+  }
+}
