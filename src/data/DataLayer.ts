@@ -1,3 +1,4 @@
+import type { ArtworkSummary, EditionNote } from '../logic/editions';
 import type { ParsedLineItem } from '../logic/importer';
 import type {
   AllocationImportSummary,
@@ -174,6 +175,22 @@ export interface DataLayer {
    */
   importAllocations(releaseId: string, csvText: string): Promise<AllocationImportSummary>;
   /**
+   * What allocating edition numbers would do, without doing it. Orders that
+   * already hold allocation rows — imported from the warehouse sheet or
+   * committed here — are PINS: their numbers never move, and a run numbers
+   * only the unnumbered around them. Preview and commit run the same pure
+   * plan, so they cannot disagree.
+   */
+  previewAllocation(releaseId: string): Promise<AllocationPlanView>;
+  /** Write the previewed numbers. Refused while the plan's audit has faults. */
+  commitAllocation(releaseId: string): Promise<AllocationPlanView>;
+  /** Clear every allocation row on the release — the ONLY way a number moves.
+      Returns how many orders were cleared. */
+  undoAllocation(releaseId: string): Promise<number>;
+  /** The warehouse file: the sheet's exact eight columns, importable by
+      `importAllocations` — the export is proven against the import. */
+  allocationCsv(releaseId: string): Promise<{ fileName: string; csv: string }>;
+  /**
    * Edit the release's email set: toggle a milestone on/off or override its
    * copy. Copy changes re-render every batch's upcoming sends built from
    * that template (individually edited sends are left alone; approved sends
@@ -280,4 +297,18 @@ export interface DataLayer {
 
   // --- send detail -------------------------------------------------------
   getSendDetail(sendId: string): Promise<SendDetailView>;
+}
+
+/** The allocation plan as screens read it. The row-level detail stays in the
+    data layer; a screen states totals and evidence, and All orders is where
+    the numbers themselves are read. */
+export interface AllocationPlanView {
+  /** Orders this run numbers (or numbered, after a commit). */
+  numbered: number;
+  /** Orders whose existing numbers were kept — a number never moves. */
+  kept: number;
+  artworks: ArtworkSummary[];
+  notes: EditionNote[];
+  /** From the audit. Empty, or the plan cannot be committed. */
+  faults: string[];
 }

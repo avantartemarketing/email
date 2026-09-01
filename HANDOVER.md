@@ -474,7 +474,28 @@ assertion tested for wording the fix had already deleted — a check that could 
 fail, exactly the fault this project criticises the workbook for. Assert invariants,
 not sentences.
 
-**Next is slice 3:** `src/logic/editions.ts`, the allocator, as pure logic with no UI.
+**Slices 3 AND 4 are BUILT too (1 Sep)** — the allocator and the Editions tab. The
+owner: *"Could you build the allocation calculator into the dashboard?"* Full detail in
+`docs/design/edition-allocation.md`'s Slices section. The spine: `src/logic/editions.ts`
+numbers per ORDER (lowest number free in every artwork the order bought — matched sets
+by construction, the workbook's 13-order fault made impossible), anything already
+numbered is a PIN that never moves, and `auditAllocation` cannot pass vacuously. The
+release page has a fourth tab, Editions: allocate / export the warehouse CSV (the
+sheet's exact eight columns, round-trip-proven against our own importer) / clear.
+Frame finish and glass are captured at intake from the absorbed frame line and derived
+by the workbook's confirmed rules.
+
+⚠ Worth knowing: the audit found REAL corruption in `FALLING_LIGHT_ALLOCATION_CSV` (a
+fixture invented before it existed) — two collectors both holding edition 21, and
+#AA10418's two prints both numbered 5. The accidental dupes were fixed; **the #AA10418
+case is kept deliberately**, so seeded Falling Light's Editions tab demos the refusal
+state: fault named on screen, Allocate shut with a Why, no export offered. Harbour
+Light (new fifth seeded release, three colourways from `HARBOUR_LIGHT_CSV`) demos the
+clean allocate → export path. The releases-index seed test now expects five titles.
+
+**Remaining is slice 5:** the Auto/Review/Info changes worklist (tags vs line items),
+pinned numbers for edition requests, and freezing a number once a collector has been
+told — which waits on Tom's "edition numbers in emails?" answer.
 
 **Artifacts live (publish with `url:` to update, never without):**
 - Prototype, Workbench-rd: https://claude.ai/code/artifact/ebfa534f-1267-4a64-99a5-7978167d3a9f

@@ -15,6 +15,7 @@ export function getDataLayer(): Promise<DataLayer> {
 }
 
 export type {
+  AllocationPlanView,
   Claim,
   CreateReleaseInput,
   CreateReleaseResult,

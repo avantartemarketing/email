@@ -13,6 +13,7 @@ import { MockDataLayer } from './MockDataLayer';
 
 import {
   BLUE_INTERVAL_CSV,
+  HARBOUR_LIGHT_CSV,
   FALLING_LIGHT_ALLOCATION_CSV,
   FALLING_LIGHT_CSV,
   HUBSPOT_DIRECTORY,
@@ -398,6 +399,21 @@ You can expect more updates along the way, but please don't hesitate to contact 
       'Patina on three pieces has to be redone — the foundry found pitting after the first finishing pass',
     userId: 'user-warehouse',
   });
+
+  // --- Harbour Light — three colourways, landed two days ago -------------
+  /* The real shape: several artworks in one release, framing as its own line
+     item, and no edition numbers yet — the state the Editions tab's
+     "Allocate" door exists for. Falling Light shows the other state: numbers
+     imported from the warehouse sheet, which a re-run keeps. */
+  clock(-2);
+  await as('user-tom');
+  const harbour = await openFromFile(
+    { title: 'Harbour Light', artist: 'Rosa Stenmark', editionSize: 40 },
+    HARBOUR_LIGHT_CSV,
+    'harbour-light-2026-08-29.csv',
+  );
+  await layer.setPromiseDate(batchOf(harbour.id, 'unframed').id, addDays(T, 60));
+  await layer.setPromiseDate(batchOf(harbour.id, 'framed').id, addDays(T, 88));
 
   // --- Night Garden — imported yesterday, no promise date yet ------------
   clock(-1);

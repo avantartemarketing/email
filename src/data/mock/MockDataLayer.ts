@@ -26,6 +26,7 @@ import type {
   User,
 } from '../../types';
 import type {
+  AllocationPlanView,
   CreateReleaseInput,
   DataLayer,
   IntakeInput,
@@ -44,6 +45,13 @@ import {
 } from '../../logic/importer';
 import { generateMilestonePlan } from '../../logic/plan';
 import { emptyProductMatch, planIntake } from '../../logic/intake';
+import {
+  DEFAULT_RULE,
+  planAllocation,
+  toAllocationInput,
+  warehouseCsv,
+} from '../../logic/editions';
+import type { AllocationOrderInput, AllocationPlan } from '../../logic/editions';
 import type { ParsedLineItem } from '../../logic/importer';
 import { inheritedSentStory, planReschedule, sentStoryForBatch } from '../../logic/reschedule';
 import {
@@ -495,12 +503,17 @@ export class MockDataLayer implements DataLayer {
             ) ?? classifyFulfilment(item.lineItemTitle))
           : null,
       );
+      const frame = plan.frameLineByOrder.get(
+        orderDedupeKey(item.shopifyOrderName, item.lineItemTitle),
+      );
       const order: Order = {
         id: this._newId('order'),
         releaseId: release.id,
         batchId: batch.id,
         shopifyOrderName: item.shopifyOrderName,
         lineItemTitle: item.lineItemTitle,
+        frameLineItemTitle: frame?.lineItemTitle ?? null,
+        frameSku: frame?.sku ?? null,
         collectorName: item.collectorName,
         email: item.email,
         hubspotContactId,
@@ -775,6 +788,95 @@ export class MockDataLayer implements DataLayer {
       ordersWithoutAllocation,
       issues: parsed.issues,
     });
+  }
+
+  /** The allocator's inputs: every active order, framed by its BATCH — the
+      recorded routing decision, never a fresh reading of a string. */
+  private allocationInputs(releaseId: string): AllocationOrderInput[] {
+    return [...this._store.orders.values()]
+      .filter((o) => o.releaseId === releaseId && !o.removed)
+      .map((o) =>
+        toAllocationInput(o, this._store.batches.get(o.batchId)?.fulfilment === 'framed'),
+      );
+  }
+
+  private allocationView(plan: AllocationPlan): AllocationPlanView {
+    return {
+      numbered: plan.numbered,
+      kept: plan.kept,
+      artworks: plan.artworks,
+      notes: plan.notes,
+      faults: plan.faults,
+    };
+  }
+
+  async previewAllocation(releaseId: string): Promise<AllocationPlanView> {
+    const release = this.mustGet(this._store.releases, releaseId, 'release');
+    const plan = planAllocation(this.allocationInputs(releaseId), DEFAULT_RULE, release.editionSize);
+    return this.settle(this.allocationView(plan));
+  }
+
+  async commitAllocation(releaseId: string): Promise<AllocationPlanView> {
+    const release = this.mustGet(this._store.releases, releaseId, 'release');
+    const inputs = this.allocationInputs(releaseId);
+    const plan = planAllocation(inputs, DEFAULT_RULE, release.editionSize);
+    if (plan.faults.length > 0) {
+      /* The whole point of the audit. The workbook's checks passed over
+         broken data; this one stops the write and says why. */
+      throw new Error(`Allocation refused — ${plan.faults[0]}`);
+    }
+    for (const input of inputs) {
+      if (input.existing.length > 0) continue; // a number never moves
+      const order = this.mustGet(this._store.orders, input.orderId, 'order');
+      order.allocations = structuredClone(plan.byOrder.get(input.orderId) ?? []);
+    }
+    const anchor = this.anchorBatch(releaseId);
+    if (anchor) {
+      this._addEvent(
+        releaseId,
+        anchor.id,
+        'allocation_committed',
+        `Edition numbers allocated — ${plan.numbered} order${plan.numbered === 1 ? '' : 's'} numbered` +
+          (plan.kept > 0 ? `, ${plan.kept} kept` : ''),
+      );
+    }
+    return this.settle(this.allocationView(plan));
+  }
+
+  async undoAllocation(releaseId: string): Promise<number> {
+    this.mustGet(this._store.releases, releaseId, 'release');
+    const holders = [...this._store.orders.values()].filter(
+      (o) => o.releaseId === releaseId && (o.allocations?.length ?? 0) > 0,
+    );
+    for (const order of holders) delete order.allocations;
+    const anchor = this.anchorBatch(releaseId);
+    if (holders.length > 0 && anchor) {
+      this._addEvent(
+        releaseId,
+        anchor.id,
+        'allocation_cleared',
+        `Edition numbers cleared — ${holders.length} order${holders.length === 1 ? '' : 's'}`,
+      );
+    }
+    return this.settle(holders.length);
+  }
+
+  async allocationCsv(releaseId: string): Promise<{ fileName: string; csv: string }> {
+    const release = this.mustGet(this._store.releases, releaseId, 'release');
+    /* The STORED rows, never a fresh plan: the file must say what the orders
+       say, and an uncommitted preview has no business leaving the building. */
+    const inputs = this.allocationInputs(releaseId).filter((i) => i.existing.length > 0);
+    const byOrder = new Map(inputs.map((i) => [i.orderId, i.existing]));
+    const csv = warehouseCsv(inputs, {
+      byOrder,
+      numbered: 0,
+      kept: inputs.length,
+      artworks: [],
+      notes: [],
+      faults: [],
+    });
+    const safeTitle = release.title.replace(/[^\w()\- ]+/g, '').trim() || 'release';
+    return this.settle({ fileName: `${safeTitle} - Edition Allocation.csv`, csv });
   }
 
   async updateReleaseEmail(

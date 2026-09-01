@@ -45,6 +45,7 @@ import { AddSendModal } from '../components/AddSendModal';
 import { EditSendModal } from '../components/EditSendModal';
 import { RemoveOrderModal } from '../components/RemoveOrderModal';
 import { AddOrdersModal } from '../components/AddOrdersModal';
+import { EditionsPanel } from '../components/EditionsPanel';
 import { AllocationImportModal } from '../components/AllocationImportModal';
 import { ReleaseEmailsPanel } from '../components/ReleaseEmailsCard';
 import { ReleaseOrdersTable } from '../components/ReleaseOrdersTable';
@@ -57,7 +58,7 @@ export function ReleaseDetail(): ReactElement {
      a tab and then the different batches is a sub level within that." It used
      to be one index into a flat list of seven, which is exactly the model the
      flat strip was drawing. */
-  const [top, setTop] = useState<'orders' | 'emails' | 'batches'>('orders');
+  const [top, setTop] = useState<'orders' | 'emails' | 'batches' | 'editions'>('orders');
   const [batchId, setBatchId] = useState<string | null>(null);
   /* A reschedule that splits creates a batch this render has never seen, so it
      cannot be selected by id yet. The flag survives until the reload lands and
@@ -154,6 +155,11 @@ export function ReleaseDetail(): ReactElement {
       key: 'batches' as const,
       label: singleBatch ? 'Overview' : `Batches (${batches.length})`,
     },
+    /* The fourth destination, added 1 Sep 2026 when the allocation calculator
+       moved in from the workbook. The "three, always" ruling above was about
+       not multiplying tabs per batch — a split still never adds a tab — not a
+       cap on what the page can do. */
+    { key: 'editions' as const, label: 'Editions' },
   ];
   const showingOrders = top === 'orders';
   const showingEmails = top === 'emails';
@@ -254,6 +260,12 @@ export function ReleaseDetail(): ReactElement {
 
       {showingOrders ? (
         <ReleaseOrdersTable detail={d} onChanged={() => detail.reload()} />
+      ) : top === 'editions' ? (
+        <EditionsPanel
+          release={d.release}
+          activeOrders={activeOrderCount}
+          onChanged={() => detail.reload()}
+        />
       ) : showingEmails ? (
         <ReleaseEmailsPanel
           release={d.release}

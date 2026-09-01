@@ -11,8 +11,9 @@ Everything below was re-derived from the file, or measured by running this repo'
 code over the real export it contains — the sheet's own summaries are not quoted,
 because two of them turned out to be wrong.
 
-**Status:** slices 1 (the framing join) and 2 (artworks) are built and pushed.
-Slices 3–5 are designed, not built. See *Slices* below.
+**Status:** slices 1 (the framing join), 2 (artworks), 3 (the allocator) and 4 (the
+Editions tab + warehouse CSV) are built and pushed. Slice 5 (the changes worklist and
+number-freezing on send) is designed, not built. See *Slices* below.
 
 ## What the workbook is
 
@@ -209,10 +210,40 @@ the result holds: 1,190 numbers, no gaps, no splits, 135 of 770 above strict ran
    had already deleted — a check that could never fail, which is precisely the fault
    this document criticises the workbook for. It asserts the invariant now: the
    dialogue draws **no** fail bar over two colourways of one work.
-3. **The allocator as pure logic, no UI** — about a week. Invariants that *cannot* pass
-   vacuously (the workbook's failed by comparing zero to zero). Prove it by reproducing
-   the workbook's own 857-row output, then by catching its 13 mismatches.
-4. **The Editions tab and the CSV out** — two to three weeks, mostly DataTable config.
+3. ~~**The allocator as pure logic, no UI**~~ — **shipped 1 Sep.** `src/logic/editions.ts`:
+   the sheet's own rule as data (largest set first, oldest first inside a group), the
+   measured per-ORDER walk (each order takes the lowest number free in every artwork it
+   bought, so a set matches by construction), quantity>1 as consecutive full sets, and
+   **pins**: anything already numbered — imported or committed — never moves; undo is
+   the only eraser. `auditAllocation` cannot pass vacuously: it refuses an empty
+   allocation, and its faults are sentences naming numbers and holders. The frame spec
+   for the CSV columns is captured at intake (the absorbed frame line's title and SKU
+   are stored on the order) and derived by the workbook's own confirmed rules —
+   colour word from the title, museum glass iff the SKU says UPGRADE. 19 unit tests;
+   three deliberate regressions reported nine, four and one named failures.
+
+   **The audit earned its keep immediately**: run over the seeded world it found real
+   corruption in the allocation CSV fixture invented days earlier — two collectors both
+   holding edition 21, and #AA10418's framed and unframed prints both numbered 5. The
+   accidental duplicates were fixed; the #AA10418 case is kept in the seed on purpose,
+   so the demo shows the tab refusing to build on a broken numbering and saying exactly
+   why — the state the workbook printed "all consistent" over, 13 times.
+4. ~~**The Editions tab and the CSV out**~~ — **shipped 1 Sep, same day** — the estimate
+   assumed a bigger surface than the model needed. A fourth tab on the release page:
+   facts (Numbered / To number / Artworks / Edition size), one artwork table, notes as
+   three-cell rows, and three controls — *Allocate editions — N orders* (shut with the
+   first audit fault as its Why when the held numbering is broken), *Export warehouse
+   CSV* (drawn only for committed numbers — an export of numbers nobody committed is a
+   file that lies — and never for a broken numbering), and *Clear all numbers* behind a
+   dialogue that says what clearing does. The export is the sheet's exact eight columns
+   and is proven round-trippable through `src/logic/allocation.ts`, the tool's own
+   importer. Committed rows land in `order.allocations` — the same shape the CSV import
+   writes — so All orders' edition columns light up with no change to that screen.
+   Driven end to end in a browser on the seeded Harbour Light: allocate → #RS2103 holds
+   edition 1 of both its artworks → export downloads → All orders shows the numbers.
+   `prove-screens` gained a *1c · editions* block asserting the FAULT state (the
+   corruption named on screen, Allocate shut, no export offered); both new assertions
+   failed once before being kept.
 5. **Changes worklist, pinned numbers, freeze after telling a collector** — the
    quarter-sized one; needs the answers below.
 

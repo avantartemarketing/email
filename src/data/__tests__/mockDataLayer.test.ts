@@ -32,9 +32,15 @@ async function releaseByTitle(title: string) {
 }
 
 describe('seeded world — releases index', () => {
-  it('contains the four seeded releases', async () => {
+  it('contains the five seeded releases', async () => {
     const titles = (await layer.listReleases()).map((s) => s.release.title);
-    expect(titles).toEqual(['Blue Interval', 'Falling Light', 'Night Garden', 'Vessel VIII']);
+    expect(titles).toEqual([
+      'Blue Interval',
+      'Falling Light',
+      'Harbour Light',
+      'Night Garden',
+      'Vessel VIII',
+    ]);
   });
 
   it('Falling Light is the delayed release with five batches and an overdue send', async () => {

@@ -248,10 +248,15 @@ await screen('release detail · a flow', async () => {
   })
   if (!levels) faults.push(`${what}: no sub-level drawn under the tab strip`)
   else {
-    if (levels.topTabs.length !== 3)
+    /* Four DESTINATIONS, fixed — the ruling was never the number, it was that
+       a release splitting eleven times still adds no tab. Editions joined the
+       strip on 1 Sep 2026 when the allocation calculator moved in; the count
+       moves only when the page gains a destination, never when a release
+       changes shape. */
+    if (levels.topTabs.length !== 4 || !levels.topTabs[3]?.startsWith('Editions'))
       faults.push(
-        `${what}: the top strip has ${levels.topTabs.length} tabs — ${levels.topTabs.join(', ')}. ` +
-          'It is three destinations whatever a release does to itself',
+        `${what}: the top strip reads ${levels.topTabs.join(', ')} — four fixed destinations ` +
+          'ending in Editions, whatever a release does to itself',
       )
     if (!levels.caption)
       faults.push(`${what}: the sub-level has no caption, which is what makes it not small tabs`)
@@ -276,6 +281,42 @@ await screen('release detail · a flow', async () => {
   }
 }
 
+
+/* ---- 1c · editions --------------------------------------------------------
+   The allocation calculator, on the release whose imported warehouse sheet
+   carries one genuine corruption: #AA10418's framed and unframed prints both
+   numbered edition 5. The workbook this replaces printed "All multi-print
+   orders have consistent edition numbers" over thirteen of these; the whole
+   point of the tab is that this tool CANNOT stay quiet, so what is asserted
+   here is the saying — the fault named on screen, the primary shut because of
+   it, and no export offered for a numbering known to be broken. */
+await screen('release detail · editions', async () => {
+  await page.locator('.rd-tab', { hasText: 'Editions' }).click()
+  await page.waitForTimeout(500)
+})
+{
+  const what = 'editions'
+  const state = await page.evaluate(() => {
+    const buttons = [...document.querySelectorAll('.rd-cardhead button')]
+    const allocate = buttons.find((b) => /Allocate/.test(b.textContent ?? ''))
+    return {
+      bar: document.querySelector('.rd-failbar')?.textContent?.trim() ?? '',
+      allocateShut: allocate instanceof HTMLButtonElement ? allocate.disabled : null,
+      exportDrawn: buttons.some((b) => /Export/.test(b.textContent ?? '')),
+      artworkRows: document.querySelectorAll('.rd-card table tbody tr').length,
+    }
+  })
+  if (!/edition 5 is held twice by #AA10418/.test(state.bar))
+    faults.push(
+      `${what}: the corrupt numbering is not named — the bar reads "${state.bar.slice(0, 80)}"`,
+    )
+  if (state.allocateShut !== true)
+    faults.push(`${what}: Allocate is not shut over a numbering the audit failed`)
+  if (state.exportDrawn)
+    faults.push(`${what}: an export is offered for a numbering known to be broken`)
+  if (state.artworkRows < 1)
+    faults.push(`${what}: no artwork rows drawn`)
+}
 
 /* ---- 1b · adding a release ------------------------------------------------
    The flow the owner approved on 30 Aug: drop the export, tick which products
@@ -344,10 +385,10 @@ addingARelease: {
     `2026-06-01 10:00:00 +0000,1,${title},500,${sku},Collector ${n},Collector ${n},United Kingdom,`
   const csv = [
     header,
-    row(1, 'Harbour Light (Dawn) - Public', 'RSTON-HARBD-TL-PUBLIC'),
-    row(2, 'Harbour Light (Dawn) - Public', 'RSTON-HARBD-TL-PUBLIC'),
-    row(3, 'Harbour Light (Dusk) - Public', 'RSTON-HARBK-TL-PUBLIC'),
-    row(3, 'Harbour Light (Dusk) - Black Abachi wood frame', 'RSTON-HARBK-FR-BLACKABACH'),
+    row(1, 'Harbour Lantern (Dawn) - Public', 'RSTOL-LANTD-TL-PUBLIC'),
+    row(2, 'Harbour Lantern (Dawn) - Public', 'RSTOL-LANTD-TL-PUBLIC'),
+    row(3, 'Harbour Lantern (Dusk) - Public', 'RSTOL-LANTK-TL-PUBLIC'),
+    row(3, 'Harbour Lantern (Dusk) - Black Abachi wood frame', 'RSTOL-LANTK-FR-BLACKABACH'),
   ].join('\n')
   await page.setInputFiles('.rd-importdrop input', {
     name: 'harbour-light.csv',
@@ -395,7 +436,11 @@ addingARelease: {
   if (!/3 orders from 3 Shopify orders/.test(pane.foot))
     faults.push(`${what}: the foot does not state both totals — "${pane.foot}"`)
   /* Named after the WORK, not one of its colourways. */
-  if (pane.releaseTitle !== 'Harbour Light')
+  /* "Harbour Lantern", not "Harbour Light": the seeded world now genuinely
+     contains a Harbour Light, and this file colliding with its claim was the
+     claim guard doing its job — caught when this check went red for the right
+     reason on 1 Sep 2026. */
+  if (pane.releaseTitle !== 'Harbour Lantern')
     faults.push(
       `${what}: the release is proposed as "${pane.releaseTitle}" — a release of two ` +
         'colourways is named after the work',

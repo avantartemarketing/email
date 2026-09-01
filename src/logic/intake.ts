@@ -327,6 +327,11 @@ export interface IntakePlan {
   /** Each created item's fulfilment, by `orderDedupeKey`. The write reads this
       rather than re-deriving from the title, so preview and write agree. */
   fulfilmentByOrder: Map<string, BatchFulfilment>;
+  /** The frame line a print absorbed, by the print's `orderDedupeKey`. Kept as
+      the FILE's facts — title and SKU — because the frame is not stored as an
+      order and these two strings are all the edition allocator has to derive
+      a finish and a glass from. */
+  frameLineByOrder: Map<string, { lineItemTitle: string; sku: string | null }>;
   /** Frame lines folded into the print beside them instead of becoming orders. */
   framesAbsorbed: number;
   newestOrderDate: string | null;
@@ -361,6 +366,17 @@ export function planIntake(
      how the print beside it becomes framed — so the join has to see every
      line, ticked or not, before anything is created. */
   const fulfilmentByOrder = resolveFulfilments(items);
+  /* The frame line behind each framed print, keyed like the print itself.
+     First frame wins where an order carries two for one artwork. */
+  const frameByArtwork = new Map<string, { lineItemTitle: string; sku: string | null }>();
+  for (const item of items) {
+    if (!isFrameLine(item)) continue;
+    const key = `${item.shopifyOrderName.trim().toLowerCase()}::${artworkKeyOf(item).toLowerCase()}`;
+    if (!frameByArtwork.has(key)) {
+      frameByArtwork.set(key, { lineItemTitle: item.lineItemTitle, sku: item.sku });
+    }
+  }
+  const frameLineByOrder = new Map<string, { lineItemTitle: string; sku: string | null }>();
   const resolved = (item: ParsedLineItem): BatchFulfilment =>
     fulfilmentByOrder.get(orderDedupeKey(item.shopifyOrderName, item.lineItemTitle)) ??
     fulfilmentOf(item.lineItemTitle);
@@ -404,6 +420,10 @@ export function planIntake(
       continue;
     }
     create.push(item);
+    const frame = frameByArtwork.get(
+      `${item.shopifyOrderName.trim().toLowerCase()}::${artworkKeyOf(item).toLowerCase()}`,
+    );
+    if (frame) frameLineByOrder.set(key, frame);
   }
 
   const noted = new Set<string>();
@@ -498,6 +518,7 @@ export function planIntake(
     collectors: new Set(create.map((i) => i.email ?? `anon:${i.shopifyOrderName}`)).size,
     fulfilments,
     fulfilmentByOrder,
+    frameLineByOrder,
     framesAbsorbed,
     newestOrderDate: dates.length > 0 ? dates[dates.length - 1] : null,
     notes: notes.sort((a, b) => a.order.localeCompare(b.order)),

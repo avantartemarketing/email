@@ -222,6 +222,13 @@ export interface Order {
   importedAt: string;
   quantity: number;
   sku: string | null;
+  /** The frame line this print absorbed at intake, as the FILE's facts. A
+      frame is its own Shopify line item and is not stored as an order, so its
+      title and SKU are kept here — they are what the edition allocator derives
+      the finish and glass from. Null on an unframed order, and on orders
+      imported before frames were absorbed. */
+  frameLineItemTitle?: string | null;
+  frameSku?: string | null;
   /** Read from the export, refreshed on re-import, never acted on. */
   financialStatus: string | null;
   fulfillmentStatus: string | null;
@@ -372,6 +379,8 @@ export type BatchEventType =
   | 'orders_split'
   | 'orders_imported'
   | 'allocation_imported'
+  | 'allocation_committed'
+  | 'allocation_cleared'
   | 'order_removed'
   | 'plan_edited'
   | 'release_emails_edited'
