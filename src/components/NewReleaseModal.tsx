@@ -276,6 +276,7 @@ export function NewReleaseModal({
                 value={editionSize}
                 numeric
                 controlId={editionId}
+                note="powers the overrun check on Edition allocation"
                 /* Never prefilled from the order count: in every real export
                    the orders exceed the stated edition, so "294 on an edition
                    of 150" is ordinary and must not be validated as an error. */

@@ -32,6 +32,7 @@ import usePicked from '../rd/components/usePicked';
 import { EmailPreview } from '../components/EmailPreview';
 import { ChangeSendDateModal } from '../components/ChangeSendDateModal';
 import { DelayReason } from '../components/DelayReason';
+import { DelayCancelWarning } from '../components/DelayCancelWarning';
 import { RescheduleModal } from '../components/RescheduleModal';
 
 /**
@@ -131,8 +132,11 @@ export function MyApprovals(): ReactElement {
   const coming = items.filter((i) => !needsApprovingNow(i.send));
   const overdue = now.filter((i) => isOverdueApproval(i.send));
   const pickedItems = now.filter((i) => picked.has(i.send.id));
-  const blocked = pickedItems.filter((i) => !i.send.imageName);
-  const approvable = pickedItems.filter((i) => i.send.imageName);
+  /* A delay notice owes no image (the real one shows none), so it can never
+     be image-blocked. */
+  const imageBlocked = (i: PendingSendItem) => !i.send.imageName && i.send.type !== 'delay';
+  const blocked = pickedItems.filter(imageBlocked);
+  const approvable = pickedItems.filter((i) => !imageBlocked(i));
 
   const reload = () => {
     queue.reload();
@@ -251,7 +255,7 @@ export function MyApprovals(): ReactElement {
    * being moved or stopped is in front of you.
    */
   const rowActions = (item: PendingSendItem): ReactElement => {
-    const noImage = !item.send.imageName;
+    const noImage = !item.send.imageName && item.send.type !== 'delay';
     const approveBtn = (
       <Btn
         kind="pri"
@@ -417,9 +421,15 @@ export function MyApprovals(): ReactElement {
       locked: true,
       kind: 'choice',
       caption: 'IMAGE',
-      order: ['Missing', 'Picked'],
-      value: (i) => (i.send.imageName ? 'Picked' : 'Missing'),
-      cell: (i) => (i.send.imageName ? <None /> : <Pill tone="amber">Missing</Pill>),
+      order: ['Missing', 'Picked', 'None owed'],
+      value: (i) =>
+        i.send.type === 'delay' ? 'None owed' : i.send.imageName ? 'Picked' : 'Missing',
+      cell: (i) =>
+        i.send.type === 'delay' || i.send.imageName ? (
+          <None />
+        ) : (
+          <Pill tone="amber">Missing</Pill>
+        ),
     },
     {
       id: 'who',
@@ -434,8 +444,17 @@ export function MyApprovals(): ReactElement {
       defaultHidden: true,
       kind: 'choice',
       caption: 'SUBMITTED BY',
-      value: (i) => (i.send.createdBy ? userName(i.send.createdBy) : null),
-      cell: (i) => (i.send.createdBy ? userName(i.send.createdBy) : <None />),
+      /* For a delay send the person who put it here is the WRITER, not the
+         ops lead who logged the delay — the approver's wording questions go
+         to whoever wrote the words. */
+      value: (i) => {
+        const who = i.send.copyWrittenBy ?? i.send.createdBy;
+        return who ? userName(who) : null;
+      },
+      cell: (i) => {
+        const who = i.send.copyWrittenBy ?? i.send.createdBy;
+        return who ? userName(who) : <None />;
+      },
     },
     ...(which === 'coming'
       ? ([
@@ -618,7 +637,10 @@ export function MyApprovals(): ReactElement {
             ? {
                 label: `Approve — ${plural(preview.recipientCount, 'collector')}`,
                 onClick: () => void approve(preview),
-                disabled: !isAdmin || actingOn === preview.send.id || !preview.send.imageName,
+                disabled:
+                  !isAdmin ||
+                  actingOn === preview.send.id ||
+                  (!preview.send.imageName && preview.send.type !== 'delay'),
               }
             : undefined
         }
@@ -671,7 +693,10 @@ export function MyApprovals(): ReactElement {
                     : 'Not set',
                 },
                 { label: 'Recipients', value: preview.recipientCount },
-                { label: 'Submitted by', value: userName(preview.send.createdBy) },
+                {
+                  label: 'Submitted by',
+                  value: userName(preview.send.copyWrittenBy ?? preview.send.createdBy),
+                },
                 {
                   label: 'They last received',
                   value: preview.lastSent
@@ -811,13 +836,19 @@ export function MyApprovals(): ReactElement {
         secondary={{ label: 'Keep them', onClick: () => setCancelling(null) }}
       >
         {cancelling && cancelling.length === 1 ? (
-          <p>
+          <>
+            <DelayCancelWarning send={cancelling[0].send} />
+            <p>
             The email will not go out and drops off the plan. This is recorded in the batch history.
             Scheduled for {formatDayShort(cancelling[0].send.scheduledDate)}
             {isOverdueApproval(cancelling[0].send) ? ' (overdue)' : ''}.
-          </p>
+            </p>
+          </>
         ) : cancelling ? (
           <>
+            {cancelling.filter((i) => i.send.type === 'delay').map((i) => (
+              <DelayCancelWarning key={i.send.id} send={i.send} />
+            ))}
             <p>
               None of these emails will go out, and each drops off its plan. This is recorded in
               the batch history.

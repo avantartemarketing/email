@@ -896,6 +896,76 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+/* The "previewing as" line over a token-resolved email preview. */
+.rd-previewas {
+  font-size: var(--rd-size-caption);
+  color: var(--rd-ink-muted);
+  margin-bottom: 6px;
+}
+
+/* The Slack feed: message rows, not table rows — the text is a sentence and
+   is allowed to wrap, which is why this is not an rd table. */
+.rd-slackfeed {
+  display: flex;
+  flex-direction: column;
+}
+.rd-slackrow {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 10px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--rd-hairline-row);
+  background: none;
+  cursor: pointer;
+  font-family: var(--rd-font-text);
+}
+.rd-slackrow:last-child {
+  border-bottom: 0;
+}
+.rd-slackrow:hover .rd-slacktext {
+  color: var(--rd-ink);
+}
+.rd-slackchan {
+  flex: none;
+  font-size: var(--rd-size-caption);
+  font-weight: var(--rd-weight-emphasis);
+  color: var(--rd-primary);
+  padding-top: 2px;
+  min-width: 104px;
+}
+.rd-slackbody {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.rd-slackhead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rd-slackmention {
+  font-size: var(--rd-size-caption);
+  font-weight: var(--rd-weight-emphasis);
+  color: var(--rd-ink);
+}
+.rd-slackwhen {
+  font-size: var(--rd-size-caption);
+  color: var(--rd-ink-muted);
+}
+.rd-slacktext {
+  font-size: var(--rd-size-field);
+  color: var(--rd-ink-body);
+  line-height: 1.5;
+}
+.rd-slackempty {
+  font-size: var(--rd-size-field);
+  color: var(--rd-ink-muted);
+  padding: 4px 0 8px;
+}
+
 /* The chooser: one button per path, name over blurb — the same pickrow
    shape the dialogs use, drawn on the tour's own card. */
 .rd-tourpaths {

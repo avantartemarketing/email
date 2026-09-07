@@ -1,4 +1,6 @@
 import type {
+  SlackMessage,
+  DelayHandoffItem,
   AllocationImportSummary,
   Batch,
   BatchEvent,
@@ -38,6 +40,7 @@ import type {
   SendPatch,
 } from '../DataLayer';
 import { formatDay, toDay } from '../../logic/dates';
+import { needsApprovingNow } from '../../logic/approvals';
 import { allocationOrderKey, parseEditionAllocationCsv } from '../../logic/allocation';
 import { DEFAULT_APPROVER_ID } from './fixtures';
 import {
@@ -64,6 +67,7 @@ import {
   buildTemplateFields,
   effectiveTemplate,
   imageSlotsForPlan,
+  missingImagesFor,
   onTrackBody,
   onTrackSlot,
   patchTokens,
@@ -97,6 +101,9 @@ interface Store {
   intakes: Intake[];
   /** The email picker's library — seeded names, plus anything uploaded. */
   images: LibraryImage[];
+  /** What the Slack connection would have posted, oldest first. Phase 2
+      posts these same objects to a webhook; phase 1 shows them on /slack. */
+  slack: SlackMessage[];
 }
 
 /* One list, in the logic layer, so the slot predicate and this class cannot
@@ -124,6 +131,7 @@ export class MockDataLayer implements DataLayer {
       notifications: [],
       intakes: [],
       images: IMAGE_OPTIONS.map((name) => ({ name })),
+      slack: [],
     };
     this.hubspotDirectory = hubspotDirectory;
   }
@@ -324,10 +332,21 @@ export class MockDataLayer implements DataLayer {
       const orders = [...this._store.orders.values()].filter(
         (o) => o.releaseId === release.id && !o.removed,
       );
+      /* The two setup workloads, surfaced at the front door: the owner's
+         numbering (with its audit verdict) and CRM's image debt. Both are
+         cheap re-derivations of state this layer already holds. */
+      const toNumber = orders.filter((o) => !o.allocations || o.allocations.length === 0).length;
+      const allocPlan = planAllocation(
+        this.allocationInputs(release.id),
+        DEFAULT_RULE,
+        release.editionSize,
+      );
+      const batches = this.releaseBatches(release.id);
+      const imagesOwed = missingImagesFor(release, batches, sends, today).length;
       return {
         release,
         orderCount: orders.length,
-        batchCount: this.releaseBatches(release.id).length,
+        batchCount: batches.length,
         nextScheduledSend: upcoming[0] ?? null,
         upcomingSends: upcoming.slice(0, 3).map((s) => ({
           sendId: s.id,
@@ -339,6 +358,9 @@ export class MockDataLayer implements DataLayer {
         })),
         pendingApprovalCount: sends.filter((s) => s.status === 'pending_approval').length,
         overdueCount: overdue.length,
+        toNumber,
+        allocationBroken: allocPlan.faults.length > 0,
+        imagesOwed,
       };
     });
     summaries.sort((a, b) => a.release.title.localeCompare(b.release.title));
@@ -357,11 +379,22 @@ export class MockDataLayer implements DataLayer {
         a.createdAt.localeCompare(b.createdAt),
       );
       for (const batch of batches) {
+        /* "Not yet told": the newest delay notice for this batch has not gone
+           out, so the promise on screen is ahead of what collectors know. */
+        const delays = [...this._store.sends.values()]
+          .filter((s) => s.batchId === batch.id && s.type === 'delay')
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        const newestDelay = delays[0];
         rows.push({
           release,
           batch,
           collectorCount: this.activeBatchOrders(batch.id).length,
           releaseBatchCount: batches.length,
+          delayNoticePending:
+            !!newestDelay &&
+            (newestDelay.status === 'awaiting_copy' ||
+              newestDelay.status === 'pending_approval' ||
+              newestDelay.status === 'approved'),
         });
       }
     }
@@ -1301,6 +1334,60 @@ export class MockDataLayer implements DataLayer {
     return this.settle(send);
   }
 
+  /** Record what the Slack connection would post at this moment. */
+  private _slack(
+    kind: SlackMessage['kind'],
+    releaseId: string,
+    text: string,
+    opts: { sendId?: string } = {},
+  ): void {
+    const release = this._store.releases.get(releaseId);
+    const approver = this._store.users.find((u) => u.id === release?.approverId);
+    const channel: SlackMessage['channel'] = kind === 'delay_copy_requested' ? '#crm' : '#post-purchase';
+    const mention =
+      kind === 'due_to_approve'
+        ? approver
+          ? `@${approver.name.split(' ')[0]}`
+          : null
+        : kind === 'delay_copy_requested'
+          ? '@crm-team'
+          : '@ops-team';
+    this._store.slack.push({
+      id: this._newId('slack'),
+      at: this.now().toISOString(),
+      channel,
+      mention,
+      kind,
+      text,
+      releaseId,
+      sendId: opts.sendId,
+    });
+  }
+
+  async listSlackFeed(): Promise<SlackMessage[]> {
+    return this.settle([...this._store.slack].reverse());
+  }
+
+  async listDelayHandoffs(): Promise<DelayHandoffItem[]> {
+    /* "Mine, now with the approver": what a writer handed back that has not
+       yet gone out. Vanishing from the queue with only a toast left the
+       writer checking the approver's own worklist for news of their words. */
+    const items = [...this._store.sends.values()]
+      .filter(
+        (s) =>
+          s.type === 'delay' &&
+          !!s.copyWrittenBy &&
+          (s.status === 'pending_approval' || s.status === 'approved'),
+      )
+      .map((send) => ({
+        send,
+        release: this.mustGet(this._store.releases, send.releaseId, 'release'),
+        batch: this.mustGet(this._store.batches, send.batchId, 'batch'),
+      }))
+      .sort((a, b) => (b.send.copyWrittenAt ?? '').localeCompare(a.send.copyWrittenAt ?? ''));
+    return this.settle(items);
+  }
+
   async cancelSend(sendId: string): Promise<ScheduledSend> {
     const send = this.mustGet(this._store.sends, sendId, 'send');
     if (send.status === 'sent') throw new Error('Sent sends cannot be cancelled');
@@ -1308,6 +1395,32 @@ export class MockDataLayer implements DataLayer {
     this._addEvent(send.releaseId, send.batchId, 'plan_edited', `“${send.subject}” cancelled`, {
       sendId: send.id,
     });
+    if (send.type === 'delay') {
+      /* The one failure that used to flow nowhere: the date moved, and the
+         collectors will now never be told — the person who logged the delay
+         has to hear that, not discover it. */
+      const release = this._store.releases.get(send.releaseId);
+      const batch = this._store.batches.get(send.batchId);
+      const user = this.currentUser();
+      this._store.notifications.push({
+        id: this._newId('notif'),
+        kind: 'delay_notice_cancelled',
+        team: 'ops',
+        releaseId: send.releaseId,
+        batchId: send.batchId,
+        sendId: send.id,
+        title: `Delay notice cancelled — ${release?.title ?? 'release'}${batch ? ` · ${batch.name}` : ''}`,
+        detail: `Cancelled by ${user.name}. The delivery date has already changed — these collectors have not been told.`,
+        createdAt: this.now().toISOString(),
+        createdBy: user.id,
+      });
+      this._slack(
+        'delay_notice_cancelled',
+        send.releaseId,
+        `The delay notice for ${release?.title ?? 'a release'}${batch && release ? ` · ${batch.name}` : ''} was cancelled by ${user.name}. The delivery date has already changed — these collectors have not been told.`,
+        { sendId: send.id },
+      );
+    }
     return this.settle(send);
   }
 
@@ -1322,6 +1435,15 @@ export class MockDataLayer implements DataLayer {
         'plan_edited',
         `${drafts.length} send${drafts.length === 1 ? '' : 's'} submitted for approval`,
       );
+      const release = this._store.releases.get(batch.releaseId);
+      const due = drafts.filter((s) => needsApprovingNow(s, this.nowDay()));
+      if (due.length > 0 && release) {
+        this._slack(
+          'due_to_approve',
+          batch.releaseId,
+          `${due.length} email${due.length === 1 ? ' is' : 's are'} due to approve for ${release.title} · ${batch.name} — first goes out ${formatDay(due[0].scheduledDate)}.`,
+        );
+      }
     }
     return this.settle(drafts.length);
   }
@@ -1358,6 +1480,16 @@ export class MockDataLayer implements DataLayer {
     }
     for (const send of changes.newSends) this._store.sends.set(send.id, send);
     this._store.notifications.push(...changes.notifications);
+    {
+      const delay = changes.newSends.find((s2) => s2.type === 'delay');
+      const targetBatch = this._store.batches.get(changes.targetBatchId);
+      this._slack(
+        'delay_copy_requested',
+        release.id,
+        `A delay email needs writing — ${release.title}${targetBatch ? ` · ${targetBatch.name}` : ''}, now promised ${formatDay(input.newPromiseDate)}. Reason: ${input.reason.trim()}`,
+        { sendId: delay?.id },
+      );
+    }
     this._store.events.push(...changes.events);
 
     const targetBatch = this.mustGet(this._store.batches, changes.targetBatchId, 'batch');
@@ -1442,11 +1574,29 @@ export class MockDataLayer implements DataLayer {
     /* Written by hand now, whoever started it: release-level template edits
        must leave these words alone from here on. */
     send.copyEdited = true;
-    if (options.hold) return this.settle(send);
+    if (options.hold) {
+      /* A held draft is claimed work: name and date it, so the shared queue
+         can tell "half-written yesterday" from "nobody has started". */
+      send.heldBy = user.id;
+      send.heldAt = this.now().toISOString();
+      return this.settle(send);
+    }
 
     send.status = 'pending_approval';
     send.copyWrittenAt = this.now().toISOString();
     send.copyWrittenBy = user.id;
+    {
+      const release = this._store.releases.get(send.releaseId);
+      const batch = this._store.batches.get(send.batchId);
+      if (release && needsApprovingNow(send, this.nowDay())) {
+        this._slack(
+          'due_to_approve',
+          send.releaseId,
+          `The delay email for ${release.title}${batch ? ` · ${batch.name}` : ''} is written and due to approve — scheduled ${formatDay(send.scheduledDate)}.`,
+          { sendId: send.id },
+        );
+      }
+    }
     /* The notification is answered by the work being done, not by the row
        being looked at — so anything still unread on this send closes here
        too, and the badge cannot outlive the job it counted. */

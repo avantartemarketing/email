@@ -370,6 +370,10 @@ export interface ScheduledSend {
   /** True once someone edited this send's copy directly — release-level
    *  template edits then leave it alone. */
   copyEdited?: boolean;
+  /** Who last saved-without-submitting, and when — so a half-written draft
+      reads as claimed in the shared queue rather than untouched. */
+  heldBy?: string;
+  heldAt?: string;
   /** Set on a delay send: the brief for whoever writes it. */
   brief?: DelayBrief;
   /** Set when the copy was handed back in and the send left `awaiting_copy`. */
@@ -430,7 +434,32 @@ export interface BatchEvent {
  * its own destination and its own count, and a `kind: string` invites all
  * three to be invented at the call site.
  */
-export type NotificationKind = 'delay_copy_requested';
+export type NotificationKind = 'delay_copy_requested' | 'delay_notice_cancelled';
+
+/**
+ * One message the Slack connection would post at a key moment. Phase 1 records
+ * them in a feed so the shape and wording are agreed before a webhook exists;
+ * phase 2 posts the same objects to Slack.
+ */
+export interface SlackMessage {
+  id: string;
+  at: string;
+  /** Where it posts: the team channel the moment belongs to. */
+  channel: '#post-purchase' | '#crm';
+  /** "@Elani", "@crm-team" — who the message calls out, when it calls anyone. */
+  mention: string | null;
+  kind: 'due_to_approve' | 'delay_copy_requested' | 'delay_notice_cancelled';
+  text: string;
+  releaseId: string;
+  sendId?: string;
+}
+
+/** A written delay email now sitting with the approver — the writer's view. */
+export interface DelayHandoffItem {
+  send: ScheduledSend;
+  release: Release;
+  batch: Batch;
+}
 
 export interface Notification {
   id: string;
@@ -553,6 +582,12 @@ export interface ReleaseSummary {
   pendingApprovalCount: number;
   /** Any send pending/approved whose scheduled date is in the past. */
   overdueCount: number;
+  /** Active orders with no edition number yet — the owner's numbering work. */
+  toNumber: number;
+  /** The held numbering fails its audit (a number held twice, a gap). */
+  allocationBroken: boolean;
+  /** Image slots this release owes a picture for — CRM's setup work. */
+  imagesOwed: number;
 }
 
 /** Row for the batches overview: one batch joined with its release. */
@@ -563,6 +598,9 @@ export interface BatchListItem {
   collectorCount: number;
   /** 1 means "don't talk about batches" — same convention as the queue. */
   releaseBatchCount: number;
+  /** A delay notice exists for this batch's current promise but has not been
+      sent — the window on screen is not yet what collectors have been told. */
+  delayNoticePending: boolean;
 }
 
 /** Everything the release detail screen needs in one fetch. */

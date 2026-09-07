@@ -354,8 +354,8 @@ export const TOUR_PATHS: TourPath[] = [
       {
         title: 'Step 4 — Or delay just some orders',
         caption:
-          'If only a few orders are affected, tick them on All orders and click Set a new ' +
-          'promise date. Those orders split off into their own batch, with their own date and ' +
+          'If only a few orders are affected, tick them on All orders and click Change delivery ' +
+          'date. Those orders split off into their own batch, with their own date and ' +
           'their own emails. The rest of the batch keeps the original plan.',
         target: '.rd-dialog',
         holdMs: 10000,
@@ -363,7 +363,7 @@ export const TOUR_PATHS: TourPath[] = [
           await clickText('.rd-tab', 'All orders');
           await waitFor('table.rd-t27 tbody tr');
           await click('table.rd-t27 tbody tr .rd-cbx');
-          await clickText('button', 'Set a new promise date');
+          await clickText('.rd-bulkbar button', 'Change delivery date');
           await waitFor('.rd-dialog');
           await type('.rd-dialog input[type="date"]', addDays(today(), 45));
           await type(

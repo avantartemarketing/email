@@ -6,7 +6,7 @@ import { shipWindowShort } from '../logic/templates';
 import { fulfilmentTag, plural, releaseStatusBadge } from '../ui/format';
 import { useApp } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
-import { Card, None, Page, Skeleton } from '../ui/rd';
+import { Card, None, Page, Pill, Skeleton } from '../ui/rd';
 import { DataTable } from '../ui/DataTable';
 import type { Column } from '../ui/DataTable';
 
@@ -108,7 +108,20 @@ export function PromiseDateOverview(): ReactElement {
       groupLabel: (key) => (key ? formatDayShort(key) : 'Not set'),
       cell: (r) =>
         r.batch.promiseDate ? (
-          shipWindowShort(r.batch.promiseDate)
+          /* "Not yet told": the internal promise has moved but the delay
+             notice telling collectors is still unwritten or unapproved — on
+             the page whose whole job is "what have we told people", the
+             difference is the point. */
+          r.delayNoticePending ? (
+            <span className="rd-cellflex">
+              {shipWindowShort(r.batch.promiseDate)}
+              <Pill tone="amber" small>
+                Not yet told
+              </Pill>
+            </span>
+          ) : (
+            shipWindowShort(r.batch.promiseDate)
+          )
         ) : (
           <span className="rd-none">Not set</span>
         ),
@@ -151,7 +164,15 @@ export function PromiseDateOverview(): ReactElement {
           columns={columns}
           rows={rows}
           rowKey={(r) => r.batch.id}
-          onRowClick={(r) => navigate(`/releases/${r.release.id}`)}
+          onRowClick={(r) =>
+            /* The row IS a batch — land on it, not on All orders. Releases
+               that never split keep the plain landing. */
+            navigate(
+              r.releaseBatchCount > 1
+                ? `/releases/${r.release.id}?tab=batches&batch=${r.batch.id}`
+                : `/releases/${r.release.id}`,
+            )
+          }
           defaultView={{ group: 'release' }}
           empty="No releases yet — import a release's orders and its batches appear here."
           /* A count, and nothing else. What used to follow it — "a release

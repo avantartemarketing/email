@@ -254,7 +254,10 @@ await screen('release detail · a flow', async () => {
        owner seated it second: "Call the tab Edition allocation, and put it
        after All orders." The count moves only when the page gains a
        destination, never when a release changes shape. */
-    if (levels.topTabs.length !== 4 || levels.topTabs[1] !== 'Edition allocation')
+    /* The tab now carries its workload count ("Edition allocation (34)") the
+       way All orders and Batches do — the invariant is the seat, not the
+       suffix. */
+    if (levels.topTabs.length !== 4 || !levels.topTabs[1].startsWith('Edition allocation'))
       faults.push(
         `${what}: the top strip reads ${levels.topTabs.join(', ')} — four fixed destinations ` +
           'with Edition allocation second, whatever a release does to itself',

@@ -140,6 +140,39 @@ export function ReleasesIndex(): ReactElement {
       ),
     },
     {
+      id: 'toNumber',
+      /* The owner's numbering work, visible from the front door — 137
+         unnumbered orders used to look identical to a finished release, and a
+         broken held allocation looked identical to a healthy one. */
+      title: 'To number',
+      n: true,
+      kind: 'number',
+      value: (r) => r.toNumber,
+      cell: (r) =>
+        r.allocationBroken ? (
+          <span className="rd-cellflex">
+            {r.toNumber > 0 ? r.toNumber : null}
+            <Pill tone="red" small>
+              Broken numbers
+            </Pill>
+          </span>
+        ) : r.toNumber > 0 ? (
+          r.toNumber
+        ) : (
+          <None />
+        ),
+    },
+    {
+      id: 'imagesOwed',
+      /* CRM's setup debt, same treatment: the "6 emails have no image" band
+         used to live only inside each release's own page. */
+      title: 'Images owed',
+      n: true,
+      kind: 'number',
+      value: (r) => r.imagesOwed,
+      cell: (r) => (r.imagesOwed > 0 ? <Pill tone="amber">{r.imagesOwed}</Pill> : <None />),
+    },
+    {
       id: 'overdue',
       title: 'Overdue',
       /* Locked: this is the column that says something is late, and a list you

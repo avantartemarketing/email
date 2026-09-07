@@ -35,6 +35,7 @@ import { ReleaseDetail } from './screens/ReleaseDetail';
 import { PromiseDateOverview } from './screens/PromiseDateOverview';
 import { EmailsToWrite } from './screens/EmailsToWrite';
 import { MyApprovals } from './screens/MyApprovals';
+import { SlackFeed } from './screens/SlackFeed';
 import { SendDetail } from './screens/SendDetail';
 
 export function AppRoot(): ReactElement {
@@ -152,8 +153,13 @@ function Shell({
      rather than the work is a badge somebody learns to ignore. */
   const queueCount = useAsync(
     async () =>
-      (await data.listApprovalQueue()).filter((i) => needsApprovingNow(i.send)).length,
-    [location.pathname, queueTick],
+      /* Admins only, mirroring the copy badge's rule below: an operator
+         cannot approve anything, so a count here is a summons to the wrong
+         person. The page itself stays open to everyone. */
+      currentUser.role === 'admin'
+        ? (await data.listApprovalQueue()).filter((i) => needsApprovingNow(i.send)).length
+        : 0,
+    [location.pathname, queueTick, currentUser.id],
   );
 
   /* The delay-copy badge, and it summons CRM ONLY.
@@ -163,7 +169,15 @@ function Shell({
      everyone — an ops lead should be able to see what is stuck — but the
      summons on the rail belongs to the team that owes it. */
   const copyCount = useAsync(
-    async () => (currentUser.team === 'crm' ? (await data.listCopyQueue()).length : 0),
+    async () => {
+      if (currentUser.team !== 'crm') return 0;
+      /* Both halves of CRM's setup debt: delay emails to write, and releases
+         still owing images — image-picking used to have no summons at all,
+         which is how a release sat on "6 emails have no image" for weeks. */
+      const jobs = (await data.listCopyQueue()).length;
+      const owing = (await data.listReleases()).filter((r) => r.imagesOwed > 0).length;
+      return jobs + owing;
+    },
     [location.pathname, queueTick, currentUser.id],
   );
 
@@ -177,7 +191,9 @@ function Shell({
       ? ['Promise date overview', '/overview']
       : location.pathname.startsWith('/copy')
         ? ['Emails to write', '/copy']
-        : ['My approvals', '/approvals'];
+        : location.pathname.startsWith('/slack')
+          ? ['Slack notifications', '/slack']
+          : ['My approvals', '/approvals'];
   const initials = currentUser.name
     .split(' ')
     .map((part) => part[0])
@@ -217,6 +233,12 @@ function Shell({
             >
               My approvals
               {queueCount.data ? <span className="rd-navcount">{queueCount.data}</span> : null}
+            </NavLink>
+            <NavLink
+              to="/slack"
+              className={({ isActive }) => (isActive ? 'rd-navrow on' : 'rd-navrow')}
+            >
+              Slack notifications
             </NavLink>
             {/* The guide, where a new starter's eye lands first. It drives the
                 real app, so it can never say something the product no longer
@@ -280,6 +302,7 @@ function Shell({
               <Route path="/overview" element={<PromiseDateOverview />} />
               <Route path="/copy" element={<EmailsToWrite />} />
               <Route path="/approvals" element={<MyApprovals />} />
+              <Route path="/slack" element={<SlackFeed />} />
               <Route path="/sends/:sendId" element={<SendDetail />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

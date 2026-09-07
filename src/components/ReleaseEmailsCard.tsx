@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
-import type { Batch, ImageSlot, Release, ScheduledSend, TemplateRef } from '../types';
+import type {
+  Batch,
+  ImageSlot,
+  Release,
+  ScheduledSend,
+  TemplateRef,
+} from '../types';
 import {
   MASTER_TEMPLATES,
   TEMPLATE_LABELS,
@@ -9,6 +15,7 @@ import {
   missingImagesFor,
   patchTokens,
   requiredImageSlots,
+  shipWindowShort,
   slotLabel,
 } from '../logic/templates';
 import { today } from '../logic/dates';
@@ -102,7 +109,8 @@ export function ReleaseEmailsPanel({
   const dated = batches.filter((b) => b.promiseDate).sort((a, b) =>
     (a.promiseDate ?? '').localeCompare(b.promiseDate ?? ''),
   );
-  const fields = buildTemplateFields(release, dated[0]?.promiseDate ?? today());
+  const previewBatch = dated[0] ?? null;
+  const fields = buildTemplateFields(release, previewBatch?.promiseDate ?? today());
   const missing = missingImagesFor(release, batches, sends, today());
 
   const pickImage = async (slot: ImageSlot, imageName: string) => {
@@ -293,6 +301,7 @@ export function ReleaseEmailsPanel({
         }
       />
       <ReleaseEmailEditModal
+        previewBatch={previewBatch}
         release={release}
         templateRef={editingRef}
         fields={fields}
@@ -347,6 +356,7 @@ function ReleaseEmailEditModal({
   release,
   templateRef,
   fields,
+  previewBatch,
   onClose,
   onSaved,
 }: {
@@ -354,6 +364,10 @@ function ReleaseEmailEditModal({
   templateRef: TemplateRef | null;
   /** Release-level token values, so the preview reads as it will arrive. */
   fields: Record<string, string | undefined>;
+  /** The batch whose dates fill the preview — named on screen, because on a
+      multi-batch release the windows differ and an unlabelled preview claims
+      to be all of them. */
+  previewBatch: Batch | null;
   onClose: () => void;
   onSaved: () => void;
 }): ReactElement {
@@ -446,7 +460,15 @@ function ReleaseEmailEditModal({
       </div>
       {/* The form keeps the tokens — they are patched per batch at send time —
           and the preview resolves them, so what is edited and what arrives are
-          both on screen and neither pretends to be the other. */}
+          both on screen and neither pretends to be the other. The batch whose
+          dates fill it is NAMED: on a five-batch release the windows differ,
+          and an unlabelled preview claims to be all of them. */}
+      {previewBatch ? (
+        <div className="rd-previewas">
+          Previewing as {previewBatch.name} · {shipWindowShort(previewBatch.promiseDate!)} — other
+          batches get their own dates in the same words.
+        </div>
+      ) : null}
       <EmailPreview
         subject={patchTokens(subject, fields)}
         headline={patchTokens(headline, fields)}

@@ -7,21 +7,7 @@ import { NO_IMAGE_YET, shipWindowShort } from '../logic/templates';
 import { plural } from '../ui/format';
 import { useApp } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
-import {
-  Bar,
-  Btn,
-  Cap,
-  Card,
-  Dialog,
-  Facts,
-  None,
-  Page,
-  Pill,
-  RowAct,
-  Skeleton,
-  Stack,
-  Tag,
-} from '../ui/rd';
+import { Bar, Btn, Cap, Card, CardHead, CellLink, Dialog, Facts, None, Page, Pill, RowAct, Skeleton, Stack, Tag } from '../ui/rd';
 import { DataTable } from '../ui/DataTable';
 import type { Column } from '../ui/DataTable';
 import Field from '../rd/components/Field';
@@ -67,6 +53,7 @@ export function EmailsToWrite(): ReactElement {
   const { data, showToast, userName, refreshApprovals } = useApp();
   const navigate = useNavigate();
   const queue = useAsync(() => data.listCopyQueue(), []);
+  const handoffs = useAsync(() => data.listDelayHandoffs(), []);
 
   const [writing, setWriting] = useState<CopyJobItem | null>(null);
   const [subject, setSubject] = useState('');
@@ -80,6 +67,7 @@ export function EmailsToWrite(): ReactElement {
 
   const reload = () => {
     queue.reload();
+    handoffs.reload();
     /* The approval badge counts what is due, and a written email joins that
        count the moment it is handed back. */
     refreshApprovals();
@@ -114,12 +102,13 @@ export function EmailsToWrite(): ReactElement {
     setSaving(true);
     try {
       await data.submitDelayCopy(writing.send.id, { subject, body }, { hold });
+      const approver = userName(writing.release.approverId);
       showToast(
         hold
-          ? 'Saved — still on your list to finish'
+          ? 'Saved as a draft — the queue shows who holds it'
           : writing.send.scheduledDate <= today()
-            ? `Sent for approval — ${plural(writing.recipientCount, 'collector')} waiting`
-            : `Sent for approval — goes out ${formatDayShort(writing.send.scheduledDate)}`,
+            ? `Sent to ${approver} for approval — ${plural(writing.recipientCount, 'collector')} waiting`
+            : `Sent to ${approver} for approval — goes out ${formatDayShort(writing.send.scheduledDate)}`,
       );
       setWriting(null);
       reload();
@@ -177,10 +166,19 @@ export function EmailsToWrite(): ReactElement {
       title: 'New',
       locked: true,
       kind: 'choice',
-      caption: 'NEW',
-      order: ['New', 'Seen'],
-      value: (j) => (j.notification ? 'New' : 'Seen'),
-      cell: (j) => (j.notification ? <Pill tone="violet">New</Pill> : <None />),
+      caption: 'STATE',
+      order: ['New', 'Draft', 'Seen'],
+      /* Three states now: unopened, CLAIMED (someone saved a half-written
+         draft — their name is on it, so a teammate covering knows), seen. */
+      value: (j) => (j.send.heldBy ? 'Draft' : j.notification ? 'New' : 'Seen'),
+      cell: (j) =>
+        j.send.heldBy ? (
+          <Pill tone="blue">{`Draft · ${userName(j.send.heldBy).split(' ')[0]}`}</Pill>
+        ) : j.notification ? (
+          <Pill tone="violet">New</Pill>
+        ) : (
+          <None />
+        ),
     },
     {
       id: 'release',
@@ -356,6 +354,48 @@ export function EmailsToWrite(): ReactElement {
 
           />
         )}
+
+        {/* "Mine, now with the approver": what this team handed back that has
+            not gone out yet. Submitting used to vanish the row with only a
+            toast, and the only place to learn its fate was the approver's own
+            worklist. */}
+        {handoffs.data && handoffs.data.length > 0 ? (
+          <Card>
+            <CardHead title="Handed over" />
+            <table className="rd-t rd-t27 rd-fit">
+              <thead>
+                <tr>
+                  <th scope="col">Email</th>
+                  <th scope="col">Release</th>
+                  <th scope="col">Written by</th>
+                  <th scope="col">With</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {handoffs.data.map((h) => (
+                  <tr key={h.send.id}>
+                    <td className="rd-ink">
+                      <CellLink onClick={() => navigate(`/sends/${h.send.id}`)}>
+                        {h.send.subject}
+                      </CellLink>
+                    </td>
+                    <td>{h.release.title}</td>
+                    <td>{userName(h.send.copyWrittenBy)}</td>
+                    <td>{userName(h.release.approverId)}</td>
+                    <td>
+                      {h.send.status === 'approved' ? (
+                        <Pill tone="green">Approved</Pill>
+                      ) : (
+                        <Pill tone="amber">Waiting for approval</Pill>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        ) : null}
       </Stack>
 
       <Dialog
@@ -402,10 +442,16 @@ export function EmailsToWrite(): ReactElement {
                 is prose, so it cannot live in a cell. Quoted and signed — see
                 `DelayReason`: these are somebody's words, not the app's. */}
             <DelayReason brief={writing.send.brief} />
-            {!writing.send.imageName ? (
+            {!writing.send.imageName && writing.send.imageSlot ? (
               <Bar tone="warn" title="This email has no image">
-                {NO_IMAGE_YET} You can still write and send it for approval — the picture is picked
-                on the release’s All emails tab.
+                {NO_IMAGE_YET} You can still write and send it for approval.
+                <button
+                  type="button"
+                  className="rd-inline-pill"
+                  onClick={() => navigate(`/releases/${writing.release.id}?tab=emails`)}
+                >
+                  Pick images on the release
+                </button>
               </Bar>
             ) : null}
             <Facts

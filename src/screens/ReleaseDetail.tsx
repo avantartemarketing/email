@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import type {
   Batch,
   Intake,
@@ -39,6 +39,7 @@ import { DataTable } from '../ui/DataTable';
 import type { Column } from '../ui/DataTable';
 import { PlanTable } from '../components/PlanTable';
 import { BatchHistoryTimeline } from '../components/BatchHistoryTimeline';
+import { DelayCancelWarning } from '../components/DelayCancelWarning';
 import { RescheduleModal } from '../components/RescheduleModal';
 import { PromiseDateModal } from '../components/PromiseDateModal';
 import { AddSendModal } from '../components/AddSendModal';
@@ -52,14 +53,28 @@ import { ReleaseOrdersTable } from '../components/ReleaseOrdersTable';
 
 export function ReleaseDetail(): ReactElement {
   const { releaseId } = useParams<{ releaseId: string }>();
-  const { data, showToast, userName, users } = useApp();
+  const { data, showToast, userName, users, refreshApprovals } = useApp();
   const detail = useAsync(() => data.getRelease(releaseId!), [releaseId]);
+  /* Handoffs are CREATED on this page (a reschedule, a submitted plan, a
+     cancel), so the rail badges must move here too — not on the next
+     navigation. */
+  const reloadAll = () => {
+    detail.reload();
+    refreshApprovals();
+  };
   /* Two levels, two pieces of state — the owner, 29 Aug 2026: "The batches is
      a tab and then the different batches is a sub level within that." It used
      to be one index into a flat list of seven, which is exactly the model the
      flat strip was drawing. */
-  const [top, setTop] = useState<'orders' | 'emails' | 'batches' | 'editions'>('orders');
-  const [batchId, setBatchId] = useState<string | null>(null);
+  /* Deep links carry the tab (and batch) through navigation: the promise
+     overview's rows are batches, and landing them on All orders made the
+     reader re-find by hand the thing they had just clicked. */
+  const [searchParams] = useSearchParams();
+  const urlTab = searchParams.get('tab');
+  const [top, setTop] = useState<'orders' | 'emails' | 'batches' | 'editions'>(
+    urlTab === 'emails' || urlTab === 'batches' || urlTab === 'editions' ? urlTab : 'orders',
+  );
+  const [batchId, setBatchId] = useState<string | null>(searchParams.get('batch'));
   /* A reschedule that splits creates a batch this render has never seen, so it
      cannot be selected by id yet. The flag survives until the reload lands and
      then takes the newest batch — the one the split just made. */
@@ -144,6 +159,9 @@ export function ReleaseDetail(): ReactElement {
      to choose between. */
   const singleBatch = batches.length <= 1;
   const activeOrderCount = d.orders.filter((o) => !o.removed).length;
+  const toNumberCount = d.orders.filter(
+    (o) => !o.removed && (!o.allocations || o.allocations.length === 0),
+  ).length;
   const batchCount = (id: string) => d.orders.filter((o) => o.batchId === id && !o.removed).length;
   /* THREE, always. A release that splits eleven times still has three
      destinations here; which of its runs you are looking at is a level down.
@@ -157,7 +175,13 @@ export function ReleaseDetail(): ReactElement {
        named it and seated it: "Call the tab Edition allocation, and put it
        after All orders." It reads orders and writes onto them, so sitting
        beside the orders is where it belongs. */
-    { key: 'editions' as const, label: 'Edition allocation' },
+    {
+      key: 'editions' as const,
+      /* The count every other workload tab already carries — the owner's
+         next step after import used to be the one tab with no number. */
+      label:
+        toNumberCount > 0 ? `Edition allocation (${toNumberCount})` : 'Edition allocation',
+    },
     { key: 'emails' as const, label: 'All emails' },
     {
       key: 'batches' as const,
@@ -272,19 +296,21 @@ export function ReleaseDetail(): ReactElement {
       </Stack>
 
       {showingOrders ? (
-        <ReleaseOrdersTable detail={d} onChanged={() => detail.reload()} />
+        <ReleaseOrdersTable detail={d} onChanged={reloadAll} />
       ) : top === 'editions' ? (
         <EditionsPanel
           release={d.release}
           activeOrders={activeOrderCount}
-          onChanged={() => detail.reload()}
+          onChanged={reloadAll}
+          onOpenImport={() => setAllocationOpen(true)}
+          onAddOrders={() => setImportOpen(true)}
         />
       ) : showingEmails ? (
         <ReleaseEmailsPanel
           release={d.release}
           batches={d.batches}
           sends={d.sends}
-          onChanged={() => detail.reload()}
+          onChanged={reloadAll}
         />
       ) : d.orders.length === 0 ? (
         <Card>
@@ -311,7 +337,7 @@ export function ReleaseDetail(): ReactElement {
           detail={d}
           batch={batch}
           singleBatch={singleBatch}
-          onChanged={() => detail.reload()}
+          onChanged={reloadAll}
           onBatchCreated={() => {
             detail.reload();
             /* Not an id yet — the split's batch is created server-side and
@@ -507,6 +533,13 @@ function BatchSection({
     [detail.events, batch.id],
   );
   const draftCount = batchSends.filter((s) => s.status === 'draft').length;
+  /* The failure that used to vanish: a cancelled delay notice with nothing
+     newer means the date moved and these collectors were never told. */
+  const delays = batchSends
+    .filter((s) => s.type === 'delay')
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const cancelledDelay =
+    delays[0] && delays[0].status === 'cancelled' ? delays[0] : null;
   const draftsWithNoImage = batchSends.filter(
     (s) => s.status === 'draft' && !s.imageName,
   ).length;
@@ -674,6 +707,15 @@ function BatchSection({
             "From" goes because the window is drawn as a window: a promise date
             is the START of a 7-day dispatch window, and a range says that
             without a preposition doing the work. */}
+        {cancelledDelay ? (
+          /* The date moved and the email telling collectors was cancelled —
+             the one state that must not sit here silently. It clears when a
+             newer delay notice exists (the sort above takes the newest). */
+          <Bar tone="warn" title="Delay notice cancelled — these collectors have not been told">
+            “{cancelledDelay.subject}” was cancelled. The promise date has already changed; log
+            the delay again with Change delivery date if they still need to hear about it.
+          </Bar>
+        ) : null}
         <div className="rd-headrow">
           <div className="rd-kband">
             <div className="rd-kpi">
@@ -739,9 +781,15 @@ function BatchSection({
                 </Btn>
               )
             ) : null}
-            <Btn onClick={() => setAddSendOpen(true)} disabled={!batch.promiseDate}>
-              Add send
-            </Btn>
+            {batch.promiseDate ? (
+              <Btn onClick={() => setAddSendOpen(true)}>Add send</Btn>
+            ) : (
+              /* Shut, and it says why — the one control on this header that
+                 used to be dark in silence. */
+              <Why says="Set a promise date first — the plan and its dates hang off it.">
+                <Btn disabled>Add send</Btn>
+              </Why>
+            )}
           </div>
         </div>
 
@@ -832,7 +880,30 @@ function BatchSection({
         onClose={() => setAddSendOpen(false)}
         onSaved={onChanged}
       />
-      <EditSendModal send={editingSend} onClose={() => setEditingSend(null)} onSaved={onChanged} />
+      <EditSendModal
+        send={editingSend}
+        onClose={() => setEditingSend(null)}
+        onSaved={onChanged}
+        ceiling={
+          editingSend && batch.promiseDate
+            ? editingSend.templateRef === 'pp-dispatch'
+              ? {
+                  date: batch.promiseDate,
+                  says: `The dispatch email must go out before the promised window opens on ${formatDayShort(batch.promiseDate)}.`,
+                }
+              : (() => {
+                  const dispatch = batchSends.find(
+                    (s) => s.templateRef === 'pp-dispatch' && s.status !== 'cancelled',
+                  );
+                  const date = dispatch?.scheduledDate ?? batch.promiseDate!;
+                  return {
+                    date,
+                    says: `No update can land after the dispatch email on ${formatDayShort(date)}.`,
+                  };
+                })()
+            : null
+        }
+      />
       <RemoveOrderModal
         order={removingOrder}
         onClose={() => setRemovingOrder(null)}
@@ -853,6 +924,7 @@ function BatchSection({
         }}
         secondary={{ label: 'Keep it', onClick: () => setCancellingSend(null) }}
       >
+        {cancellingSend ? <DelayCancelWarning send={cancellingSend} /> : null}
         <p>
           The email will not go out and drops off the plan. This is recorded in the batch history.
           Scheduled for {cancellingSend ? formatDayShort(cancellingSend.scheduledDate) : ''}

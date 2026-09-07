@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { formatDateTime, formatDay } from '../logic/dates';
+import { formatDateTime, formatDay, formatDayShort } from '../logic/dates';
 import { NO_IMAGE_YET } from '../logic/templates';
 import { TEMPLATE_LABELS, plural, sendStatusBadge } from '../ui/format';
 import { useApp, useCrumb } from '../ui/AppContext';
@@ -23,6 +23,7 @@ import {
 } from '../ui/rd';
 import { DataTable } from '../ui/DataTable';
 import type { Column } from '../ui/DataTable';
+import { DelayCancelWarning } from '../components/DelayCancelWarning';
 import { EmailPreview } from '../components/EmailPreview';
 import { DelayReason } from '../components/DelayReason';
 import { EditSendModal } from '../components/EditSendModal';
@@ -121,6 +122,9 @@ export function SendDetail(): ReactElement {
   if (sent && send.sentAt) facts.push({ k: 'Sent', v: formatDateTime(send.sentAt) });
   if (send.hubspotEmailId) facts.push({ k: 'HubSpot email', v: send.hubspotEmailId });
   facts.push({ k: 'Created by', v: userName(send.createdBy) });
+  /* On a delay send the words are the writer's — name them beside the
+     rescheduler, so wording questions reach the right person. */
+  if (send.copyWrittenBy) facts.push({ k: 'Written by', v: userName(send.copyWrittenBy) });
   if (!sent)
     facts.push({
       k: 'They last received',
@@ -209,7 +213,7 @@ export function SendDetail(): ReactElement {
             </Btn>
           ) : null}
           {send.status === 'pending_approval' && isAdmin ? (
-            !send.imageName ? (
+            !send.imageName && send.type !== 'delay' ? (
               <Why says={NO_IMAGE_YET}>
                 <Btn kind="pri" disabled>
                   Approve
@@ -289,6 +293,14 @@ export function SendDetail(): ReactElement {
         send={editing && !sent ? send : null}
         onClose={() => setEditing(false)}
         onSaved={() => detail.reload()}
+        ceiling={
+          batch.promiseDate
+            ? {
+                date: batch.promiseDate,
+                says: `Nothing can land after the promised window opens on ${formatDayShort(batch.promiseDate)}.`,
+              }
+            : null
+        }
       />
       <Dialog
         open={confirmingCancel}
@@ -298,6 +310,7 @@ export function SendDetail(): ReactElement {
         primary={{ label: 'Cancel send', onClick: () => void act('cancel'), destructive: true }}
         secondary={{ label: 'Keep it', onClick: () => setConfirmingCancel(false) }}
       >
+        <DelayCancelWarning send={send} />
         <p>
           The email will not go out and drops off the plan. This is recorded in the batch history.
           Scheduled for {formatDay(send.scheduledDate)}.

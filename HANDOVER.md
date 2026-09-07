@@ -608,6 +608,46 @@ verified finding-by-finding against code and rulings before anything was written
   neither); reseed master copy from her files (window phrasing "by 06 – 13
   November", subjects "{Artist} · Stage", preheader field). None of it is built yet.
 
+**The review shortlist and the template recommendation are BUILT (7 Sep):**
+Tom: "Ok build both. Also there would be slack notifications connected to key
+moments eg when something is due to approve or delay email needs writing."
+- Template model rebuilt on the archive: computed {{closing_line}} (per-send
+  plan position), {{edition_noun}}/{{next_destination}}/{{remaining_route}}
+  (per batch via `stageFields`), pp-signed + pp-production stages, on-track
+  body rotation (`onTrackBody(n)`), Packing row in every next-steps card,
+  lean pp-delay (no image owed — `requiredImageSlots` drops it, approval and
+  every screen exempt delay sends), masters reseeded from the real files,
+  neutral delay draft (raw ops reason stays in the brief).
+- Front door: releases index gains To number (red "Broken numbers" pill when
+  the held allocation fails audit) and Images owed columns (ReleaseSummary
+  gains toNumber/allocationBroken/imagesOwed); Edition allocation tab carries
+  its count; CRM badge counts writing jobs + image-owing releases.
+- Handoff: cancelling a delay send raises a 'delay_notice_cancelled'
+  notification to ops + a warn bar on the batch; DelayCancelWarning in all
+  four cancel dialogs; /copy gains a "Handed over" strip (listDelayHandoffs)
+  and held drafts show "Draft · Name" (heldBy/heldAt); submit toast names the
+  approver; Submitted-by shows the WRITER for delay sends.
+- Doors: EditSendModal takes a `ceiling` and blocks dates past it; the bulk
+  bar verb is 'Change delivery date' everywhere; the editions fault bar
+  offers "Import a corrected warehouse sheet"; Clear-all-numbers dialog states
+  its true radius; Add send has its Why; editions tab has real empty/loading/
+  failed states; edition-size field says what it gates; approvals rail badge
+  is admin-gated.
+- Navigation: release pages accept ?tab=&batch= deep links; overview rows
+  land on the batch they name, with an amber "Not yet told" pill while a
+  delay notice is unsent (BatchListItem.delayNoticePending).
+- **Slack notifications**: SlackMessage store + `_slack()` minted at the key
+  moments (due to approve on plan submit / delay-copy handback within the
+  7-day horizon, mentioning the release's approver; delay email needs writing
+  on reschedule; delay notice cancelled), a /slack feed screen ("Slack
+  notifications" in the rail) showing what WOULD post; phase 2 wires the same
+  objects to a webhook. listSlackFeed on the DataLayer.
+Not built from the review (still open): overdue index menu/release band,
+send-detail crumb derivation, contact-flag filter column, token menu in Edit
+copy, batch-flip preview. The two decisions for Tom stand: standing vs
+assignment for "My approvals" (badge is now admin-gated only), and whether
+image-picking is formally CRM's (the badge fold assumes yes).
+
 **Remaining is slice 5:** the Auto/Review/Info changes worklist (tags vs line items),
 pinned numbers for edition requests, and freezing a number once a collector has been
 told — which waits on Tom's "edition numbers in emails?" answer.

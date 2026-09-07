@@ -321,7 +321,9 @@ export function ReleaseOrdersTable({
           picked,
           label: (r) => `${r.order.shopifyOrderName} — ${r.order.collectorName}`,
           actions: [
-            { label: 'Set a new promise date', onClick: startPromise },
+            /* One verb for the promise-moving act, everywhere — "Set…" is
+               reserved for a batch's FIRST date. */
+            { label: 'Change delivery date', onClick: startPromise },
             { label: 'Move to another batch', onClick: () => setMoving(true) },
             {
               label: 'Mark cancelled',

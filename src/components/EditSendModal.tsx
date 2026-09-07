@@ -11,10 +11,15 @@ export function EditSendModal({
   send,
   onClose,
   onSaved,
+  ceiling,
 }: {
   send: ScheduledSend | null;
   onClose: () => void;
   onSaved: () => void;
+  /** The latest day this email may land, and why — the same ceiling Change
+      email date enforces. Without it, Edit was an unguarded back door for
+      the one move that rule exists to police. */
+  ceiling?: { date: string; says: string } | null;
 }): ReactElement {
   const { data, showToast } = useApp();
   const [subject, setSubject] = useState('');
@@ -35,8 +40,10 @@ export function EditSendModal({
     }
   }, [send]);
 
+  const pastCeiling = !!ceiling && !!scheduledDate && scheduledDate > ceiling.date;
+
   const save = async () => {
-    if (!send) return;
+    if (!send || pastCeiling) return;
     setSaving(true);
     try {
       await data.updateSend(send.id, {
@@ -69,13 +76,19 @@ export function EditSendModal({
       primary={{
         label: 'Save',
         onClick: () => void save(),
-        disabled: saving || !subject.trim() || !body.trim() || !scheduledDate,
+        disabled: saving || !subject.trim() || !body.trim() || !scheduledDate || pastCeiling,
       }}
       secondary={{ label: 'Cancel', onClick: onClose }}
     >
       {send?.status === 'approved' ? (
         <Bar tone="warn" title="This send is already approved">
           Saving moves it back to pending approval.
+        </Bar>
+      ) : null}
+      {pastCeiling && ceiling ? (
+        <Bar tone="fail" title="That date does not fit this batch's promise">
+          {ceiling.says} A date past it is a promise problem, not an email-timing one — use
+          Change delivery date on the batch instead.
         </Bar>
       ) : null}
       <div className="rd-fields">

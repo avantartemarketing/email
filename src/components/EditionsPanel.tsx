@@ -4,7 +4,7 @@ import type { Release } from '../types';
 import type { AllocationPlanView } from '../data';
 import { useApp } from '../ui/AppContext';
 import { plural } from '../ui/format';
-import { Bar, Btn, Card, CardHead, Dialog, Facts, Stack, Why } from '../ui/rd';
+import { Bar, Btn, Card, CardHead, Dialog, Facts, Skeleton, Stack, Why } from '../ui/rd';
 
 /**
  * The Edition allocation tab — the workbook, as a button.
@@ -60,25 +60,38 @@ export function EditionsPanel({
   release,
   activeOrders,
   onChanged,
+  onOpenImport,
+  onAddOrders,
 }: {
   release: Release;
   activeOrders: number;
   onChanged: () => void;
+  /** Opens the Import warehouse allocation dialogue — the non-destructive
+      repair the fault bar names. */
+  onOpenImport?: () => void;
+  /** Opens Add orders — the door the zero-order state points at. */
+  onAddOrders?: () => void;
 }): ReactElement {
   const { data, showToast } = useApp();
   const [plan, setPlan] = useState<AllocationPlanView | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [clearing, setClearing] = useState(false);
 
   const load = useCallback(() => {
     let live = true;
+    setLoadError(null);
     void data
       .previewAllocation(release.id)
       .then((view) => {
         if (live) setPlan(view);
       })
-      .catch(() => {
-        if (live) setPlan(null);
+      .catch((err: unknown) => {
+        /* A failed preview is not an empty one — say what went wrong. */
+        if (live) {
+          setPlan(null);
+          setLoadError(err instanceof Error ? err.message : String(err));
+        }
       });
     return () => {
       live = false;
@@ -137,8 +150,24 @@ export function EditionsPanel({
   if (activeOrders === 0) {
     return (
       <Card>
+        <CardHead
+          title="Edition allocation"
+          actions={onAddOrders ? <Btn onClick={onAddOrders}>Add orders</Btn> : undefined}
+        />
+        <Bar tone="note" title="No orders to number yet">
+          Numbering starts from orders — import the Shopify order export first, and this tab
+          numbers what arrives.
+        </Bar>
+      </Card>
+    );
+  }
+  if (loadError) {
+    return (
+      <Card>
         <CardHead title="Edition allocation" />
-        <Facts items={[{ label: 'Orders to number', value: 0 }]} />
+        <Bar tone="fail" title="The allocation preview failed">
+          {loadError}
+        </Bar>
       </Card>
     );
   }
@@ -146,6 +175,7 @@ export function EditionsPanel({
     return (
       <Card>
         <CardHead title="Edition allocation" />
+        <Skeleton rows={4} />
       </Card>
     );
   }
@@ -164,6 +194,14 @@ export function EditionsPanel({
           {plan.faults.map((f) => (
             <div key={f}>{f}</div>
           ))}
+          {/* The repair, named — without this the only enabled control on the
+              card was the destructive eraser. A fresher warehouse sheet
+              replaces what is held; nothing is cleared. */}
+          {onOpenImport ? (
+            <button type="button" className="rd-inline-pill" onClick={onOpenImport}>
+              Import a corrected warehouse sheet
+            </button>
+          ) : null}
         </Bar>
       ) : null}
 
@@ -203,9 +241,13 @@ export function EditionsPanel({
             { label: 'Numbered', value: plan.kept },
             { label: 'To number', value: plan.numbered },
             { label: 'Artworks', value: plan.artworks.length || '—' },
-            ...(release.editionSize !== null
-              ? [{ label: 'Edition size', value: release.editionSize }]
-              : []),
+            {
+              label: 'Edition size',
+              value:
+                release.editionSize !== null
+                  ? release.editionSize
+                  : 'Not set — overruns unchecked',
+            },
           ]}
         />
         {plan.artworks.length > 0 ? (
@@ -266,9 +308,11 @@ export function EditionsPanel({
         }}
         secondary={{ label: 'Keep them', onClick: () => setClearing(false) }}
       >
-        <Bar tone="warn" title="This is the only way a number moves">
-          Numbers already sent to the warehouse stop matching what this release says. A fresh
-          allocation starts from 1 and will number the same orders differently.
+        <Bar tone="warn" title="This clears the whole warehouse record">
+          Every allocation row goes — edition numbers AND the imported frame, glass and mounting
+          spec. Numbers already sent to the warehouse stop matching what this release says, and a
+          fresh allocation starts from 1. To CORRECT numbers instead, import a fresher warehouse
+          sheet — a re-import replaces what is held without clearing anything.
         </Bar>
       </Dialog>
     </Stack>

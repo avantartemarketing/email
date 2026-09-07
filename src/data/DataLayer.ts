@@ -1,6 +1,8 @@
 import type { ArtworkSummary, EditionNote } from '../logic/editions';
 import type { ParsedLineItem } from '../logic/importer';
 import type {
+  SlackMessage,
+  DelayHandoffItem,
   AllocationImportSummary,
   Batch,
   BatchListItem,
@@ -299,6 +301,13 @@ export interface DataLayer {
   markNotificationRead(notificationId: string): Promise<Notification>;
 
   // --- approval queue ----------------------------------------------------
+  /**
+   * What the Slack connection would have posted, newest first. Phase 1 shows
+   * these on the Slack notifications screen; phase 2 posts them to a webhook.
+   */
+  listSlackFeed(): Promise<SlackMessage[]>;
+  /** Delay emails a writer handed back that have not yet gone out. */
+  listDelayHandoffs(): Promise<DelayHandoffItem[]>;
   /** Every send waiting on an approver, soonest first. */
   listApprovalQueue(): Promise<PendingSendItem[]>;
   approveSend(sendId: string): Promise<ScheduledSend>;
