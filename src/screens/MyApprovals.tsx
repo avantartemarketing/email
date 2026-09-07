@@ -21,7 +21,6 @@ import {
   None,
   Page,
   Pill,
-  RowAct,
   Skeleton,
   Stack,
   Tag,
@@ -82,7 +81,12 @@ export function MyApprovals(): ReactElement {
   const [preview, setPreview] = useState<PendingSendItem | null>(null);
   const [actingOn, setActingOn] = useState<string | null>(null);
   const [movingDate, setMovingDate] = useState<PendingSendItem | null>(null);
-  const [cancelling, setCancelling] = useState<PendingSendItem | null>(null);
+  /* A list, because cancelling comes off the bulk bar now — one send is a
+     one-element list, not a different state. */
+  const [cancelling, setCancelling] = useState<PendingSendItem[] | null>(null);
+  /* "Change email date" moves ONE email — its guardrails read the batch
+     around that send — so a multi-selection has to say which one first. */
+  const [choosingMove, setChoosingMove] = useState(false);
   /* Situation 2: the promise itself has slipped. The reschedule flow needs
      the batch's orders and sends, which the queue row does not carry, so the
      door fetches the release before the dialogue can open. */
@@ -211,27 +215,40 @@ export function MyApprovals(): ReactElement {
   };
 
   const cancel = async (): Promise<void> => {
-    if (!cancelling) return;
+    if (!cancelling || cancelling.length === 0) return;
     setBusy(true);
+    let done = 0;
     try {
-      await data.cancelSend(cancelling.send.id);
-      showToast('Send cancelled');
+      for (const item of cancelling) {
+        await data.cancelSend(item.send.id);
+        done += 1;
+      }
+      picked.replace(
+        new Set([...picked.ids].filter((id) => !cancelling.some((i) => i.send.id === id))),
+      );
+      showToast(done === 1 ? 'Send cancelled' : `${plural(done, 'send')} cancelled`);
       setCancelling(null);
       setPreview(null);
       reload();
     } catch (err) {
+      /* A mid-list failure: the loop stops, the toast says so, and the ones
+         already cancelled stay cancelled — re-opening the dialogue shows
+         what is left because the reload refreshes the queue. */
       showToast(err instanceof Error ? err.message : String(err), true);
+      setCancelling(null);
+      reload();
     } finally {
       setBusy(false);
     }
   };
 
   /**
-   * What a row offers: approve it, move it, or stop it.
-   *
-   * Only Approve is shut for a non-admin, because `approveSend` is the only
-   * call the data layer gates — shutting the other two would claim a
-   * restriction that does not exist.
+   * What a row offers: Approve, and nothing else. The owner, 1 Sep 2026:
+   * "one button Approve, and other actions you have to do by selecting the
+   * checkbox." Approving is the verb this page exists for and it stays one
+   * press; moving and cancelling are the exceptions, reached by ticking rows
+   * (the bulk bar) or from the preview a row click opens — where the email
+   * being moved or stopped is in front of you.
    */
   const rowActions = (item: PendingSendItem): ReactElement => {
     const noImage = !item.send.imageName;
@@ -253,17 +270,6 @@ export function MyApprovals(): ReactElement {
         ) : (
           approveBtn
         )}
-        {/* The object is in the name, because two date verbs now live one
-            click apart: this one moves ONE EMAIL silently; "Change delivery
-            date" changes the batch's promise and tells collectors. A bare
-            "Change date" next to that pair is a coin toss. */}
-        <RowAct onClick={() => setMovingDate(item)}>Change email date</RowAct>
-        {/* "Cancel send", not "Cancel": on a screen with a dialogue on every
-            verb, a bare "Cancel" is the word that dismisses one. The noun is
-            what makes it an act. Same word the send's own page uses. */}
-        <RowAct danger onClick={() => setCancelling(item)}>
-          Cancel send
-        </RowAct>
       </div>
     );
   };
@@ -551,7 +557,26 @@ export function MyApprovals(): ReactElement {
             select={{
               picked,
               label: (i) => i.send.subject,
-              actions: [{ label: 'Approve', onClick: () => setBulkOpen(true) }],
+              /* The row keeps only Approve; these two moved here from the row
+                 actions ("other actions you have to do by selecting the
+                 checkbox"). The object stays in every name — "Change email
+                 date" moves emails silently, "Change delivery date" (in the
+                 preview) changes the promise and tells collectors. */
+              actions: [
+                { label: 'Approve', onClick: () => setBulkOpen(true) },
+                {
+                  label: 'Change email date',
+                  onClick: () =>
+                    pickedItems.length === 1
+                      ? setMovingDate(pickedItems[0])
+                      : setChoosingMove(true),
+                },
+                {
+                  label: pickedItems.length > 1 ? 'Cancel sends' : 'Cancel send',
+                  destructive: true,
+                  onClick: () => setCancelling(pickedItems),
+                },
+              ],
             }}
             empty={
               nextComing
@@ -617,7 +642,7 @@ export function MyApprovals(): ReactElement {
             : undefined
         }
         danger={
-          preview ? { label: 'Cancel send', onClick: () => setCancelling(preview) } : undefined
+          preview ? { label: 'Cancel send', onClick: () => setCancelling([preview]) } : undefined
         }
       >
         {preview ? (
@@ -769,23 +794,83 @@ export function MyApprovals(): ReactElement {
       <Dialog
         open={cancelling !== null}
         size="sm"
-        title={cancelling ? `Cancel “${cancelling.send.subject}”?` : ''}
+        title={
+          cancelling
+            ? cancelling.length === 1
+              ? `Cancel “${cancelling[0].send.subject}”?`
+              : `Cancel ${plural(cancelling.length, 'send')}?`
+            : ''
+        }
         onClose={() => setCancelling(null)}
         primary={{
-          label: 'Cancel send',
+          label: cancelling && cancelling.length > 1 ? 'Cancel sends' : 'Cancel send',
           destructive: true,
           onClick: () => void cancel(),
           disabled: busy,
         }}
-        secondary={{ label: 'Keep it', onClick: () => setCancelling(null) }}
+        secondary={{ label: 'Keep them', onClick: () => setCancelling(null) }}
       >
-        {cancelling ? (
+        {cancelling && cancelling.length === 1 ? (
           <p>
             The email will not go out and drops off the plan. This is recorded in the batch history.
-            Scheduled for {formatDayShort(cancelling.send.scheduledDate)}
-            {isOverdueApproval(cancelling.send) ? ' (overdue)' : ''}.
+            Scheduled for {formatDayShort(cancelling[0].send.scheduledDate)}
+            {isOverdueApproval(cancelling[0].send) ? ' (overdue)' : ''}.
           </p>
+        ) : cancelling ? (
+          <>
+            <p>
+              None of these emails will go out, and each drops off its plan. This is recorded in
+              the batch history.
+            </p>
+            <table className="rd-t rd-t27 rd-fit">
+              <thead>
+                <tr>
+                  <th scope="col">Email</th>
+                  <th scope="col">Scheduled</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cancelling.map((i) => (
+                  <tr key={i.send.id}>
+                    <td className="rd-ink">{i.send.subject}</td>
+                    <td>{formatDayShort(i.send.scheduledDate)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
         ) : null}
+      </Dialog>
+
+      <Dialog
+        open={choosingMove}
+        size="sm"
+        title="Which email is moving?"
+        onClose={() => setChoosingMove(false)}
+        secondary={{ label: 'Cancel', onClick: () => setChoosingMove(false) }}
+      >
+        <Bar tone="note" title="An email moves one at a time">
+          Each has its own place in its batch's plan, so the new date is checked against that
+          plan. The rest of the selection stays ticked.
+        </Bar>
+        <div className="rd-fields">
+          {pickedItems.map((i) => (
+            <button
+              key={i.send.id}
+              type="button"
+              className="rd-pickrow"
+              onClick={() => {
+                setChoosingMove(false);
+                setMovingDate(i);
+              }}
+            >
+              <span className="rd-pickname">{i.send.subject}</span>
+              <span className="rd-picknote">
+                {i.release.title} · {formatDayShort(i.send.scheduledDate)}
+              </span>
+            </button>
+          ))}
+        </div>
       </Dialog>
 
       <Dialog

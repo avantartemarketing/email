@@ -777,7 +777,7 @@ await screen('my approvals', async () => {
   if (pathCount !== 4)
     faults.push(`${what}: the chooser offers ${pathCount} paths, the owner asked for 4`)
 
-  await page.locator('.rd-tourpath', { hasText: 'A release, from file' }).click()
+  await page.locator('.rd-tourpath', { hasText: 'How to import a release' }).click()
   await page.waitForTimeout(400)
   /* Autoplay is the viewer's pace, not the check's — take the wheel. */
   await page.locator('.rd-tourfoot button', { hasText: 'Pause' }).click()

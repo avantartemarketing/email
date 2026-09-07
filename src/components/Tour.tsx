@@ -162,8 +162,8 @@ export function Tour({ open, onClose }: { open: boolean; onClose: () => void }):
           <div className="rd-tourcap">
             <div className="rd-tourtitle">Take the tour</div>
             <div className="rd-tourtext">
-              Four paths, each driving the real app through one job — pick the one you came to
-              learn. Everything a path does is demo data and resets on refresh.
+              Pick a guide. Each one works the real app step by step and explains what it is
+              doing. It is all demo data — refresh the page to undo anything the tour changes.
             </div>
           </div>
           <div className="rd-tourpaths">
@@ -180,7 +180,7 @@ export function Tour({ open, onClose }: { open: boolean; onClose: () => void }):
             ))}
           </div>
           <div className="rd-tourfoot">
-            <span className="rd-tourcount">{TOUR_PATHS.length} paths</span>
+            <span className="rd-tourcount">{TOUR_PATHS.length} guides</span>
             <span className="rd-tourclock" aria-hidden />
             <button type="button" className="rd-linkbtn rd-linkbtn-mut" onClick={onClose}>
               End tour

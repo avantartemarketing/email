@@ -1,19 +1,18 @@
 import { addDays, today } from '../logic/dates';
 
 /**
- * The tour's scripts: four PATHS, each driving the REAL app through one job.
+ * The tour's scripts: four guides, each driving the REAL app through one job.
  *
- * The owner, 1 Sep 2026: "split the Take a Tour into a few paths" — uploading
- * a release and allocating editions; populating the emails and reviewing each
- * batch's plan; logging a delay for a whole batch AND for part of one, all
- * the way to the delay email being written; and an email falling due with the
- * named approver approving it.
+ * The owner, 1 Sep 2026: "split the Take a Tour into a few paths" — how to
+ * import a release and get it to edition numbers; how to set up the email
+ * plan; how to log a delay (whole batch and part of one) through to the
+ * delay email; and how the named approver approves.
  *
  * Nothing here is a recording. Every step performs the same clicks and
  * keystrokes a person would — the same doors, the same guards — so the guide
  * cannot drift from the product: if a button moves, the tour breaks in front
  * of whoever maintains it, not in front of the new starter. And because the
- * demo world is in-memory, everything a path does (a reschedule, an
+ * demo world is in-memory, everything a guide does (a reschedule, an
  * allocation, an approval) vanishes on refresh, which the closing cards say
  * out loud.
  */
@@ -110,9 +109,9 @@ async function dropCsv(name: string, csv: string): Promise<void> {
 const settle = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 /** Open a release from the index and wait until its page has really landed.
-    The index must be CURRENT before the row click: a path often starts on the
-    very release it is about to open, whose own tables also say the title —
-    so the first wait is for the index's page title, not for any row. */
+    The index must be CURRENT before the row click: a guide often starts on
+    the very release it is about to open, whose own tables also say the title
+    — so the first wait is for the index's page title, not for any row. */
 async function openRelease(navigate: (path: string) => void, title: string): Promise<void> {
   navigate('/');
   await waitForText('.rd-title', 'Releases');
@@ -142,19 +141,25 @@ export const TOUR_CSV = [
   row(3, 'Harbour Lantern (Dusk) - Pre-order', 'RSTOL-LANTK-TL-PREORDER'),
 ].join('\n');
 
-/* ---- the four paths ------------------------------------------------------ */
+/* ---- the four guides -----------------------------------------------------
+   The captions are STEP-BY-STEP INSTRUCTIONS in plain English. The owner,
+   1 Sep 2026, on the first draft: "the tone of voice is awful … Do it in
+   plain english, proper sentences, like you're explaining to a normal
+   person", and "structure them as a step by step guide — here's how to
+   import a release and get it to edition numbers." So every caption says
+   what to click and what happens, and nothing else. */
 
 export const TOUR_PATHS: TourPath[] = [
   {
     id: 'release',
-    title: 'A release, from file to numbered editions',
-    blurb: 'Drop the Shopify export, get orders and batches, then allocate every edition number.',
+    title: 'How to import a release and allocate edition numbers',
+    blurb: 'From the Shopify order export to a numbered edition.',
     steps: [
       {
-        title: 'Releases',
+        title: 'Step 1 — Start on the Releases page',
         caption:
-          'Every release in production. Orders, batches, what needs approval, and the next ' +
-          'scheduled send — open a row to work a release.',
+          'This is the list of every release. To bring in a new one, click New release in the ' +
+          'top right. The tour will do it for you now.',
         target: 'table.rd-t27',
         holdMs: 7000,
         go: async (navigate) => {
@@ -163,12 +168,12 @@ export const TOUR_PATHS: TourPath[] = [
         },
       },
       {
-        title: 'A release starts from the file',
+        title: 'Step 2 — Drop in the order export',
         caption:
-          'Drop the Shopify order export and the file leads: it lists the artworks it contains, ' +
-          'ticks what belongs, names the release, and finds the framed orders — a frame is its ' +
-          'own line item, and the tool joins it to the print beside it. One press creates the ' +
-          'release, its batches and every order.',
+          'Drop the Shopify order export into the box, or choose the file. The tool reads it, ' +
+          'lists the products it found, suggests a name, and marks which lines are frames. ' +
+          'Fill in the artist and edition size, then click Create release — that makes the ' +
+          'release, its batches and all its orders in one go.',
         target: '.rd-dialog',
         holdMs: 12000,
         go: async () => {
@@ -182,11 +187,11 @@ export const TOUR_PATHS: TourPath[] = [
         },
       },
       {
-        title: 'All orders — one row per print',
+        title: 'Step 3 — Check the orders',
         caption:
-          'Everything the warehouse and CS need on one line: frame, glass, batch, promise date, ' +
-          'and the order number links straight into Shopify. Select rows to cancel, move, or ' +
-          'change a delivery date in bulk.',
+          'Here is Harbour Light as an example. Every print is one row, showing its frame, ' +
+          'glass, batch and promised delivery date. The order number links to Shopify. Use the ' +
+          'checkboxes to cancel orders, move them, or change delivery dates in bulk.',
         /* The container, not the table: All orders scrolls sideways, and the
            table's own rectangle is its scrollWidth — a spotlight the size of
            the screen, which is no spotlight at all. */
@@ -198,11 +203,11 @@ export const TOUR_PATHS: TourPath[] = [
         },
       },
       {
-        title: 'Edition allocation',
+        title: 'Step 4 — Open the Edition allocation tab',
         caption:
-          'The numbering the spreadsheet used to do. The rule is the studio’s own: the most ' +
-          'artworks first, framed before unframed, oldest order first — and an order’s prints ' +
-          'always share one number.',
+          'This does the numbering the old spreadsheet did. The rule: collectors who bought ' +
+          'the most artworks get the lowest numbers, framed orders come before unframed ones, ' +
+          'and older orders come first. All the prints in one order always get the same number.',
         target: '.rd-workscroll .rd-card',
         holdMs: 9000,
         go: async () => {
@@ -211,11 +216,11 @@ export const TOUR_PATHS: TourPath[] = [
         },
       },
       {
-        title: 'One press, every number',
+        title: 'Step 5 — Click Allocate editions',
         caption:
-          'Allocated: gapless sequences per artwork, matched sets per collector — search #RS2134 ' +
-          'in All orders, edition 1 of all three colourways. Export sends the warehouse the same ' +
-          'CSV it has always received, and a number, once issued, never moves.',
+          'Every order now has its edition number, with no gaps in any sequence. Click Export ' +
+          'warehouse CSV to download the same file the warehouse has always worked from. Once ' +
+          'a number has been issued it never changes.',
         target: '.rd-workscroll .rd-card',
         holdMs: 10000,
         go: async () => {
@@ -224,25 +229,25 @@ export const TOUR_PATHS: TourPath[] = [
         },
       },
       {
-        title: 'That’s the release path',
+        title: 'Done',
         caption:
-          'File in, orders and batches out, editions numbered, CSV ready. This is demo data — ' +
-          'refresh resets everything this path just did.',
+          'That is the whole job: import the file, check the orders, allocate, export. This is ' +
+          'demo data — refresh the page to reset anything the tour changed.',
         holdMs: 7000,
       },
     ],
   },
   {
     id: 'emails',
-    title: 'The emails and each batch’s plan',
-    blurb: 'Populate the emails, then read the plan the tool wrote against each batch.',
+    title: 'How to set up the email plan for a release',
+    blurb: 'Pick the images and review what each batch will send.',
     steps: [
       {
-        title: 'All emails — the plan',
+        title: 'Step 1 — Open the All emails tab',
         caption:
-          'The sequence each collector gets, planned back from the promise date: printing, ' +
-          'signing, framing, on-track. The tool wrote this plan when the release arrived; ' +
-          'people approve it, email by email.',
+          'When a release is created, the tool plans its emails automatically, working back ' +
+          'from the promised delivery date: printing, signing, framing, on track. This tab ' +
+          'lists them all. Your job is to fill the gaps and approve.',
         target: '.rd-workscroll .rd-card',
         holdMs: 9000,
         go: async (navigate) => {
@@ -252,10 +257,10 @@ export const TOUR_PATHS: TourPath[] = [
         },
       },
       {
-        title: 'Every email needs an image',
+        title: 'Step 2 — Add the missing images',
         caption:
-          'There is no default picture — an email cannot be approved until its image is picked. ' +
-          'The dashed slots are the gaps; this is the populating.',
+          'An email cannot be approved until it has an image, and there is no default. Click ' +
+          'any slot marked Not chosen to pick one.',
         target: '.rd-dialog',
         holdMs: 8000,
         go: async () => {
@@ -264,11 +269,11 @@ export const TOUR_PATHS: TourPath[] = [
         },
       },
       {
-        title: 'Picked',
+        title: 'Step 3 — Pick an image',
         caption:
-          'One press fills the slot. Hatched tiles are names living in HubSpot’s own library; ' +
-          'anything uploaded here shows its picture. Do this for each empty slot and the ' +
-          'release is approvable.',
+          'One click fills the slot. The striped tiles are images that live in HubSpot, so ' +
+          'there is no preview here; anything you upload yourself shows its picture. Do the ' +
+          'same for each empty slot and the release is ready to approve.',
         target: '.rd-workscroll .rd-card',
         holdMs: 8000,
         go: async () => {
@@ -277,11 +282,11 @@ export const TOUR_PATHS: TourPath[] = [
         },
       },
       {
-        title: 'Each batch carries its own plan',
+        title: 'Step 4 — Review each batch’s plan',
         caption:
-          'Framed and unframed ship on different dates, so each batch has its own promise date, ' +
-          'its own milestone emails and its own history. Review a batch here before its sends ' +
-          'start going out.',
+          'Framed and unframed orders ship at different times, so each batch has its own ' +
+          'promise date and its own emails. Open the Batches tab to check a batch’s plan and ' +
+          'history before anything goes out.',
         target: '.rd-workscroll .rd-card',
         holdMs: 9000,
         go: async () => {
@@ -290,24 +295,24 @@ export const TOUR_PATHS: TourPath[] = [
         },
       },
       {
-        title: 'That’s the email path',
+        title: 'Done',
         caption:
-          'The plan is written by the tool and reviewed by people: images picked, copy edited ' +
-          'where needed, approvals last. Refresh resets what this path changed.',
+          'The tool writes the plan; you pick the images, adjust any copy, and approve. ' +
+          'Refresh the page to reset the demo.',
         holdMs: 7000,
       },
     ],
   },
   {
     id: 'delay',
-    title: 'A delay, whole batch and partial',
-    blurb: 'Move a whole batch, split part of one, and follow the delay email to the CRM writer.',
+    title: 'How to log a delay',
+    blurb: 'Move a whole batch or just a few orders, then write the delay email.',
     steps: [
       {
-        title: 'A delay happens',
+        title: 'Step 1 — Open the batch that is slipping',
         caption:
-          'Falling Light’s framed batch is slipping. A promise date belongs to a batch, so the ' +
-          'move starts from the batch’s own screen.',
+          'Here are Falling Light’s batches. A delivery promise belongs to a batch, so a ' +
+          'delay starts on the batch’s own screen.',
         target: '.rd-workscroll .rd-card',
         holdMs: 8000,
         go: async (navigate) => {
@@ -317,11 +322,11 @@ export const TOUR_PATHS: TourPath[] = [
         },
       },
       {
-        title: 'The whole batch moves',
+        title: 'Step 2 — Change the delivery date',
         caption:
-          'No orders selected means the whole batch: every collector in it gets the new date, ' +
-          'the milestone plan regenerates behind it, and the reason is not paperwork — it is ' +
-          'the brief the CRM writer works from.',
+          'With no orders selected, Change delivery date moves the whole batch. Pick the new ' +
+          'date and explain what happened — the CRM team writes the delay email from what you ' +
+          'type here, so give them the real reason.',
         target: '.rd-dialog',
         holdMs: 10000,
         go: async () => {
@@ -335,11 +340,10 @@ export const TOUR_PATHS: TourPath[] = [
         },
       },
       {
-        title: 'Saved — and handed to CRM',
+        title: 'Step 3 — Save',
         caption:
-          'One save: the plan regenerates against the new date and writing the delay email ' +
-          'lands on the CRM team’s list. Nobody composes bad news in a hurry inside a date ' +
-          'picker.',
+          'Saving does three things: it sets the new date, rebuilds the email plan around it, ' +
+          'and adds a writing job to the CRM team’s list.',
         target: '.rd-toast',
         holdMs: 8000,
         go: async () => {
@@ -348,11 +352,11 @@ export const TOUR_PATHS: TourPath[] = [
         },
       },
       {
-        title: 'Or just part of a batch',
+        title: 'Step 4 — Or delay just some orders',
         caption:
-          'Two framed orders need a reprint; the rest are fine. Ticking rows and changing ' +
-          'their date splits them onto their own timeline — their own promise, their own ' +
-          'emails — and the rest of the batch keeps the plan it had.',
+          'If only a few orders are affected, tick them on All orders and click Set a new ' +
+          'promise date. Those orders split off into their own batch, with their own date and ' +
+          'their own emails. The rest of the batch keeps the original plan.',
         target: '.rd-dialog',
         holdMs: 10000,
         go: async () => {
@@ -369,23 +373,22 @@ export const TOUR_PATHS: TourPath[] = [
         },
       },
       {
-        title: 'The split',
+        title: 'Step 5 — Save the split',
         caption:
-          'A new batch exists now, carrying just the delayed orders, and a second delay email ' +
-          'joins the CRM list. Splitting is how part of a promise changes without touching ' +
-          'the rest.',
+          'A new batch now holds just the delayed orders, and a second delay email has joined ' +
+          'the CRM list.',
         target: '.rd-toast',
-        holdMs: 8000,
+        holdMs: 7000,
         go: async () => {
           await clickText('.rd-dialogfoot button', 'Save');
           await waitFor('.rd-toast', 6000);
         },
       },
       {
-        title: 'Emails to write — the CRM queue',
+        title: 'Step 6 — Open Emails to write',
         caption:
-          'Both delays are here, newest at the top, each carrying its reason and a clock on how ' +
-          'long collectors have waited to hear. The writer opens a row and works from the brief.',
+          'This is the CRM team’s list. Both delay emails are here, newest first, each with ' +
+          'its reason and how long collectors have been waiting to hear.',
         target: 'table.rd-t27',
         holdMs: 8000,
         go: async (navigate) => {
@@ -395,11 +398,11 @@ export const TOUR_PATHS: TourPath[] = [
         },
       },
       {
-        title: 'Writing the delay email',
+        title: 'Step 7 — Write the delay email',
         caption:
-          'The reason sits above the fields; the drafted body is a starting point, not a ' +
-          'sentence. Send for approval is the handoff back — the email joins the approver’s ' +
-          'list and the recalibrated plan carries on behind it.',
+          'Click a row to open it. The reason you typed sits above the fields, and there is a ' +
+          'drafted email to start from. Edit the subject and body, then click Send for ' +
+          'approval.',
         target: '.rd-dialog',
         holdMs: 11000,
         go: async () => {
@@ -417,11 +420,10 @@ export const TOUR_PATHS: TourPath[] = [
         },
       },
       {
-        title: 'That’s the delay path',
+        title: 'Done',
         caption:
-          'Date moved, plan recalibrated, email written and sent for approval — press it ' +
-          'yourself, or take the Approval day path next. Refresh resets everything this ' +
-          'path did.',
+          'The date has moved, the plan is rebuilt, and the delay email is waiting for ' +
+          'approval — the next guide covers that step. Refresh the page to reset the demo.',
         holdMs: 8000,
         go: async () => {
           await clickText('.rd-dialogfoot button', 'Send for approval');
@@ -432,15 +434,15 @@ export const TOUR_PATHS: TourPath[] = [
   },
   {
     id: 'approval',
-    title: 'Approval day',
-    blurb: 'An email falls due, and the release’s named approver clears it.',
+    title: 'How to approve emails',
+    blurb: 'What the named approver sees and does when an email is due.',
     steps: [
       {
-        title: 'My approvals',
+        title: 'Step 1 — Open My approvals',
         caption:
-          'What needs approving this week, and what is coming. Every release names its ' +
-          'approver — set on the release page, Elani for every one right now — and the ' +
-          'Approver column says whose list each send sits on.',
+          'This shows what needs approving in the next seven days, and what is coming after ' +
+          'that. Each release names its approver — that is set on the release page, and right ' +
+          'now it is Elani for everything.',
         target: 'table.rd-t27',
         holdMs: 9000,
         go: async (navigate) => {
@@ -449,10 +451,10 @@ export const TOUR_PATHS: TourPath[] = [
         },
       },
       {
-        title: 'The named approver signs in',
+        title: 'Step 2 — Work as the approver',
         caption:
-          'Working as Elani now. Naming is not gating — any admin can cover a holiday — but ' +
-          'the name says who is expected to clear the list, and the rows now read “You”.',
+          'The tour has switched to Elani using the name at the top right. On her releases the ' +
+          'Approver column now reads You. If she is away, any admin can approve in her place.',
         target: 'table.rd-t27',
         holdMs: 8000,
         go: async () => {
@@ -462,11 +464,11 @@ export const TOUR_PATHS: TourPath[] = [
         },
       },
       {
-        title: 'Approve',
+        title: 'Step 3 — Approve',
         caption:
-          'One press queues the send for its date. An email with no image cannot be approved — ' +
-          'its button is shut and says why — and there is no “hold”, because a held email is a ' +
-          'decision nobody made.',
+          'One click approves the email and queues it for its scheduled day. An email without ' +
+          'an image cannot be approved — its button is disabled and says why. To move or ' +
+          'cancel sends instead, tick their checkboxes and use the bar that appears.',
         target: '.rd-toast',
         holdMs: 9000,
         go: async () => {
@@ -475,10 +477,10 @@ export const TOUR_PATHS: TourPath[] = [
         },
       },
       {
-        title: 'That’s the approval path',
+        title: 'Done',
         caption:
-          'You are still working as Elani — switch back from the chip up top. This is demo ' +
-          'data: refresh resets the approval and everything else the tour did.',
+          'You are still signed in as Elani — switch back using the name at the top right. ' +
+          'Refresh the page to reset the demo.',
         holdMs: 7000,
       },
     ],

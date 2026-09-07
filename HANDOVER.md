@@ -541,6 +541,22 @@ to the chooser. prove-screens §6 asserts the chooser offers exactly 4 paths
 and path 1's file-drop reaches the read-file pane (failed once via a
 3-path slice, then a broken drop selector, before being kept).
 
+**Approvals: one button per row (1 Sep):** Tom, over a screenshot of the row
+actions: "Change this to one button Approve, and other actions you have to do
+by selecting the checkbox." Rows on My approvals now carry only Approve; Change
+email date and Cancel send(s) live on the bulk bar. Change email date with a
+multi-selection opens a "Which email is moving?" chooser (the modal's
+guardrails are per-send); Cancel handles any number with a listing confirm.
+The preview dialog (row click) keeps every verb for a single send.
+
+**Tour rewritten as plain-English guides (1 Sep):** Tom, on the first
+captions: "the tone of voice is awful … Do it in plain english, proper
+sentences" and "structure them as a step by step guide." The four paths are
+now titled "How to import a release and allocate edition numbers" / "How to
+set up the email plan for a release" / "How to log a delay" / "How to approve
+emails", each step titled "Step N — do X" with instructions that say what to
+click and what happens. Keep this register for any future tour edits.
+
 **Guided tour — built (1 Sep):** Tom: "Make an animated guide running end to end
 on how this works", answered as: for new team members, inside the prototype, the
 full lifecycle, ~2 minutes brisk. It is **"Take the tour"** in the rail —
