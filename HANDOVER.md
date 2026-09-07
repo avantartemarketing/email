@@ -578,6 +578,36 @@ orders is spotlit via `.rd-workscroll` because the table's own rect is its
 scrollWidth. Everything the tour mutates vanishes on refresh — the last card
 says so.
 
+**Full UI review + Mattie's template archive (7 Sep):** Two review artifacts, both
+verified finding-by-finding against code and rulings before anything was written:
+- **Two Seats, One Tool** (https://claude.ai/code/artifact/591759cf-9d40-4517-9bc0-2ed12198cd8c):
+  42 confirmed findings from persona-driven browser walks + code lenses. Themes: the
+  front door ignores both personas' setup work (no To-number or Images-owed signal
+  outside release pages); the delay handoff has blind spots (a cancelled delay
+  notice notifies nobody upstream — HIGH; three of four cancel dialogs omit the
+  "collectors never told" warning — HIGH); My approvals hasn't caught up with
+  Release.approverId (badge summons operators); navigation dead-ends (overview drops
+  the clicked batch; Overdue trail goes cold); dangerous doors (EditSendModal is an
+  unguarded date back door — HIGH; the numbering fault's only visible exit is
+  destructive — HIGH; bulk-bar reschedule verb 'Set a new promise date' vs 'Change
+  delivery date' everywhere else — HIGH). Four raised-and-checked items are recorded
+  deliberate (over-edition confirm, writer self-approval, blind image tiles,
+  approvals-as-standing). Top-8 shortlist is in the artifact. Two open decisions for
+  Tom: is "my approvals" standing or assignment; is image-picking formally CRM's.
+- **Less Bespoke** (https://claude.ai/code/artifact/49983b0c-7039-488a-9240-8e9a1241a2d7):
+  Mattie's 13 real HubSpot exports (uploads Archive_5.zip; extracted texts in the
+  session scratchpad, NEVER into the repo — clean of collector PII, all sent to
+  collecting@avantarte.com) are one skeleton; her hand-adaptations map to computed
+  facts. Recommendation, 8 moves: {{closing_line}} from plan position (3 real
+  closings); {{edition_noun}}/{{next_destination}} per-batch tokens (kills the
+  framed/unframed template pairs); split signing into with-artist + signed (approval
+  is the truth gate — never claim a signature from the calendar); pp-production for
+  sculptures with a release-level craft-sentence override; rotate on-track bodies
+  like their image slots; add the Packing row (+{{packing_week}}) to next steps;
+  make pp-delay lean (no image requirement, no next-steps card — the real one has
+  neither); reseed master copy from her files (window phrasing "by 06 – 13
+  November", subjects "{Artist} · Stage", preheader field). None of it is built yet.
+
 **Remaining is slice 5:** the Auto/Review/Info changes worklist (tags vs line items),
 pinned numbers for edition requests, and freezing a number once a collector has been
 told — which waits on Tom's "edition numbers in emails?" answer.
