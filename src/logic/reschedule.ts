@@ -16,11 +16,13 @@ import {
   buildTemplateFields,
   effectiveTemplate,
   imageSlotsForPlan,
+  onTrackBody,
   patchTokens,
   releaseFillerTemplate,
   renderReleaseTemplate,
   sequenceForBatch,
   shipWindowText,
+  stageFields,
 } from './templates';
 
 /**
@@ -265,7 +267,10 @@ export function planReschedule(
     ? []
     : batchSends.filter((s) => s.status !== 'sent' && s.status !== 'cancelled').map((s) => s.id);
 
-  const fields = buildTemplateFields(release, input.newPromiseDate);
+  const fields = {
+    ...buildTemplateFields(release, input.newPromiseDate),
+    ...stageFields(release, batch, []),
+  };
   const plannedSteps = generateMilestonePlan(nowDay, input.newPromiseDate, release.productKind, {
     sequence: remainingSequence(sequenceForBatch(release, batch), [
       ...inheritedSentSends,
@@ -295,11 +300,11 @@ export function planReschedule(
     status: 'awaiting_copy',
     subject: draft.subject,
     headline: patchTokens(delayTemplate.headline, fields),
-    imageSlot: 'pp-delay',
-    imageName: release.templateImages['pp-delay'],
+    /* No image slot: the real delay email carries no hero and no card —
+       logo, four short paragraphs, done. Approval must not demand a picture
+       the email never shows. */
     body: draft.body,
-    // After a delay notice, "what happens next" is the regenerated plan.
-    nextSteps: buildNextSteps(plannedSteps.map((s) => s.templateRef), fields),
+    nextSteps: [],
     brief: {
       oldPromiseDate,
       newPromiseDate: input.newPromiseDate,
@@ -311,8 +316,17 @@ export function planReschedule(
     createdBy: user.id,
   };
 
+  let fillerNth = 0;
   const milestoneSends: ScheduledSend[] = plannedSteps.map((step, idx) => {
-    const rendered = renderReleaseTemplate(release, step.templateRef, fields);
+    const upcoming = plannedSteps.slice(idx + 1).map((s) => s.templateRef);
+    const stepFields = { ...fields, ...stageFields(release, batch, upcoming) };
+    let rendered = renderReleaseTemplate(release, step.templateRef, stepFields);
+    if (step.templateRef === 'pp-ontrack') {
+      fillerNth += 1;
+      if (!release.templateOverrides['pp-ontrack']?.body) {
+        rendered = { ...rendered, body: patchTokens(onTrackBody(fillerNth), stepFields) };
+      }
+    }
     return {
       id: ctx.newId('send'),
       releaseId: release.id,
@@ -326,10 +340,7 @@ export function planReschedule(
       imageSlot: imageSlots[idx],
       imageName: release.templateImages[imageSlots[idx]],
       body: rendered.body,
-      nextSteps: buildNextSteps(
-        plannedSteps.slice(idx + 1).map((s) => s.templateRef),
-        fields,
-      ),
+      nextSteps: buildNextSteps(upcoming, stepFields),
       createdAt: nowIso,
       createdBy: user.id,
     };
@@ -438,13 +449,17 @@ export function buildDefaultDelayEmail(
   newPromiseDate: string,
   reason: string,
 ): { subject: string; body: string } {
-  const reasonLine = reason.trim()
-    ? reason.trim().replace(/\.?\s*$/, '.')
-    : 'Production is taking longer than planned.';
+  /* The DRAFT's reason line is deliberately neutral. The ops reason ("the
+     foundry found pitting after the first finishing pass") is the writer's
+     BRIEF, shown above the fields — splicing it verbatim into collector copy
+     let shop-floor language ship when a writer hurried. The writer rewrites
+     from the brief; the draft just holds the shape. */
+  void reason;
   const template = effectiveTemplate(release, 'pp-delay');
   const fields = buildTemplateFields(release, newPromiseDate, {
     old_promise_date: oldPromiseDate ? formatDay(oldPromiseDate) : 'the original date',
-    reason_line: reasonLine,
+    reason_line:
+      'Unfortunately, there has been a slight delay in production, which has impacted our dispatch timeline.',
     ship_window: shipWindowText(newPromiseDate),
   });
   return {

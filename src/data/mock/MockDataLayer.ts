@@ -64,10 +64,13 @@ import {
   buildTemplateFields,
   effectiveTemplate,
   imageSlotsForPlan,
+  onTrackBody,
   onTrackSlot,
+  patchTokens,
   releaseFillerTemplate,
   renderReleaseTemplate,
   sequenceForBatch,
+  stageFields,
   IMAGE_OPTIONS,
 } from '../../logic/templates';
 
@@ -1156,8 +1159,21 @@ export class MockDataLayer implements DataLayer {
       fillerTemplate: releaseFillerTemplate(release),
     });
     const imageSlots = imageSlotsForPlan(steps.map((s) => s.templateRef));
+    let fillerNth = 0;
     steps.forEach((step, idx) => {
-      const rendered = renderReleaseTemplate(release, step.templateRef, fields);
+      /* The stage tokens are positional: what follows THIS send decides its
+         closing line and its "where it goes next" sentence. */
+      const upcoming = steps.slice(idx + 1).map((s) => s.templateRef);
+      const stepFields = { ...fields, ...stageFields(release, batch, upcoming) };
+      let rendered = renderReleaseTemplate(release, step.templateRef, stepFields);
+      if (step.templateRef === 'pp-ontrack') {
+        fillerNth += 1;
+        /* Consecutive check-ins must not repeat verbatim — the nth filler
+           rotates bodies, unless the release wrote its own. */
+        if (!release.templateOverrides['pp-ontrack']?.body) {
+          rendered = { ...rendered, body: patchTokens(onTrackBody(fillerNth), stepFields) };
+        }
+      }
       const send: ScheduledSend = {
         id: this._newId('send'),
         releaseId: release.id,
@@ -1171,10 +1187,7 @@ export class MockDataLayer implements DataLayer {
         imageSlot: imageSlots[idx],
         imageName: release.templateImages[imageSlots[idx]],
         body: rendered.body,
-        nextSteps: buildNextSteps(
-          steps.slice(idx + 1).map((s) => s.templateRef),
-          fields,
-        ),
+        nextSteps: buildNextSteps(upcoming, stepFields),
         createdAt: nowIso,
         createdBy: user.id,
       };
@@ -1533,7 +1546,9 @@ export class MockDataLayer implements DataLayer {
      * Approval is also the one funnel all three creation paths converge on:
      * reschedule mints its sends already `pending_approval`, so a gate on
      * submit-for-approval would never see them. */
-    if (!send.imageName) throw new Error(NO_IMAGE_YET);
+    /* Delay notices excepted: the real delay email shows no hero image, so
+       no picture is owed and none can block it. */
+    if (!send.imageName && send.type !== 'delay') throw new Error(NO_IMAGE_YET);
     send.status = 'approved';
     send.approvedAt = this.now().toISOString();
     send.approvedBy = user.id;

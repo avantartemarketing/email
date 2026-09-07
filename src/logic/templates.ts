@@ -21,6 +21,8 @@ import { generateMilestonePlan } from './plan';
 export const TEMPLATE_LABELS: Record<TemplateRef, string> = {
   'pp-printing': 'Printing in progress',
   'pp-signing': 'Signing',
+  'pp-signed': 'Signed by the artist',
+  'pp-production': 'Production in progress',
   'pp-framing': 'Framing',
   'pp-dispatch': 'Preparing for dispatch',
   'pp-ontrack': 'On track',
@@ -106,102 +108,163 @@ export interface MasterTemplate {
   stepText?: string;
 }
 
-const CLOSING_LINE =
+/* The three real closings, from the archive of 13 real sends (7 Sep 2026).
+   Which one an email carries is not taste — it tracks whether another CRM
+   email follows, which the plan generator decides when it builds the
+   schedule. `{{closing_line}}` is resolved per send from its position;
+   these are its values. */
+export const CLOSING_MORE_UPDATES =
   "You can expect more updates along the way, but please don't hesitate to contact us if you have any questions.";
+export const CLOSING_ONE_MORE =
+  "We'll be in touch with another update before it leaves, but if you have any questions in the meantime, please reply to this email.";
+export const CLOSING_TRACKING =
+  "As soon as your order is on its way, you'll receive a separate email with tracking details and an estimated delivery date.";
 
+/* Every master's copy below is reseeded from the archive — same skeleton,
+   same phrasing, with the sentences Mattie adapts by hand replaced by
+   computed tokens: {{edition_noun}}, {{next_destination}},
+   {{remaining_route}}, {{closing_line}}, {{ship_window_short}}. */
 export const MASTER_TEMPLATES: Record<TemplateRef, MasterTemplate> = {
   'pp-printing': {
     ref: 'pp-printing',
     name: 'Milestone — printing in progress',
     subject: '{{artist}} · Printing in progress',
     headline: 'Printing in progress',
-    body: `Printing of your artwork by {{artist}} is underway at our specialist fine art printmaking studio. Once complete, it will be signed by the artist and carefully prepared for dispatch.
+    body: `For the last few weeks, printing of your artwork by {{artist}} has been underway at Make-Ready, our specialist fine art printmaking studio based in North London. Once complete, it will be {{remaining_route}}.
 
-We're currently on track to ship your edition between {{ship_window}}.
+We're currently on track to ship your {{edition_noun}} by {{ship_window_short}}.
 
-${CLOSING_LINE}`,
+{{closing_line}}`,
     stepTitle: 'Printing',
     stepText:
-      'Your edition is printed at our specialist fine art printmaking studio and checked by hand before it moves to the next stage.',
+      'Your edition is printed at Make-Ready, our specialist fine art printmaking studio, and checked by hand before it moves to the next stage.',
   },
   'pp-signing': {
     ref: 'pp-signing',
-    name: 'Milestone — signing',
-    subject: '{{artist}} · Signing your edition',
+    name: 'Milestone — with the artist for signing',
+    subject: '{{artist}} · Signing in progress',
     headline: 'Signing in progress',
-    body: `Your edition of {{release_title}} has been returned to {{artist}} for their signature. This step takes time, but is essential to confirming the authenticity of your edition for years to come.
+    body: `Your artwork from our recent collaboration with {{artist}} has been printed and is now with the artist for signing. This step takes time, but it will be essential in proving the authenticity of your print in years to come.
 
-We're currently on track to ship your edition between {{ship_window}}.
+We're currently on track to ship your {{edition_noun}} by {{ship_window_short}}.
 
-${CLOSING_LINE}`,
+{{closing_line}}`,
     stepTitle: 'Signing',
     stepText:
-      'Your edition is returned to the artist for their signature — the step that confirms its authenticity for years to come.',
+      'Your edition is with the artist for their signature — the step that confirms its authenticity for years to come.',
+  },
+  /* The archive's second signing-stage email. The body CLAIMS a signature, so
+     the calendar must never send it on its own say-so — the approval step is
+     the truth gate: the approver approves it only once it is true. */
+  'pp-signed': {
+    ref: 'pp-signed',
+    name: 'Milestone — signed by the artist',
+    subject: '{{artist}} · Your artwork has been signed',
+    headline: 'Your artwork has been signed',
+    body: `Your artwork from our recent collaboration with {{artist}} has been signed by the artist and is now {{next_destination}}.
+
+We're still on track to ship your {{edition_noun}} by {{ship_window_short}}.
+
+{{closing_line}}`,
+    // No card row of its own: the real cards go Framing → Packing → Dispatching.
+  },
+  /* Sculptures' real first email: the craft story that justifies the wait.
+     {{craft_line}} has a generic default; each release writes its own once,
+     via the existing release-level copy override. */
+  'pp-production': {
+    ref: 'pp-production',
+    name: 'Milestone — production in progress (sculpture)',
+    subject: '{{artist}} · Your edition is in progress',
+    headline: 'Your edition is in progress',
+    body: `The creation of your {{release_title}} edition by {{artist}} is now underway. {{craft_line}}
+
+Once complete, your artwork will be entrusted to our specialist art handling team in Amsterdam for final checks and preparation for dispatch.
+
+We currently expect to ship your {{edition_noun}} by {{ship_window_short}}. We understand this may feel like a long wait, but we're confident it will be worth it. Thank you for your continued patience.
+
+{{closing_line}}`,
   },
   'pp-framing': {
     ref: 'pp-framing',
     name: 'Milestone — framing',
-    subject: '{{artist}} · Framing your edition',
+    subject: '{{artist}} · Framing in progress',
     headline: 'Framing in progress',
-    body: `Your edition of {{release_title}} is now with our specialist framers. Each work is mounted, framed and condition-checked individually before it's cleared for dispatch.
+    body: `Your artwork from our recent collaboration with {{artist}} is now being professionally framed at our bespoke framing studio just outside of Amsterdam. Framing usually takes 2 to 4 weeks to complete.
 
-We're currently on track to ship your edition between {{ship_window}}.
+We're still on track to ship your framed edition by {{ship_window_short}}.
 
-${CLOSING_LINE}`,
+{{closing_line}}`,
     stepTitle: 'Framing',
     stepText:
-      'Your edition is mounted, framed and condition-checked individually by our specialist framers.',
+      'Your signed print is professionally framed at our bespoke framing studio. Framing usually takes 2 to 4 weeks to complete.',
   },
   'pp-dispatch': {
     ref: 'pp-dispatch',
     name: 'Milestone — preparing for dispatch',
-    subject: '{{artist}} · Preparing your edition for dispatch',
+    subject: '{{artist}} · Preparing for dispatch',
     headline: 'Preparing for dispatch',
-    body: `Your edition of {{release_title}} by {{artist}} has passed its final checks. Our specialist art handling team in Amsterdam is now carefully packing it for dispatch.
+    body: `Great news — your artwork from our recent collaboration with {{artist}} has passed its final checks and is now in the hands of our specialist art handling team in Amsterdam, where it is being carefully prepared for dispatch.
 
-Once everything's ready to go, we'll email you an update with a delivery date and tracking details. Dispatch is estimated to be between {{ship_window}}.`,
+We're still on track to ship your {{edition_noun}} by {{ship_window_short}}.
+
+${CLOSING_TRACKING} If you have any questions in the meantime, please don't hesitate to reach out at collecting@avantarte.com.`,
     stepTitle: 'Dispatching',
     stepText:
-      "Our specialist art handling team in Amsterdam carefully packs your edition, and we'll email you a delivery date and tracking details once it's collected. Dispatch is estimated to be between {{ship_window}}.",
+      "Once everything's ready to go, we'll email you an update with a delivery date and tracking details. Dispatch is estimated to be around {{ship_window_short}}.",
   },
   'pp-ontrack': {
     ref: 'pp-ontrack',
     name: 'Milestone — on track (generic)',
-    subject: 'An update on {{release_title}}',
+    subject: '{{artist}} · An update on your order',
     headline: 'Everything is on track',
-    body: `A quick update on {{release_title}} by {{artist}}: production is progressing as planned, and we're currently on track to ship your edition between {{ship_window}}.
+    body: `A quick update on {{release_title}} by {{artist}}: everything is proceeding to schedule, and we're currently on track to ship your {{edition_noun}} by {{ship_window_short}}. No news is good news — production is progressing exactly as planned.
 
-${CLOSING_LINE}`,
+{{closing_line}}`,
     // Fillers never appear in a "What happens next?" card.
   },
+  /* Lean, like the real one: no salutation, no old date (the brief keeps it
+     for the writer), no next-steps card, no hero image required. */
   'pp-delay': {
     ref: 'pp-delay',
     name: 'Delay notice',
-    subject: 'An update on your {{release_title}} delivery date',
+    subject: '{{artist}} · An update on your order',
     headline: 'An update on your order',
-    body: `Hi {{first_name}},
+    body: `We're reaching out with an update on your artwork from our recent collaboration with {{artist}}. {{reason_line}}
 
-We're writing with an update on {{release_title}} by {{artist}}. {{reason_line}}
+Our team is working hard to resolve this as quickly as possible; however, we now expect to ship your {{edition_noun}} by {{ship_window_short}}.
 
-Your edition was previously expected to ship from {{old_promise_date}}. We now expect to ship it between {{ship_window}}.
+We're very sorry for this unexpected delay and appreciate your patience as we work through this.
 
-We know delays are frustrating, and we're sorry for the wait — every edition is made to the artist's exacting standard, and we won't ship anything that falls short of it. We'll continue to update you as your edition progresses, and you can reply to this email with any questions.
-
-Thank you for your patience,
-Avant Arte`,
+If you have any questions in the meantime, please don't hesitate to reach out at collecting@avantarte.com.`,
   },
 };
 
-/** Milestone order for prints; the plan generator draws from this sequence. */
+/** The second on-track body: consecutive check-ins must not repeat verbatim.
+    The nth filler in a plan takes `onTrackBody(n)`; a release-level override
+    of pp-ontrack replaces both. */
+const ONTRACK_BODY_2 = `Thank you for your patience as your {{release_title}} {{edition_noun}} by {{artist}} continues to progress steadily. We wanted to check in and reassure you that everything remains on track, and we still expect to ship by {{ship_window_short}}.
+
+{{closing_line}}`;
+
+export function onTrackBody(nth: number): string {
+  return nth % 2 === 0 ? ONTRACK_BODY_2 : MASTER_TEMPLATES['pp-ontrack'].body;
+}
+
+/** Milestone order for prints; the plan generator draws from this sequence.
+    Two signing-stage emails, like the real archive: "with the artist" then
+    "signed". Short windows drop the early ones, which reproduces Mattie's
+    own timing choices (a month out, the signed email is the one that goes). */
 export const PRINT_SEQUENCE: TemplateRef[] = [
   'pp-printing',
   'pp-signing',
+  'pp-signed',
   'pp-framing',
   'pp-dispatch',
 ];
 
-/** Sculptures have no printing/signing/framing stages — generic updates, then dispatch. */
-export const SCULPTURE_SEQUENCE: TemplateRef[] = ['pp-ontrack', 'pp-dispatch'];
+/** Sculptures: the craft-story production email, then dispatch — the plan
+    generator inserts on-track fillers into the long gap between them. */
+export const SCULPTURE_SEQUENCE: TemplateRef[] = ['pp-production', 'pp-dispatch'];
 
 export interface TemplateFields {
   artist?: string;
@@ -219,7 +282,7 @@ export interface TemplateFields {
  * the raw ISO date so the ship window can be derived from it.
  */
 export function buildTemplateFields(
-  release: Pick<Release, 'artist' | 'title'>,
+  release: Pick<Release, 'artist' | 'title'> & Partial<Pick<Release, 'productKind'>>,
   promiseDateIso: string,
   extra: TemplateFields = {},
 ): TemplateFields {
@@ -228,7 +291,57 @@ export function buildTemplateFields(
     release_title: release.title,
     promise_date: formatDay(promiseDateIso),
     ship_window: shipWindowText(promiseDateIso),
+    ship_window_short: shipWindowShort(promiseDateIso),
+    /* Defaults for the stage tokens, so a preview without batch context still
+       renders whole sentences. `stageFields` overrides them per send. */
+    edition_noun: release.productKind === 'sculpture' ? 'sculpture edition' : 'edition',
+    closing_line: CLOSING_MORE_UPDATES,
+    next_destination:
+      'on its way to our specialist art handling team in Amsterdam, where it will be carefully prepared for dispatch',
+    remaining_route: 'signed by the artist and carefully prepared for dispatch',
+    craft_line:
+      'Each edition is carefully crafted — a meticulous process that requires time and great attention to detail.',
     ...extra,
+  };
+}
+
+/**
+ * The tokens that depend on WHERE a send sits: its batch, and what still
+ * follows it in that batch's plan. This is the mechanism that replaces
+ * Mattie's hand-adaptation — the diverging sentences in the real archive are
+ * the batch's remaining stages leaking into prose, so they are computed from
+ * exactly that.
+ */
+export function stageFields(
+  release: Pick<Release, 'productKind'>,
+  batch: Pick<Batch, 'fulfilment'> | null,
+  upcomingRefs: TemplateRef[],
+): TemplateFields {
+  const framingAhead = upcomingRefs.includes('pp-framing');
+  /* The closing tracks how many CRM emails still follow: two or more → the
+     "more updates" line; exactly one (usually dispatch) → "in touch with
+     another update before it leaves"; none → the tracking handoff, though in
+     practice dispatch is always last and carries that line natively. */
+  const closing =
+    upcomingRefs.length >= 2
+      ? CLOSING_MORE_UPDATES
+      : upcomingRefs.length === 1
+        ? CLOSING_ONE_MORE
+        : CLOSING_TRACKING;
+  return {
+    edition_noun:
+      release.productKind === 'sculpture'
+        ? 'sculpture edition'
+        : batch?.fulfilment === 'framed'
+          ? 'framed edition'
+          : 'edition',
+    closing_line: closing,
+    next_destination: framingAhead
+      ? 'on its way to our bespoke framing studio just outside of Amsterdam, where it will be framed. The framing process usually takes between two and four weeks'
+      : 'on its way to our specialist art handling team in Amsterdam, where it will be carefully prepared for dispatch',
+    remaining_route: framingAhead
+      ? 'signed by the artist, professionally framed, and carefully prepared for dispatch'
+      : 'signed by the artist and carefully prepared for dispatch',
   };
 }
 
@@ -446,11 +559,13 @@ export function requiredImageSlots(
   const before = sequence.filter(
     (ref) => ref !== 'pp-ontrack' && ref !== 'pp-dispatch',
   ) as ImageSlot[];
+  /* No pp-delay here any more: the real delay email carries no hero image
+     (7 Sep 2026, the archive — logo, four short paragraphs, no card), so the
+     tool must not demand a picture the email will never show. */
   return [
     ...before,
     ...onTrackSlotsInPlay(release, batches, sends, todayIso),
     'pp-dispatch',
-    'pp-delay',
   ];
 }
 
@@ -542,6 +657,18 @@ export function buildNextSteps(
   for (const ref of upcomingRefs) {
     const master = MASTER_TEMPLATES[ref];
     if (!master.stepTitle || !master.stepText) continue;
+    /* Every real card ends Packing → Dispatching; the tool used to merge the
+       two into one Dispatching row. The Packing row rides in just before it. */
+    if (ref === 'pp-dispatch') {
+      steps.push({
+        templateRef: 'pp-dispatch',
+        title: 'Packing',
+        text: patchTokens(
+          'Our Amsterdam-based team will carefully pack your edition. You can expect this to take place in the week before {{promise_date}}.',
+          fields,
+        ),
+      });
+    }
     steps.push({
       templateRef: ref,
       title: master.stepTitle,

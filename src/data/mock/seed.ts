@@ -26,9 +26,10 @@ import {
 const MILESTONE_IMAGES: Partial<Record<ImageSlot, string>> = {
   'pp-printing': 'Studio — printing',
   'pp-signing': 'Studio — signing',
+  'pp-signed': 'Artist at work',
+  'pp-production': 'Artist at work',
   'pp-framing': 'Framing bench',
   'pp-dispatch': 'Packing & dispatch',
-  'pp-delay': 'Artist portrait',
 };
 
 /** Rotated across a release's on-track run so no collector sees a repeat. */
@@ -245,7 +246,6 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
   await layer.setReleaseEmailImage(fallingLight.id, 'pp-printing', 'Studio — printing');
   await layer.setReleaseEmailImage(fallingLight.id, 'pp-signing', 'Artist at work');
   await layer.setReleaseEmailImage(fallingLight.id, 'pp-ontrack-1', 'Artwork detail');
-  await layer.setReleaseEmailImage(fallingLight.id, 'pp-delay', 'Artist portrait');
   const flFramed = batchOf(fallingLight.id, 'framed');
   const flUnframed = batchOf(fallingLight.id, 'unframed');
 
@@ -257,10 +257,15 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
   clock(-57);
   // Unframed: printing and signing out on schedule; dispatch queued.
   await approveAndSendPlan(flUnframed.id, (s) => s.templateRef !== 'pp-dispatch');
-  // Framed: printing and signing out; framing and dispatch still ahead.
+  // Framed: printing, signing and the signed email out; framing and dispatch
+  // still ahead. (The signed email went out because the signatures are real —
+  // approval is the truth gate, and in this story it was passed.)
   await approveAndSendPlan(
     flFramed.id,
-    (s) => s.templateRef === 'pp-printing' || s.templateRef === 'pp-signing',
+    (s) =>
+      s.templateRef === 'pp-printing' ||
+      s.templateRef === 'pp-signing' ||
+      s.templateRef === 'pp-signed',
   );
   const flFraming = findSends(flFramed.id).find((s) => s.templateRef === 'pp-framing');
 
@@ -302,9 +307,17 @@ export async function createSeededMockDataLayer(): Promise<MockDataLayer> {
     markSent(layer, flF2Framing.id, sentAt(flF2Framing));
   }
 
-  // The framed batch's own framing email fired on schedule at T-8.
+  // The framed batch's own framing email fired at T-8 — stamped at that
+  // moment explicitly, so it always predates the T-2 split whatever date the
+  // plan generator gave the send.
   clock(-8);
-  if (flFraming) markSent(layer, flFraming.id, sentAt(flFraming));
+  if (flFraming) {
+    markSent(
+      layer,
+      flFraming.id,
+      new Date(parseDay(addDays(T, -8)).getTime() + 10 * 3600_000).toISOString(),
+    );
+  }
 
   // T-5: a refund comes through Shopify; the order is removed by hand.
   clock(-5);

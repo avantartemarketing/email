@@ -153,8 +153,11 @@ describe('planReschedule — subset selection (split)', () => {
   it('drafts the delay email rather than leaving the writer a blank page', () => {
     const delay = result.newSends[0];
     expect(delay.subject.length).toBeGreaterThan(0);
-    // The reason patched into the generated body — the brief, made visible.
-    expect(delay.body).toContain('Framing supplier delay');
+    /* The DRAFT's reason line is neutral — the raw ops reason lives in the
+       brief, not in collector copy, so a hurried writer can't ship
+       shop-floor language. */
+    expect(delay.body).toContain('slight delay in production');
+    expect(delay.body).not.toContain('Framing supplier delay');
   });
 
   it('attaches the brief the writer works from', () => {
@@ -178,13 +181,11 @@ describe('planReschedule — subset selection (split)', () => {
     expect(n.readAt).toBeUndefined();
   });
 
-  it('gives the delay send the regenerated plan as its next steps', () => {
+  it('keeps the delay email lean — no next-steps card and no image slot', () => {
+    /* Like the real delay export: logo, four short paragraphs, done. */
     const delay = result.newSends[0];
-    const milestoneRefs = result.newSends.slice(1).map((s) => s.templateRef);
-    expect(delay.nextSteps!.length).toBeGreaterThan(0);
-    for (const step of delay.nextSteps!) {
-      expect(milestoneRefs).toContain(step.templateRef);
-    }
+    expect(delay.nextSteps).toEqual([]);
+    expect(delay.imageSlot).toBeUndefined();
   });
 
   it('regenerates milestones against the new date, all pending approval', () => {
@@ -196,8 +197,8 @@ describe('planReschedule — subset selection (split)', () => {
       expect(send.batchId).toBe(result.targetBatchId);
     }
     expect(milestones[milestones.length - 1].templateRef).toBe('pp-dispatch');
-    // Patched copy carries the new promise date (as the ship window start).
-    expect(milestones[0].body).toContain('20 November 2026');
+    // Patched copy carries the new window, in the real emails' short form.
+    expect(milestones[0].body).toContain('20 \u2013 27 Nov 2026');
     // Each milestone's "what happens next" covers the steps after it.
     expect(milestones[milestones.length - 1].nextSteps).toEqual([]);
   });
@@ -447,10 +448,12 @@ describe('buildDefaultDelayEmail', () => {
       '2026-11-20',
       'The framing run failed quality checks',
     );
-    expect(subject).toContain('Falling Light');
-    expect(body).toContain('The framing run failed quality checks.');
-    expect(body).toContain('15 September 2026');
-    expect(body).toContain('20 November 2026');
+    expect(subject).toContain('An update on your order');
+    /* Neutral draft: the raw reason stays in the brief. */
+    expect(body).not.toContain('The framing run failed quality checks');
+    expect(body).toContain('slight delay in production');
+    expect(body).not.toContain('15 September 2026');
+    expect(body).toContain('20 \u2013 27 Nov 2026');
   });
 
   it('honours a release-level custom delay body', () => {
@@ -461,11 +464,15 @@ describe('buildDefaultDelayEmail', () => {
       },
     };
     const { body } = buildDefaultDelayEmail(custom, null, '2026-11-20', 'Kiln failure');
-    expect(body).toBe('Bespoke delay for Falling Light: Kiln failure.');
+    expect(body).toBe(
+      'Bespoke delay for Falling Light: Unfortunately, there has been a slight delay in production, which has impacted our dispatch timeline.',
+    );
   });
 
   it('handles a missing previous promise date', () => {
+    // The lean body never prints the old date; it just must not crash on null.
     const { body } = buildDefaultDelayEmail(release, null, '2026-11-20', 'Supplier delay');
-    expect(body).toContain('the original date');
+    expect(body.length).toBeGreaterThan(0);
+    expect(body).toContain('20 \u2013 27 Nov 2026');
   });
 });

@@ -39,6 +39,7 @@ describe('generateMilestonePlan', () => {
     expect(plan.map((s) => s.templateRef)).toEqual([
       'pp-printing',
       'pp-signing',
+      'pp-signed',
       'pp-framing',
       'pp-dispatch',
     ]);
@@ -55,17 +56,24 @@ describe('generateMilestonePlan', () => {
     expect(refs[refs.length - 1]).toBe('pp-dispatch');
     // Milestones keep their order.
     const milestonesOnly = refs.filter((r) => r !== 'pp-ontrack');
-    expect(milestonesOnly).toEqual(['pp-printing', 'pp-signing', 'pp-framing', 'pp-dispatch']);
+    expect(milestonesOnly).toEqual([
+      'pp-printing',
+      'pp-signing',
+      'pp-signed',
+      'pp-framing',
+      'pp-dispatch',
+    ]);
     for (const gap of gaps(plan.map((s) => s.scheduledDate))) {
       expect(gap).toBeLessThanOrEqual(35);
     }
   });
 
-  it('plans sculptures as on-track updates ending in dispatch', () => {
+  it('plans sculptures as production, then on-track updates, ending in dispatch', () => {
     const plan = generateMilestonePlan(NOW, '2027-02-27', 'sculpture'); // 6 months
     const refs = plan.map((s) => s.templateRef);
+    expect(refs[0]).toBe('pp-production');
     expect(refs[refs.length - 1]).toBe('pp-dispatch');
-    expect(refs.slice(0, -1).every((r) => r === 'pp-ontrack')).toBe(true);
+    expect(refs.slice(1, -1).every((r) => r === 'pp-ontrack')).toBe(true);
     expect(refs.length).toBeGreaterThanOrEqual(5); // ~180 days / 35 max gap
     for (const gap of gaps(plan.map((s) => s.scheduledDate))) {
       expect(gap).toBeLessThanOrEqual(35);
@@ -83,6 +91,7 @@ describe('generateMilestonePlan', () => {
     expect(plan.map((s) => s.templateRef)).toEqual([
       'pp-printing',
       'pp-signing',
+      'pp-signed',
       'pp-framing',
       'pp-dispatch',
     ]);

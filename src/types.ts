@@ -63,6 +63,8 @@ export type OnTrackSlot = `pp-ontrack-${number}`;
 export type ImageSlot =
   | 'pp-printing'
   | 'pp-signing'
+  | 'pp-signed'
+  | 'pp-production'
   | 'pp-framing'
   | 'pp-dispatch'
   | 'pp-delay'
@@ -279,6 +281,10 @@ export type SendType = 'milestone' | 'delay';
 export type TemplateRef =
   | 'pp-printing'
   | 'pp-signing'
+  /** "Signed by the artist" — the archive's second signing-stage email. */
+  | 'pp-signed'
+  /** Sculptures' real first email: the craft story that justifies the wait. */
+  | 'pp-production'
   | 'pp-framing'
   | 'pp-dispatch'
   | 'pp-ontrack'

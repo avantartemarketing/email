@@ -74,21 +74,25 @@ describe('renderTemplate', () => {
       artist: 'Jenny Marlowe',
       release_title: 'Falling Light',
       ship_window: '30 October 2026 and 6 November 2026',
+      ship_window_short: '30 Oct \u2013 6 Nov 2026',
+      edition_noun: 'edition',
       old_promise_date: '12 September 2026',
       reason_line: 'The framing run failed quality checks.',
     });
-    expect(subject).toBe('An update on your Falling Light delivery date');
+    expect(subject).toBe('Jenny Marlowe · An update on your order');
     expect(headline).toBe('An update on your order');
     expect(body).toContain('The framing run failed quality checks.');
-    expect(body).toContain('previously expected to ship from 12 September 2026');
-    expect(body).toContain('between 30 October 2026 and 6 November 2026');
-    expect(body).toContain('{{first_name}}'); // survives until per-recipient render
+    /* The lean delay body, like the real one: no old date (the brief keeps
+       it for the writer), the short window form, and no salutation at all. */
+    expect(body).not.toContain('12 September 2026');
+    expect(body).toContain('by 30 Oct \u2013 6 Nov 2026');
+    expect(body).not.toContain('{{first_name}}');
   });
 
   it('milestone bodies carry the ship window, matching the real email format', () => {
     const fields = buildTemplateFields(makeRelease(), '2026-10-30');
     const { body } = renderTemplate('pp-printing', fields);
-    expect(body).toContain('ship your edition between 30 October 2026 and 6 November 2026');
+    expect(body).toContain('ship your edition by 30 Oct – 6 Nov 2026');
   });
 });
 
@@ -125,6 +129,7 @@ describe('releaseSequenceFor', () => {
     expect(releaseSequenceFor(makeRelease())).toEqual([
       'pp-printing',
       'pp-signing',
+      'pp-signed',
       'pp-framing',
       'pp-dispatch',
     ]);
@@ -132,7 +137,12 @@ describe('releaseSequenceFor', () => {
 
   it('drops release-disabled milestones', () => {
     const release = makeRelease({ disabledTemplates: ['pp-framing'] });
-    expect(releaseSequenceFor(release)).toEqual(['pp-printing', 'pp-signing', 'pp-dispatch']);
+    expect(releaseSequenceFor(release)).toEqual([
+      'pp-printing',
+      'pp-signing',
+      'pp-signed',
+      'pp-dispatch',
+    ]);
   });
 
   it('never drops dispatch, even if listed as disabled', () => {
@@ -147,11 +157,13 @@ describe('sequenceForBatch', () => {
     expect(sequenceForBatch(release, { fulfilment: 'unframed' })).toEqual([
       'pp-printing',
       'pp-signing',
+      'pp-signed',
       'pp-dispatch',
     ]);
     expect(sequenceForBatch(release, { fulfilment: 'framed' })).toEqual([
       'pp-printing',
       'pp-signing',
+      'pp-signed',
       'pp-framing',
       'pp-dispatch',
     ]);
@@ -226,7 +238,8 @@ describe('requiredImageSlots / missingImagesFor — the no-default rule', () => 
     expect(slots).toContain('pp-signing');
     expect(slots).toContain('pp-framing');
     expect(slots).toContain('pp-dispatch');
-    expect(slots).toContain('pp-delay');
+    // The delay notice owes no image any more: the real delay email has no hero.
+    expect(slots).not.toContain('pp-delay');
     expect(slots).toContain('pp-ontrack-1');
   });
 
@@ -235,13 +248,14 @@ describe('requiredImageSlots / missingImagesFor — the no-default rule', () => 
     expect(requiredImageSlots(off, dated, [], '2026-06-01')).not.toContain('pp-framing');
   });
 
-  it('still owes the two that cannot be switched off', () => {
+  it('still owes dispatch, which cannot be switched off — and never the delay', () => {
     const off = makeRelease({
-      disabledTemplates: ['pp-printing', 'pp-signing', 'pp-framing', 'pp-ontrack'],
+      disabledTemplates: ['pp-printing', 'pp-signing', 'pp-signed', 'pp-framing', 'pp-ontrack'],
     });
     const slots = requiredImageSlots(off, dated, [], '2026-06-01');
     expect(slots).toContain('pp-dispatch');
-    expect(slots).toContain('pp-delay');
+    // The real delay email carries no hero image, so none is owed.
+    expect(slots).not.toContain('pp-delay');
   });
 
   it('keeps one on-track row when the filler is off, so it can be switched back on', () => {
@@ -326,13 +340,17 @@ describe('buildNextSteps', () => {
   it('builds one row per upcoming milestone with dates patched in', () => {
     const fields = buildTemplateFields(makeRelease(), '2026-10-30');
     const steps = buildNextSteps(['pp-signing', 'pp-framing', 'pp-dispatch'], fields);
-    expect(steps.map((s) => s.title)).toEqual(['Signing', 'Framing', 'Dispatching']);
-    expect(steps[2].text).toContain('between 30 October 2026 and 6 November 2026');
+    /* Every real card ends Packing then Dispatching — the Packing row rides
+       in with dispatch, carrying the week-before date. */
+    expect(steps.map((s) => s.title)).toEqual(['Signing', 'Framing', 'Packing', 'Dispatching']);
+    expect(steps[2].text).toContain('in the week before 30 October 2026');
+    expect(steps[3].text).toContain('around 30 Oct \u2013 6 Nov 2026');
   });
 
   it('skips templates with no step copy (fillers, delay)', () => {
     const steps = buildNextSteps(['pp-ontrack', 'pp-dispatch'], {});
-    expect(steps.map((s) => s.templateRef)).toEqual(['pp-dispatch']);
+    // Two rows, both dispatch's: the Packing row and the Dispatching row.
+    expect(steps.map((s) => s.title)).toEqual(['Packing', 'Dispatching']);
   });
 });
 

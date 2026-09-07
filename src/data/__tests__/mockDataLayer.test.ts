@@ -103,11 +103,12 @@ describe('seeded world — Falling Light detail', () => {
     expect(framed2.promiseDate).toBe(addDays(today(), 45));
     expect(framed3.promiseDate).toBe(addDays(today(), 75));
 
-    // Framed flow: printing/signing/framing sent, dispatch approved.
+    // Framed flow: printing/signing/signed/framing sent, dispatch approved.
     const framedSends = detail.sends.filter((s) => s.batchId === framed.id);
     expect(framedSends.map((s) => [s.templateRef, s.status])).toEqual([
       ['pp-printing', 'sent'],
       ['pp-signing', 'sent'],
+      ['pp-signed', 'sent'],
       ['pp-framing', 'sent'],
       ['pp-dispatch', 'approved'],
     ]);
@@ -239,7 +240,11 @@ describe('live behaviour through the interface', () => {
        reversible — everything before it is one click to fix. */
     const { release } = await releaseByTitle('Falling Light');
     const detail = await layer.getRelease(release.id);
-    const send = detail.sends.find((s) => s.status === 'pending_approval')!;
+    /* A milestone send — the delay notice approves without an image now,
+       like the real delay email that shows none. */
+    const send = detail.sends.find(
+      (s) => s.status === 'pending_approval' && s.type === 'milestone' && s.imageSlot,
+    )!;
     const slot = send.imageSlot!;
     const was = detail.release.templateImages[slot];
 
@@ -359,10 +364,12 @@ describe('real email format, allocation and lineage behaviours', () => {
       (s) => s.batchId === framedBatch.id && s.templateRef === 'pp-printing',
     )!;
     expect(framedPrinting.headline).toBe('Printing in progress');
-    expect(framedPrinting.body).toContain('ship your edition between');
+    // The framed batch's copy names its edition and the short window form.
+    expect(framedPrinting.body).toContain('ship your framed edition by');
     expect(framedPrinting.nextSteps!.map((s) => s.title)).toEqual([
       'Signing',
       'Framing',
+      'Packing',
       'Dispatching',
     ]);
     // The release's picked image travels on the send.
@@ -371,7 +378,12 @@ describe('real email format, allocation and lineage behaviours', () => {
     const unframedPrinting = detail.sends.find(
       (s) => s.batchId === unframedBatch.id && s.templateRef === 'pp-printing',
     )!;
-    expect(unframedPrinting.nextSteps!.map((s) => s.title)).toEqual(['Signing', 'Dispatching']);
+    expect(unframedPrinting.nextSteps!.map((s) => s.title)).toEqual([
+      'Signing',
+      'Packing',
+      'Dispatching',
+    ]);
+    expect(unframedPrinting.body).toContain('ship your edition by');
   });
 
   it('release-level custom copy applies when plans are generated (Vessel VIII)', async () => {
