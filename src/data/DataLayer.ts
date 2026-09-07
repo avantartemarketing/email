@@ -49,6 +49,28 @@ export interface CreateReleaseInput {
   disabledTemplates?: TemplateRef[];
   /** Who approves this release's emails. Unset takes the standing default. */
   approverId?: string;
+  /**
+   * Pane-three answers from the New release dialogue: the batching decision
+   * and each batch's promise date, recorded at the door so the plans (and the
+   * image bill they create) exist from day one. Everything optional — a blank
+   * date keeps today's flow, where the batch screen sets it later.
+   */
+  batching?: CreateReleaseBatching;
+}
+
+export interface CreateReleaseBatching {
+  /**
+   * Print releases only: one batch even though the file carries frames —
+   * "everything ships together". Persisted as the shape of the batch itself
+   * (a default batch with no fulfilment), so orders added later land in it.
+   */
+  shipTogether?: boolean;
+  /**
+   * Promise dates for the batches the arrival creates, keyed by fulfilment.
+   * `single` addresses the one batch of a sculpture or a ship-together
+   * release. A batch whose key is absent is created without a date.
+   */
+  promiseDates?: Partial<Record<'framed' | 'unframed' | 'single', string>>;
 }
 
 /**

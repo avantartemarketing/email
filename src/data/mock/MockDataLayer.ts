@@ -252,6 +252,11 @@ export class MockDataLayer implements DataLayer {
       if (existing) return existing;
       throw new Error(`Release ${release.id} has no default batch`);
     }
+    /* A default batch with no fulfilment on a print release is the door's
+       "everything ships together" answer — every order lands in it, framed
+       and unframed alike, now and on any later arrival. */
+    const together = this.releaseBatches(release.id).find((b) => b.isDefault && !b.fulfilment);
+    if (together) return together;
     const existing = this.releaseBatches(release.id).find((b) => b.fulfilment === fulfilment);
     if (existing) return existing;
     const batch: Batch = {
@@ -463,8 +468,11 @@ export class MockDataLayer implements DataLayer {
     if (!release.artist) throw new Error('Artist is required');
     this._store.releases.set(release.id, release);
     // Prints get no batch up front: their Framed/Unframed batches are
-    // created by the arrival, from what was actually ordered.
-    if (release.productKind !== 'print') {
+    // created by the arrival, from what was actually ordered. The one
+    // exception is the door's own "everything ships together" answer, which
+    // IS a default batch — its existence is how the decision persists, so
+    // orders added later land in it too.
+    if (release.productKind !== 'print' || input.batching?.shipTogether) {
       const batch: Batch = {
         id: this._newId('batch'),
         releaseId: release.id,
@@ -478,6 +486,16 @@ export class MockDataLayer implements DataLayer {
     }
 
     const record = intake ? this.takeIn(release, intake.items, intake.source) : null;
+    /* Dates asked for at the door draft each batch's plan NOW — the same
+       call the batch screen's Set promise date makes, so the two doors
+       cannot disagree about what a date creates. */
+    const promised = input.batching?.promiseDates;
+    if (promised) {
+      for (const batch of this.releaseBatches(release.id)) {
+        const date = promised[batch.fulfilment ?? 'single'];
+        if (date && !batch.promiseDate) await this.setPromiseDate(batch.id, date);
+      }
+    }
     return this.settle({ release, intake: record });
   }
 

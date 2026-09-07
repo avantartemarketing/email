@@ -872,6 +872,102 @@ describe('the named approver', () => {
   });
 });
 
+describe('promises at import', () => {
+  /* Night Garden's export under a fresh name, because the claim guard is
+     real: reusing its titles fails at the door, which is the guard working. */
+  const renamed = (to: string) =>
+    parseShopifyOrderExport(NIGHT_GARDEN_CSV).items.map((i) => ({
+      ...i,
+      lineItemTitle: i.lineItemTitle.replace('Night Garden', to),
+    }));
+
+  it('dates at the door draft each batch plan — framed and unframed apart', async () => {
+    const { release } = await layer.createRelease(
+      {
+        title: 'Promise Study',
+        artist: 'Ilse Marchetti',
+        editionSize: 40,
+        productKind: 'print',
+        productMatch: {
+          lineItemTitles: ['Promise Study - Framed', 'Promise Study - Unframed'],
+          skus: [],
+        },
+        batching: {
+          promiseDates: { framed: addDays(today(), 120), unframed: addDays(today(), 40) },
+        },
+      },
+      { items: renamed('Promise Study'), source: { kind: 'csv_upload', label: 'promise.csv' } },
+    );
+    const detail = await layer.getRelease(release.id);
+    const framed = detail.batches.find((b) => b.fulfilment === 'framed')!;
+    const unframed = detail.batches.find((b) => b.fulfilment === 'unframed')!;
+    expect(framed.promiseDate).toBe(addDays(today(), 120));
+    expect(unframed.promiseDate).toBe(addDays(today(), 40));
+    const sendsOf = (batchId: string) => detail.sends.filter((s) => s.batchId === batchId);
+    expect(sendsOf(framed.id).map((s) => s.templateRef)).toContain('pp-framing');
+    expect(sendsOf(unframed.id).map((s) => s.templateRef)).not.toContain('pp-framing');
+    expect(sendsOf(unframed.id).length).toBeGreaterThan(0);
+    expect(detail.sends.every((s) => s.status === 'draft')).toBe(true);
+  });
+
+  it('a batch whose date is left blank is created undated, with nothing queued', async () => {
+    const { release } = await layer.createRelease(
+      {
+        title: 'Half Promise',
+        artist: 'Ilse Marchetti',
+        editionSize: 40,
+        productKind: 'print',
+        productMatch: {
+          lineItemTitles: ['Half Promise - Framed', 'Half Promise - Unframed'],
+          skus: [],
+        },
+        batching: { promiseDates: { unframed: addDays(today(), 40) } },
+      },
+      { items: renamed('Half Promise'), source: { kind: 'csv_upload', label: 'half.csv' } },
+    );
+    const detail = await layer.getRelease(release.id);
+    const framed = detail.batches.find((b) => b.fulfilment === 'framed')!;
+    expect(framed.promiseDate).toBeNull();
+    expect(detail.sends.filter((s) => s.batchId === framed.id)).toHaveLength(0);
+    expect(detail.sends.length).toBeGreaterThan(0); // the unframed plan exists
+  });
+
+  it('everything ships together makes one batch that later arrivals land in too', async () => {
+    const items = renamed('Together Study');
+    const { release } = await layer.createRelease(
+      {
+        title: 'Together Study',
+        artist: 'Ilse Marchetti',
+        editionSize: 40,
+        productKind: 'print',
+        productMatch: {
+          lineItemTitles: ['Together Study - Framed', 'Together Study - Unframed'],
+          skus: [],
+        },
+        batching: { shipTogether: true, promiseDates: { single: addDays(today(), 60) } },
+      },
+      { items, source: { kind: 'csv_upload', label: 'together.csv' } },
+    );
+    const detail = await layer.getRelease(release.id);
+    expect(detail.batches).toHaveLength(1);
+    expect(detail.batches[0].fulfilment).toBeUndefined();
+    expect(detail.batches[0].promiseDate).toBe(addDays(today(), 60));
+    expect(new Set(detail.orders.map((o) => o.batchId)).size).toBe(1);
+    /* The mixed batch keeps the framing email — its framed collectors get one. */
+    expect(detail.sends.map((s) => s.templateRef)).toContain('pp-framing');
+    /* The decision persists as the batch's shape: a later arrival with a
+       framed order must land in the same batch, not split the release. */
+    const again = await layer.addOrders(
+      release.id,
+      items.map((i) => ({ ...i, shopifyOrderName: `${i.shopifyOrderName}-2` })),
+      { kind: 'csv_upload', label: 'together-2.csv' },
+    );
+    expect(again.summary.batchesCreated).toHaveLength(0);
+    const after = await layer.getRelease(release.id);
+    expect(after.batches).toHaveLength(1);
+  });
+});
+
 // Type-level assertion that the mock stays swappable: the screens only ever
 // see DataLayer, and MockDataLayer must keep satisfying it.
 const _interfaceCheck: DataLayer = null as unknown as MockDataLayer;

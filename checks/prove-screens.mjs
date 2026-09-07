@@ -467,6 +467,53 @@ addingARelease: {
     )
   if (pane.why !== '' && !/artist/i.test(pane.why))
     faults.push(`${what}: the primary is shut for something other than the artist — "${pane.why}"`)
+
+  /* ---- pane three: promises at the door -----------------------------------
+     The owner, 7 Sep 2026: "it should ask you for the initial batching and
+     promise dates … it determines how many email templates initially need to
+     be populated by an image." Proven on a render because every claim is a
+     drawn thing: the two date fields the file's split justifies, and — once a
+     date lands — the plan table quoting the generator's real output with a
+     Needed pill per image owed. */
+  await page.locator('.rd-dialog .rd-fieldrow input').first().fill('Rosa Stolk')
+  await page.getByRole('button', { name: 'Next — batches & dates' }).click()
+  await page.waitForTimeout(300)
+  const dateFields = await page.locator('.rd-dialog input[type="date"]').count()
+  if (dateFields !== 2)
+    faults.push(
+      `${what}: ${dateFields} date field(s) for a file with framed and unframed orders — pane three must ask for both batches`,
+    )
+  const day = new Date(Date.now() + 60 * 86400_000).toISOString().slice(0, 10)
+  await page.locator('.rd-dialog input[type="date"]').first().fill(day)
+  await page.waitForTimeout(300)
+  const paneThree = await page.evaluate(() => {
+    const dialog = document.querySelector('.rd-dialog')
+    const rows = [...(dialog?.querySelectorAll('table tbody tr') ?? [])].map(
+      (r) => r.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+    )
+    const primary = document.querySelector('.rd-dialogfoot button')
+    return {
+      text: dialog?.textContent ?? '',
+      rows,
+      primary: primary?.textContent?.trim() ?? '',
+      shut: primary instanceof HTMLButtonElement ? primary.disabled : null,
+    }
+  })
+  if (!/Emails queued/.test(paneThree.text))
+    faults.push(`${what}: a promise date is set but pane three states no Emails queued fact`)
+  if (!/Images to pick/.test(paneThree.text))
+    faults.push(`${what}: pane three does not state the image bill — the number the ask was for`)
+  const dispatchRow = paneThree.rows.find((r) => r.includes('Preparing for dispatch'))
+  if (!dispatchRow) faults.push(`${what}: the plan preview has no dispatch row`)
+  else if (!dispatchRow.includes('Needed'))
+    faults.push(`${what}: the dispatch row owes an image but wears no Needed pill — ${dispatchRow}`)
+  if (dispatchRow && /Switch off/.test(dispatchRow))
+    faults.push(`${what}: dispatch offers Switch off — it anchors every plan and cannot be`)
+  /* One date left blank must not block: dates are asked for, never demanded. */
+  if (paneThree.shut !== false)
+    faults.push(`${what}: pane three's primary is shut with one date blank — a blank keeps today's flow`)
+  if (!/Create release/.test(paneThree.primary))
+    faults.push(`${what}: pane three's primary does not create — "${paneThree.primary}"`)
 }
 
 await page.keyboard.press('Escape')

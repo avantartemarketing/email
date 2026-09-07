@@ -648,6 +648,43 @@ copy, batch-flip preview. The two decisions for Tom stand: standing vs
 assignment for "My approvals" (badge is now admin-gated only), and whether
 image-picking is formally CRM's (the badge fold assumes yes).
 
+**Promises at Import is BUILT (7 Sep):** Tom: "When you import a release, it
+should ask you for the initial batching and promise dates … it determines how
+many email templates initially need to be populated by an image." Designed in
+the artifact below, then built as a THIRD pane on the New release dialogue
+(the design's mock predates the lean-delay rule — the built pane owes the
+delay email no image, matching `requiredImageSlots`):
+- Pane 2's primary is now "Next — batches & dates"; pane 3's is "Create
+  release — N orders[, M batches]". The pane-2 milestone switches moved into
+  pane 3's plan table as Switch off/on row actions (same vocabulary as the
+  release Emails table; a switched-off row keeps its row + Off pill so it can
+  come back). Dispatch has no switch — it anchors every plan.
+- Shipping choice (SelectField, only when the file justifies a split):
+  "Framed and unframed ship separately — Framed N · Unframed M" vs
+  "Everything ships together — one batch of T". Ship-together persists as the
+  batch's own shape: a default batch with NO fulfilment, which `intakeBatch`
+  now routes every print order into (later arrivals too).
+- One date field per batch (optional, min tomorrow), note shows order count +
+  "collectors read {shipWindowShort}". A dated batch's plan is drafted by the
+  SAME `setPromiseDate` call the batch screen uses; blank keeps today's flow
+  and draws a warn bar ("X has no promise date yet … numbers above are not
+  final") / a note bar when nothing is dated.
+- The preview is `previewImportPlan` (`src/logic/importPlan.ts`, pure):
+  per-slot rows (the emails tab's own `requiredImageSlots` order) with Sends
+  across dated batches + first date + amber Needed pill; facts Emails queued /
+  Images to pick / First send. Agreement by construction: the toast reports
+  "9 emails drafted" and the release page opens saying "6 emails have no
+  image" — the same numbers pane 3 promised. `OPTIONAL_MILESTONES` moved to
+  importPlan.ts.
+- Layer: `CreateReleaseInput.batching` ({shipTogether?, promiseDates?:
+  {framed/unframed/single}}); createRelease makes the ship-together default
+  batch up front and applies dates after `takeIn`.
+- Tests: `importPlan.test.ts` (5) + "promises at import" describe in
+  mockDataLayer.test.ts (3) — 254 total. prove-screens' addingARelease block
+  now drives pane 3 (2 date fields, Needed pills, dispatch unswitchable,
+  primary open with one date blank — failed once on purpose). Tour guide 1
+  gained "Step 3 — Set the delivery dates".
+
 **Remaining is slice 5:** the Auto/Review/Info changes worklist (tags vs line items),
 pinned numbers for edition requests, and freezing a number once a collector has been
 told — which waits on Tom's "edition numbers in emails?" answer.
@@ -660,6 +697,8 @@ told — which waits on Tom's "edition numbers in emails?" answer.
   https://claude.ai/code/artifact/ef6ad63b-8c3c-4515-9eda-6f4858e28490
 - Adding a release (the flow):
   https://claude.ai/code/artifact/2e82bd2b-f263-4073-ab21-3de4cad8ec34
+- Promises at Import (the pane-3 design, now built):
+  https://claude.ai/code/artifact/42ea27f3-70ee-45ac-8435-af60b34890ae
 - Before/after review: https://claude.ai/code/artifact/f4e228af-af0a-4f6c-9ca7-b111503fb81f
 - Dispatch bar studies (five options, drawn in the real system):
   https://claude.ai/code/artifact/dada54e1-0a78-4fbe-ae76-4388d5ee3cfa

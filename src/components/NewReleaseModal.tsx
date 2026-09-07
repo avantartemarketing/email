@@ -2,20 +2,25 @@ import { useId, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Claim } from '../data';
-import type { ProductKind, TemplateRef } from '../types';
+import type { ProductKind } from '../types';
 import type { ParsedLineItem, ParseResult } from '../logic/importer';
+import { orderDedupeKey } from '../logic/importer';
 import type { FileProduct } from '../logic/intake';
 import {
+  fulfilmentOf,
   planIntake,
   proposeRelease,
   shopifyOrderCount,
   skusFor,
 } from '../logic/intake';
+import type { ImportBatchKey, ImportBatchPreview } from '../logic/importPlan';
+import { OPTIONAL_MILESTONES, previewImportPlan } from '../logic/importPlan';
 import { artworksInFile } from '../logic/artworks';
-import { formatDayShort } from '../logic/dates';
-import { TEMPLATE_LABELS, plural } from '../ui/format';
+import { shipWindowShort } from '../logic/templates';
+import { addDays, formatDayShort, today } from '../logic/dates';
+import { plural } from '../ui/format';
 import { useApp } from '../ui/AppContext';
-import { Bar, Facts } from '../ui/rd';
+import { Bar, Facts, None, Pill, RowAct } from '../ui/rd';
 import Field from '../rd/components/Field';
 import { SelectField } from '../rd/components/Picker';
 import {
@@ -25,12 +30,6 @@ import {
   tickedItems,
 } from './OrderIntakeDialog';
 import { IntakeNotes } from './IntakeNotes';
-
-/** Milestones the operator can include/exclude at setup, per product kind. */
-const OPTIONAL_MILESTONES: Record<ProductKind, TemplateRef[]> = {
-  print: ['pp-printing', 'pp-signing', 'pp-framing', 'pp-ontrack'],
-  sculpture: ['pp-ontrack'],
-};
 
 /**
  * Creating a release, from the file.
@@ -50,11 +49,26 @@ const OPTIONAL_MILESTONES: Record<ProductKind, TemplateRef[]> = {
  * nobody typed — and it is the same string the Shopify sync will match on,
  * which is what lets the title go back to being a display name.
  *
- * The whole thing is one press: the release, its product match, the batches
- * the file justified and the orders, together. That is one decision, and
- * splitting it would leave a release with no orders that nothing can tell
- * apart from a deliberately empty one. The cost is that a mis-dropped file is
- * expensive, which is why `undoIntake` ships with this and not after it.
+ * ## Pane three — batches and dates
+ *
+ * The owner, 7 Sep 2026: *"When you import a release, it should ask you for
+ * the initial batching and promise dates … it determines how many email
+ * templates initially need to be populated by an image."* So after the
+ * release's identity comes a third pane: confirm the batching the file
+ * justified (or collapse it — everything ships together), set each batch's
+ * promise date, and read off exactly what Create is about to queue — the
+ * emails, the first send, and the image bill. The numbers are the plan
+ * generator's real output, so the release page's "N emails have no image"
+ * band opens saying the same thing this pane promised. Dates are asked for,
+ * never demanded: a blank one keeps today's flow, where the batch screen's
+ * Set promise date drafts the plan later.
+ *
+ * The whole thing is still one press: the release, its product match, the
+ * batches, the orders and the dated plans, together. That is one decision,
+ * and splitting it would leave a release with no orders that nothing can
+ * tell apart from a deliberately empty one. The cost is that a mis-dropped
+ * file is expensive, which is why `undoIntake` ships with this and not
+ * after it.
  */
 export function NewReleaseModal({
   open,
@@ -66,27 +80,34 @@ export function NewReleaseModal({
   const { data, showToast } = useApp();
   const navigate = useNavigate();
   const editionId = useId();
+  const dateId = useId();
 
   const [parse, setParse] = useState<{
     result: ParseResult;
     products: FileProduct[];
     fileName: string;
   } | null>(null);
+  const [pane, setPane] = useState<'details' | 'dates'>('details');
   const [ticked, setTicked] = useState<Set<string>>(() => new Set());
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [editionSize, setEditionSize] = useState('');
   const [productKind, setProductKind] = useState<ProductKind>('print');
   const [milestones, setMilestones] = useState<string[]>(OPTIONAL_MILESTONES.print);
+  const [shipTogether, setShipTogether] = useState(false);
+  const [dates, setDates] = useState<Partial<Record<ImportBatchKey, string>>>({});
   const [claims, setClaims] = useState<Claim[]>([]);
   const [saving, setSaving] = useState(false);
 
   const reset = (): void => {
     setParse(null);
+    setPane('details');
     setTicked(new Set());
     setTitle('');
     setArtist('');
     setEditionSize('');
+    setShipTogether(false);
+    setDates({});
     setClaims([]);
   };
 
@@ -156,10 +177,81 @@ export function NewReleaseModal({
               ? 'A release needs a title.'
               : undefined;
 
+  /* ---- pane three: the batches the arrival will create ------------------ */
+
+  const fulfilmentCounts = useMemo(() => {
+    const counts = { framed: 0, unframed: 0 };
+    if (!plan || productKind !== 'print') return counts;
+    for (const item of plan.create) {
+      const f =
+        plan.fulfilmentByOrder.get(orderDedupeKey(item.shopifyOrderName, item.lineItemTitle)) ??
+        fulfilmentOf(item.lineItemTitle);
+      counts[f] += 1;
+    }
+    return counts;
+  }, [plan, productKind]);
+
+  const splits = productKind === 'print' && plan !== null && plan.fulfilments.length > 1;
+  const previews: ImportBatchPreview[] = !plan
+    ? []
+    : splits && !shipTogether
+      ? [
+          {
+            key: 'framed',
+            name: 'Framed',
+            orders: fulfilmentCounts.framed,
+            promiseDate: dates.framed || null,
+          },
+          {
+            key: 'unframed',
+            name: 'Unframed',
+            orders: fulfilmentCounts.unframed,
+            promiseDate: dates.unframed || null,
+          },
+        ]
+      : productKind === 'print' && plan.fulfilments.length === 1
+        ? [
+            {
+              /* One flow in the file: the one batch keeps its real fulfilment
+                 (an all-framed release still sends the framing email), and the
+                 pane shows no batch language at all — same rule as the app. */
+              key: plan.fulfilments[0],
+              name: 'This release',
+              orders: plan.create.length,
+              promiseDate: dates[plan.fulfilments[0]] || null,
+            },
+          ]
+        : [
+            {
+              key: 'single',
+              name: 'This release',
+              orders: plan.create.length,
+              promiseDate: dates.single || null,
+            },
+          ];
+
+  const disabledTemplates = OPTIONAL_MILESTONES[productKind].filter(
+    (ref) => !milestones.includes(ref),
+  );
+  /* Cheap enough to run per render: two batches at most, and memoising it
+     would mean keeping a dependency list honest about two derived arrays. */
+  const preview = plan
+    ? previewImportPlan(productKind, disabledTemplates, previews, today())
+    : null;
+
+  const tomorrow = addDays(today(), 1);
+  const badDate = previews.some((b) => b.promiseDate && b.promiseDate < tomorrow);
+  const undated = previews.filter((b) => !b.promiseDate);
+
   const save = async (): Promise<void> => {
     if (!parse) return;
     setSaving(true);
     try {
+      const promiseDates: Partial<Record<'framed' | 'unframed' | 'single', string>> = {};
+      for (const b of previews) {
+        if (b.promiseDate) promiseDates[b.key] = b.promiseDate;
+      }
+      const anyDates = Object.keys(promiseDates).length > 0;
       const { release } = await data.createRelease(
         {
           title,
@@ -170,24 +262,32 @@ export function NewReleaseModal({
             lineItemTitles: [...ticked],
             skus: skusFor(parse.products, [...ticked]),
           },
-          disabledTemplates: OPTIONAL_MILESTONES[productKind].filter(
-            (ref) => !milestones.includes(ref),
-          ),
+          disabledTemplates,
+          batching:
+            (splits && shipTogether) || anyDates
+              ? {
+                  shipTogether: splits && shipTogether ? true : undefined,
+                  promiseDates: anyDates ? promiseDates : undefined,
+                }
+              : undefined,
         },
         { items, source: { kind: 'csv_upload', label: parse.fileName } },
       );
-      /* A report, not an instruction. The old toast told you what to do next
-         and vanished in five seconds — and stated the dependency backwards,
-         since the image slots a release owes are a function of a promise date
-         that is a function of this import. */
+      /* A report, not an instruction — and it counts what pane three showed,
+         because the preview and the write run the same generator over the
+         same dates. */
+      const drafted =
+        preview && preview.emailsQueued > 0
+          ? ` · ${plural(preview.emailsQueued, 'email')} drafted`
+          : '';
       showToast(
-        plan && plan.fulfilments.length > 1
+        plan && previews.length > 1
           ? `${release.title} created — ${plural(plan.create.length, 'order')} in ${plural(
-              plan.fulfilments.length,
+              previews.length,
               'batch',
               'batches',
-            )}`
-          : `${release.title} created — ${plural(plan?.create.length ?? 0, 'order')}`,
+            )}${drafted}`
+          : `${release.title} created — ${plural(plan?.create.length ?? 0, 'order')}${drafted}`,
       );
       reset();
       onClose();
@@ -199,6 +299,30 @@ export function NewReleaseModal({
     }
   };
 
+  const onDates = pane === 'dates';
+
+  const dateFieldFor = (b: ImportBatchPreview): ReactElement => (
+    <Field
+      key={b.key}
+      label={previews.length > 1 ? `${b.name} — promised dispatch date` : 'Promised dispatch date'}
+      value={dates[b.key] ?? ''}
+      controlId={`${dateId}-${b.key}`}
+      note={
+        b.promiseDate && b.promiseDate >= tomorrow
+          ? `${plural(b.orders, 'order')} · collectors read ${shipWindowShort(b.promiseDate)}`
+          : `${plural(b.orders, 'order')} · optional — set later on the batch screen`
+      }
+    >
+      <input
+        id={`${dateId}-${b.key}`}
+        type="date"
+        min={tomorrow}
+        value={dates[b.key] ?? ''}
+        onChange={(e) => setDates((prev) => ({ ...prev, [b.key]: e.target.value }))}
+      />
+    </Field>
+  );
+
   return (
     <OrderIntakeDialog
       open={open}
@@ -206,15 +330,34 @@ export function NewReleaseModal({
       onClose={close}
       onRead={onRead}
       parse={parse ? { fileName: parse.fileName } : null}
-      primary={{
-        label: `Create release & add ${plural(plan?.create.length ?? 0, 'order')}`,
-        onClick: () => void save(),
-        disabled: saving || why !== undefined,
-        why: saving ? 'Creating…' : why,
-      }}
-      secondary={{ label: 'Back', onClick: () => setParse(null) }}
+      primary={
+        onDates
+          ? {
+              label: `Create release — ${plural(plan?.create.length ?? 0, 'order')}${
+                previews.length > 1 ? `, ${previews.length} batches` : ''
+              }`,
+              onClick: () => void save(),
+              disabled: saving || badDate || why !== undefined,
+              why: saving
+                ? 'Creating…'
+                : badDate
+                  ? 'The promise date must be in the future.'
+                  : why,
+            }
+          : {
+              label: 'Next — batches & dates',
+              onClick: () => setPane('dates'),
+              disabled: why !== undefined,
+              why,
+            }
+      }
+      secondary={
+        onDates
+          ? { label: 'Back', onClick: () => setPane('details') }
+          : { label: 'Back', onClick: () => setParse(null) }
+      }
     >
-      {parse && plan ? (
+      {parse && plan && !onDates ? (
         <>
           {clash ? (
             <Bar tone="fail" title={`“${clash.lineItemTitle}” is already claimed`}>
@@ -304,37 +447,6 @@ export function NewReleaseModal({
             />
           </div>
 
-          <div className="rd-grouphd">Emails this release sends</div>
-          {/* In a column, in `.rd-fields` — `.rd-sw` is an inline-flex button,
-              so outside a column container four of them run together on one
-              line and the four states cannot be read down. */}
-          <div className="rd-fields">
-          {OPTIONAL_MILESTONES[productKind].map((ref) => {
-            const on = milestones.includes(ref);
-            return (
-              <button
-                key={ref}
-                type="button"
-                role="switch"
-                aria-checked={on}
-                className={on ? 'rd-sw on' : 'rd-sw'}
-                onClick={() =>
-                  setMilestones((prev) =>
-                    prev.includes(ref) ? prev.filter((r) => r !== ref) : [...prev, ref],
-                  )
-                }
-              >
-                <span className="rd-swlab" style={{ flex: 1, textAlign: 'left' }}>
-                  {TEMPLATE_LABELS[ref]}
-                </span>
-                <span className="rd-swt" aria-hidden>
-                  <span className="rd-swk" />
-                </span>
-              </button>
-            );
-          })}
-          </div>
-
           <div className="rd-after">
             <div className="rd-after-t">What this creates</div>
             <Facts
@@ -355,6 +467,133 @@ export function NewReleaseModal({
           </div>
 
           <IntakeNotes notes={plan.notes} />
+        </>
+      ) : parse && plan && preview ? (
+        <>
+          {/* The file proposes the batching; the person confirms it or
+              collapses it. A file with one flow skips the question — one
+              date field, nothing to choose. */}
+          {splits ? (
+            <div className="rd-fields">
+              <SelectField
+                label="Shipping"
+                value={shipTogether ? 'together' : 'split'}
+                options={[
+                  {
+                    label: `Framed and unframed ship separately — Framed ${fulfilmentCounts.framed} · Unframed ${fulfilmentCounts.unframed}`,
+                    value: 'split',
+                  },
+                  {
+                    label: `Everything ships together — one batch of ${plan.create.length}`,
+                    value: 'together',
+                  },
+                ]}
+                onChange={(value) => setShipTogether(value === 'together')}
+              />
+            </div>
+          ) : null}
+
+          <div className="rd-fields">
+            {previews.length > 1 ? (
+              <div className="rd-fieldrow">{previews.map(dateFieldFor)}</div>
+            ) : (
+              previews.map(dateFieldFor)
+            )}
+          </div>
+          {badDate ? <Bar tone="fail">The promise date must be in the future.</Bar> : null}
+
+          <div className="rd-grouphd">What this will send</div>
+          {preview.emailsQueued > 0 ? (
+            <>
+              <Facts
+                items={[
+                  { label: 'Emails queued', value: preview.emailsQueued },
+                  { label: 'Images to pick', value: preview.imagesToPick },
+                  {
+                    label: 'First send',
+                    value: preview.firstSend ? formatDayShort(preview.firstSend) : '—',
+                  },
+                ]}
+              />
+              {undated.length > 0 ? (
+                <Bar tone="warn" title={`${undated[0].name} has no promise date yet`}>
+                  Its emails are planned when its date is set — with Set promise date on the
+                  batch — and they will add their own images to pick, so the numbers above are
+                  not final.
+                </Bar>
+              ) : null}
+            </>
+          ) : (
+            <Bar tone="note" title="No dates yet — nothing is queued">
+              The release is created with its orders and batches only. Setting a batch's
+              promise date — here, or later with Set promise date on the batch — is what
+              drafts its emails, and each email needs an image before it can go out.
+            </Bar>
+          )}
+
+          {/* The emails tab's own rows, before the release exists: one row
+              per image slot, so the table answers the owner's question — how
+              many templates need populating — rather than listing eight
+              near-identical sends. Switch off sits beside the row it
+              removes, and a switched-off row stays, or it could never be
+              switched back on. */}
+          <table className="rd-t rd-t27 rd-fit">
+            <thead>
+              <tr>
+                <th scope="col">Email</th>
+                <th scope="col" className="n">
+                  Sends
+                </th>
+                <th scope="col">First date</th>
+                <th scope="col">Image</th>
+                <th scope="col" aria-hidden />
+              </tr>
+            </thead>
+            <tbody>
+              {preview.rows.map((row) => (
+                <tr key={row.slot}>
+                  <td className="rd-ink">
+                    <span className="rd-cellflex">
+                      <span className="rd-ellip">{row.label}</span>
+                      {row.off ? (
+                        <Pill tone="grey" small>
+                          Off
+                        </Pill>
+                      ) : null}
+                    </span>
+                  </td>
+                  <td className="n">{row.off || row.sends === 0 ? <None /> : row.sends}</td>
+                  <td>
+                    {row.off || !row.firstDate ? <None /> : formatDayShort(row.firstDate)}
+                  </td>
+                  <td>
+                    {row.off ? (
+                      <None />
+                    ) : (
+                      <Pill tone="amber" small>
+                        Needed
+                      </Pill>
+                    )}
+                  </td>
+                  <td>
+                    {row.canToggle ? (
+                      <div className="rd-rowacts">
+                        <RowAct
+                          onClick={() =>
+                            setMilestones((prev) =>
+                              row.off ? [...prev, row.ref] : prev.filter((r) => r !== row.ref),
+                            )
+                          }
+                        >
+                          {row.off ? 'Switch on' : 'Switch off'}
+                        </RowAct>
+                      </div>
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </>
       ) : null}
     </OrderIntakeDialog>

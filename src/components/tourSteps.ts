@@ -172,8 +172,7 @@ export const TOUR_PATHS: TourPath[] = [
         caption:
           'Drop the Shopify order export into the box, or choose the file. The tool reads it, ' +
           'lists the products it found, suggests a name, and marks which lines are frames. ' +
-          'Fill in the artist and edition size, then click Create release — that makes the ' +
-          'release, its batches and all its orders in one go.',
+          'Fill in the artist and edition size, then click Next — batches & dates.',
         target: '.rd-dialog',
         holdMs: 12000,
         go: async () => {
@@ -187,7 +186,24 @@ export const TOUR_PATHS: TourPath[] = [
         },
       },
       {
-        title: 'Step 3 — Check the orders',
+        title: 'Step 3 — Set the delivery dates',
+        caption:
+          'Each batch gets a promised delivery date, and the email plan is built from it. ' +
+          'Set a date and the table below shows exactly which emails will be queued and how ' +
+          'many images need picking — before the release exists. A date can be left blank ' +
+          'and set later on the batch screen. Click Create release to finish.',
+        target: '.rd-dialog',
+        holdMs: 12000,
+        go: async () => {
+          await type('.rd-fieldrow input', 'Tour Artist');
+          await clickText('.rd-dialog button', 'Next — batches');
+          await waitForText('.rd-grouphd', 'What this will send');
+          await type('.rd-dialog input[type="date"]', addDays(today(), 40));
+          await settle(500);
+        },
+      },
+      {
+        title: 'Step 4 — Check the orders',
         caption:
           'Here is Harbour Light as an example. Every print is one row, showing its frame, ' +
           'glass, batch and promised delivery date. The order number links to Shopify. Use the ' +
@@ -203,7 +219,7 @@ export const TOUR_PATHS: TourPath[] = [
         },
       },
       {
-        title: 'Step 4 — Open the Edition allocation tab',
+        title: 'Step 5 — Open the Edition allocation tab',
         caption:
           'This does the numbering the old spreadsheet did. The rule: collectors who bought ' +
           'the most artworks get the lowest numbers, framed orders come before unframed ones, ' +
@@ -216,7 +232,7 @@ export const TOUR_PATHS: TourPath[] = [
         },
       },
       {
-        title: 'Step 5 — Click Allocate editions',
+        title: 'Step 6 — Click Allocate editions',
         caption:
           'Every order now has its edition number, with no gaps in any sequence. Click Export ' +
           'warehouse CSV to download the same file the warehouse has always worked from. Once ' +
