@@ -126,7 +126,6 @@ export function EditSendModal({
         ))}
       </div>
       <EmailPreview
-        subject={subject}
         headline={headline || undefined}
         body={body}
         nextSteps={steps}

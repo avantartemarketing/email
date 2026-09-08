@@ -493,7 +493,6 @@ export function EmailsToWrite(): ReactElement {
               />
             </div>
             <EmailPreview
-              subject={subject}
               headline={writing.send.headline}
               body={body}
               nextSteps={writing.send.nextSteps}

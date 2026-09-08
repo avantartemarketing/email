@@ -469,7 +469,6 @@ function ReleaseEmailEditModal({
         </div>
       ) : null}
       <EmailPreview
-        subject={patchTokens(subject, fields)}
         headline={patchTokens(headline, fields)}
         body={patchTokens(body, fields)}
         imageName={previewImage}

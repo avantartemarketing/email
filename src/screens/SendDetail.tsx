@@ -110,6 +110,9 @@ export function SendDetail(): ReactElement {
     : null;
 
   const facts: { k: string; v: ReactElement | string }[] = [
+    /* The one place on this record the subject is stated — the preview's own
+       "Subject" line above the paper was removed on 8 Sep 2026. */
+    { k: 'Subject', v: send.subject },
     { k: 'Template', v: `${send.templateRef} — cloned and patched per send` },
     { k: 'Type', v: send.type === 'delay' ? 'Delay notice' : 'Milestone' },
     { k: 'Scheduled', v: formatDay(send.scheduledDate) },
@@ -256,7 +259,6 @@ export function SendDetail(): ReactElement {
         <Card>
           <CardHead title={sent ? 'Email as sent' : 'Email as it will send'} />
           <EmailPreview
-            subject={send.subject}
             headline={send.headline}
             body={send.body}
             nextSteps={send.nextSteps}

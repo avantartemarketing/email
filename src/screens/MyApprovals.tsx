@@ -705,7 +705,6 @@ export function MyApprovals(): ReactElement {
               ]}
             />
             <EmailPreview
-              subject={preview.send.subject}
               headline={preview.send.headline}
               body={preview.send.body}
               nextSteps={preview.send.nextSteps}
@@ -752,7 +751,6 @@ export function MyApprovals(): ReactElement {
             />
             {lastEmail ? (
               <EmailPreview
-                subject={lastEmail.send.subject}
                 headline={lastEmail.send.headline}
                 body={lastEmail.send.body}
                 nextSteps={lastEmail.send.nextSteps}

@@ -28,7 +28,6 @@ import { renderForRecipient } from '../logic/templates';
  * substitutes a sample name so reviewers read real copy, not tokens.
  */
 export function EmailPreview({
-  subject,
   headline,
   body,
   nextSteps,
@@ -36,7 +35,6 @@ export function EmailPreview({
   sampleRecipientName,
   sent,
 }: {
-  subject: string;
   headline?: string;
   body: string;
   nextSteps?: SendStep[];
@@ -46,13 +44,14 @@ export function EmailPreview({
   /** True for an email that already went out — see the note above. */
   sent?: boolean;
 }): ReactElement {
+  /* No subject and no "Subject" line above the paper — the owner, 8 Sep
+     2026, pointing at it in the writer: "remove this text". Every surface
+     that draws this preview already states the subject once (a field, a
+     column, a fact), and a second copy above the paper was that statement
+     said twice. The paper starts where the real email does: the wordmark. */
   const sample = sampleRecipientName ?? 'Jane Smith';
   return (
     <div>
-      <div className="rd-kv">
-        <div className="rd-kvk">Subject</div>
-        <div className="rd-kvv">{renderForRecipient(subject, sample)}</div>
-      </div>
       <div className="rd-mail">
         <div className="rd-mailpaper">
           <div className="rd-mailmark">AVANT ARTE</div>
