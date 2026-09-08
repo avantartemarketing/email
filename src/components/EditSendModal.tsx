@@ -55,7 +55,7 @@ export function EditSendModal({
       });
       showToast(
         send.status === 'approved'
-          ? 'Send updated — approval reset, back in the queue'
+          ? 'Saved — approval reset'
           : 'Send updated',
       );
       onSaved();

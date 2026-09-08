@@ -310,7 +310,7 @@ await screen('release detail · editions', async () => {
       artworkRows: document.querySelectorAll('.rd-card table tbody tr').length,
     }
   })
-  if (!/edition 5 is held twice by #AA10418/.test(state.bar))
+  if (!/edition 5 held twice by #AA10418/.test(state.bar))
     faults.push(
       `${what}: the corrupt numbering is not named — the bar reads "${state.bar.slice(0, 80)}"`,
     )

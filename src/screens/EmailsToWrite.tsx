@@ -105,7 +105,7 @@ export function EmailsToWrite(): ReactElement {
       const approver = userName(writing.release.approverId);
       showToast(
         hold
-          ? 'Saved as a draft — the queue shows who holds it'
+          ? 'Saved as a draft'
           : writing.send.scheduledDate <= today()
             ? `Sent to ${approver} for approval — ${plural(writing.recipientCount, 'collector')} waiting`
             : `Sent to ${approver} for approval — goes out ${formatDayShort(writing.send.scheduledDate)}`,
@@ -124,7 +124,7 @@ export function EmailsToWrite(): ReactElement {
     setSaving(true);
     try {
       await data.cancelSend(cancelling.send.id);
-      showToast('Delay email cancelled — nothing goes to these collectors');
+      showToast('Delay email cancelled');
       setCancelling(null);
       setWriting(null);
       reload();
@@ -444,13 +444,15 @@ export function EmailsToWrite(): ReactElement {
             <DelayReason brief={writing.send.brief} />
             {!writing.send.imageName && writing.send.imageSlot ? (
               <Bar tone="warn" title="This email has no image">
-                <button
-                  type="button"
-                  className="rd-inline-pill"
-                  onClick={() => navigate(`/releases/${writing.release.id}?tab=emails`)}
-                >
-                  Pick images
-                </button>
+                <div className="rd-baracts">
+                  <button
+                    type="button"
+                    className="rd-chip"
+                    onClick={() => navigate(`/releases/${writing.release.id}?tab=emails`)}
+                  >
+                    Pick images
+                  </button>
+                </div>
               </Bar>
             ) : null}
             <Facts

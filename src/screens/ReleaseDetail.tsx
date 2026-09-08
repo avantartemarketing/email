@@ -270,9 +270,11 @@ export function ReleaseDetail(): ReactElement {
                 : `${missingImages.length} emails have no image`
             }
           >
-            <button type="button" className="rd-inline-pill" onClick={() => setTop('emails')}>
-              Pick images
-            </button>
+            <div className="rd-baracts">
+              <button type="button" className="rd-chip" onClick={() => setTop('emails')}>
+                Pick images
+              </button>
+            </div>
           </Bar>
         ) : null}
 
@@ -805,8 +807,7 @@ function BatchSection({
           headActions={
             hasAllocations ? (
               <span className="rd-none">
-                Warehouse allocation: {allocatedCount} of {activeOrders.length}
-                {allocatedCount < activeOrders.length ? ' — re-import the sheet for the rest' : ''}
+                Allocation: {allocatedCount} of {activeOrders.length}
               </span>
             ) : undefined
           }

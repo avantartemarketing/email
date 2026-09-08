@@ -120,8 +120,8 @@ export function ReleaseEmailsPanel({
          stops being blocked, and nothing else on the screen announces it. */
       showToast(
         missing.length === 1 && missing[0] === slot
-          ? `All ${slots.length} images picked — these emails can be approved now`
-          : 'Image set — upcoming sends updated, approvals kept',
+          ? 'All images picked'
+          : 'Image set',
       );
       setPickingSlot(null);
       onChanged();
@@ -143,7 +143,7 @@ export function ReleaseEmailsPanel({
       const result = await data.updateReleaseEmail(release.id, ref, { enabled });
       showToast(
         enabled
-          ? `${TEMPLATE_LABELS[ref]} switched on — future plans will include it`
+          ? `${TEMPLATE_LABELS[ref]} switched on`
           : `${TEMPLATE_LABELS[ref]} switched off${
               result.cancelledSendCount > 0
                 ? ` — ${result.cancelledSendCount} upcoming send${

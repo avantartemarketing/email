@@ -37,7 +37,7 @@ export function AddSendModal({
     setSaving(true);
     try {
       await data.addSend(batch.id, templateRef, scheduledDate);
-      showToast('Send added as a draft — submit the plan to queue it for approval');
+      showToast('Draft added');
       onSaved();
       onClose();
     } catch (err) {

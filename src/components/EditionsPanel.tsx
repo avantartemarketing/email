@@ -187,7 +187,7 @@ export function EditionsPanel({
   return (
     <Stack>
       {broken ? (
-        <Bar tone="fail" title="The numbering this release holds is broken">
+        <Bar tone="fail" title="The numbering is broken">
           {plan.faults.map((f) => (
             <div key={f}>{f}</div>
           ))}
@@ -195,9 +195,11 @@ export function EditionsPanel({
               card was the destructive eraser. A fresher warehouse sheet
               replaces what is held; nothing is cleared. */}
           {onOpenImport ? (
-            <button type="button" className="rd-inline-pill" onClick={onOpenImport}>
-              Import a corrected warehouse sheet
-            </button>
+            <div className="rd-baracts">
+              <button type="button" className="rd-chip" onClick={onOpenImport}>
+                Import sheet
+              </button>
+            </div>
           ) : null}
         </Bar>
       ) : null}

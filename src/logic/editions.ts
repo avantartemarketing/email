@@ -339,7 +339,7 @@ export function planAllocation(
 export function auditAllocation(inputs: AllocationOrderInput[], plan: AllocationPlan): string[] {
   const faults: string[] = [];
   if (inputs.length === 0 || plan.byOrder.size === 0) {
-    return ['nothing was allocated — an empty allocation is not a passing one'];
+    return ['nothing was allocated'];
   }
 
   // Every order got exactly its quantity of rows.
@@ -386,8 +386,8 @@ export function auditAllocation(inputs: AllocationOrderInput[], plan: Allocation
         const holders = [...new Set(orders)];
         faults.push(
           holders.length === 1
-            ? `${name}: edition ${n} is held twice by ${holders[0]} — two prints, one number`
-            : `${name}: edition ${n} is held twice — ${holders.join(' and ')}`,
+            ? `${name} — edition ${n} held twice by ${holders[0]}`
+            : `${name} — edition ${n} held twice: ${holders.join(' and ')}`,
         );
       }
     }
@@ -395,7 +395,7 @@ export function auditAllocation(inputs: AllocationOrderInput[], plan: Allocation
     const highest = Math.max(...numbers);
     if (new Set(numbers).size !== highest && !namedGaps.has(name)) {
       faults.push(
-        `${name}: ${new Set(numbers).size} distinct numbers but the highest is ${highest} — an unreported gap`,
+        `${name} — ${new Set(numbers).size} numbers but the highest is ${highest}: a gap`,
       );
     }
   }
@@ -413,7 +413,7 @@ export function auditAllocation(inputs: AllocationOrderInput[], plan: Allocation
     if (new Set(group.map((i) => i.artworkKey)).size <= 1) continue;
     const firsts = group.map((i) => plan.byOrder.get(i.orderId)?.[0]?.editionNumber ?? '?');
     if (new Set(firsts).size > 1) {
-      faults.push(`${name}: different numbers across its artworks — ${firsts.join(', ')}`);
+      faults.push(`${name} — different numbers across its artworks: ${firsts.join(', ')}`);
     }
   }
 

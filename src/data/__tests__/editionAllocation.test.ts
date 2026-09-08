@@ -108,10 +108,10 @@ describe('over an imported warehouse sheet', () => {
        times, which is the reason this audit exists and the reason it blocks. */
     const release = await releaseByTitle('Falling Light');
     const preview = await layer.previewAllocation(release.id);
-    expect(preview.faults.some((f) => f.includes('edition 5 is held twice by #AA10418'))).toBe(true);
+    expect(preview.faults.some((f) => f.includes('edition 5 held twice by #AA10418'))).toBe(true);
     expect(preview.faults.some((f) => f.includes('#AA10418'))).toBe(true);
 
-    await expect(layer.commitAllocation(release.id)).rejects.toThrow(/edition 5 is held twice/);
+    await expect(layer.commitAllocation(release.id)).rejects.toThrow(/edition 5 held twice/);
 
     // And nothing was written: refusal leaves the unnumbered unnumbered.
     const after = await layer.getRelease(release.id);

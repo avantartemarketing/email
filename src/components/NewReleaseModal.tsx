@@ -363,16 +363,18 @@ export function NewReleaseModal({
             <Bar tone="fail" title={`“${clash.lineItemTitle}” is already claimed`}>
               {clash.releaseTitle} — {plural(clash.orderCount, 'order')}. Add these orders to it
               instead.
-              <button
-                type="button"
-                className="rd-inline-pill"
-                onClick={() => {
-                  navigate(`/releases/${clash.releaseId}`);
-                  close();
-                }}
-              >
-                Open {clash.releaseTitle}
-              </button>
+              <div className="rd-baracts">
+                <button
+                  type="button"
+                  className="rd-chip"
+                  onClick={() => {
+                    navigate(`/releases/${clash.releaseId}`);
+                    close();
+                  }}
+                >
+                  Open
+                </button>
+              </div>
             </Bar>
           ) : artists.length > 1 ? (
             <Bar tone="fail" title="Two artists are ticked">

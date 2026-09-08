@@ -711,6 +711,25 @@ taller. These are STANDING for all future UI work.
   check now finds /^send$/i; copy-queue verb /^write$/i). Full gate green,
   all four guides re-driven, artifact republished.
 
+**Busyness sweep (8 Sep, same day):** the owner, pointing at the editions
+fault bar: "a button should never be that thin … way too much copy on warning
+messages … screens generally way too busy". Standing additions to the four
+rules above:
+- `.rd-inline-pill` is DELETED from the kit. A band's way out is a real
+  `.rd-chip` on its own line inside `.rd-baracts` (new kit class). All five
+  sites converted (editions fault bar, release image band, writer image bar,
+  clash bar, change-date pivot).
+- Fault wording terse: "Falling Light — edition 5 held twice by #AA10418"
+  (the "two prints, one number" explainer gone); fault-bar title "The
+  numbering is broken". editionAllocation tests + prove-screens updated to
+  the new strings; the gap fault keeps the word "gap" (a test reads it).
+- Toasts trimmed to the outcome ("Approved", "Saved as a draft", "Image
+  set", "Draft added", "Saved — approval reset", "All images picked").
+- Decluttered defaults: index Batches column and approvals Approver column
+  defaultHidden (Columns brings them back); SendDetail loses the Template
+  fact and long dialog title; allocation caption "Allocation: N of M";
+  "Nothing yet" for no-last-email.
+
 **Remaining is slice 5:** the Auto/Review/Info changes worklist (tags vs line items),
 pinned numbers for edition requests, and freezing a number once a collector has been
 told — which waits on Tom's "edition numbers in emails?" answer.

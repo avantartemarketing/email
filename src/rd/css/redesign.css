@@ -114,18 +114,13 @@
   cursor: default;
 }
 
-/* A quiet inline control riding inside a sentence — the warnbar's way out. */
-.rd-inline-pill {
-  display: inline-block;
-  white-space: nowrap;
-  font: 500 var(--rd-size-label) var(--rd-font-text);
-  color: var(--rd-ink-ui);
-  background: var(--rd-card);
-  border: 1px solid var(--rd-border);
-  border-radius: var(--rd-radius-menu);
-  padding: 1px 7px;
-  margin-left: 6px;
-  cursor: pointer;
+/* A band's way out is a REAL button on its own line. `.rd-inline-pill` — a
+   1px-padded pill riding inside the sentence — is gone: the owner, 8 Sep
+   2026, pointing at one: "a button should never be that thin." */
+.rd-baracts {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 /* ---------- Bands ---------- */
@@ -4654,7 +4649,6 @@ body.rd-resizing * {
    picked up an `inline-block` over its own `display: flex`. Deleting a
    declaration block from between two selector lists MERGES them, silently. */
 .rd-setdate,
-.rd-inline-pill,
 .rd-railtoggle {
   position: relative;
 }
@@ -4664,7 +4658,6 @@ body.rd-resizing * {
    `position: relative` stated after that rule would win on source order and
    drop every dot into flow. */
 .rd-setdate::after,
-.rd-inline-pill::after,
 .rd-railtoggle::after,
 .rd-rulerdot::after {
   content: '';

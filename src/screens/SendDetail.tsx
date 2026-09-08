@@ -113,7 +113,6 @@ export function SendDetail(): ReactElement {
     /* The one place on this record the subject is stated — the preview's own
        "Subject" line above the paper was removed on 8 Sep 2026. */
     { k: 'Subject', v: send.subject },
-    { k: 'Template', v: `${send.templateRef} — cloned and patched per send` },
     { k: 'Type', v: send.type === 'delay' ? 'Delay notice' : 'Milestone' },
     { k: 'Scheduled', v: formatDay(send.scheduledDate) },
   ];
@@ -134,7 +133,7 @@ export function SendDetail(): ReactElement {
       v: lastSentLabel ? (
         <CellLink onClick={() => navigate(`/sends/${lastSent!.sendId}`)}>{lastSentLabel}</CellLink>
       ) : (
-        'Nothing yet — this will be their first email'
+        'Nothing yet'
       ),
     });
 
@@ -300,7 +299,7 @@ export function SendDetail(): ReactElement {
       <Dialog
         open={confirmingCancel}
         size="sm"
-        title={`Cancel “${send.subject}”?`}
+        title="Cancel this email?"
         onClose={() => setConfirmingCancel(false)}
         primary={{ label: 'Cancel', onClick: () => void act('cancel'), destructive: true }}
         secondary={{ label: 'Keep', onClick: () => setConfirmingCancel(false) }}

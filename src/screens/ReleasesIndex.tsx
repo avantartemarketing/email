@@ -122,6 +122,9 @@ export function ReleasesIndex(): ReactElement {
     {
       id: 'batches',
       title: 'Batches',
+      /* Off by default, 8 Sep 2026 — "screens generally way too busy". The
+         count is one Columns click away, and the release page states it. */
+      defaultHidden: true,
       n: true,
       kind: 'number',
       value: (r) => r.batchCount,

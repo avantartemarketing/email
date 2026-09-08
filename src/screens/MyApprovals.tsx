@@ -178,7 +178,7 @@ export function MyApprovals(): ReactElement {
       await data.approveSend(item.send.id);
       showToast(
         item.send.scheduledDate <= today()
-          ? 'Approved — will go out in the next send run'
+          ? 'Approved'
           : `Approved — queued for ${formatDayShort(item.send.scheduledDate)}`,
       );
       setPreview(null);
@@ -365,6 +365,10 @@ export function MyApprovals(): ReactElement {
          is "is this mine", not "who is that". Any admin can still approve;
          the name says who is EXPECTED to. */
       title: 'Approver',
+      /* Off by default while every release names the same approver — the
+         owner, 8 Sep 2026: "screens generally way too busy". One click in
+         Columns brings it back the day two approvers exist. */
+      defaultHidden: true,
       kind: 'choice',
       caption: 'APPROVER',
       value: (i) =>

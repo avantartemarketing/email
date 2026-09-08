@@ -255,12 +255,12 @@ export function ChangeSendDateModal({
               {ceiling.source === 'dispatch'
                 ? `The dispatch email goes out ${formatDayShort(ceiling.date)}. `
                 : `Collectors were promised dispatch from ${formatDayShort(ceiling.date)}. `}
-              If dispatch itself is slipping, change the delivery date instead — collectors get a
-              delay notice and the plan is rebuilt around the new date.
               {onPivot ? (
-                <button type="button" className="rd-inline-pill" onClick={onPivot}>
-                  Change date
-                </button>
+                <div className="rd-baracts">
+                  <button type="button" className="rd-chip" onClick={onPivot}>
+                    Change date
+                  </button>
+                </div>
               ) : null}
             </Bar>
           ) : clashesWith ? (
