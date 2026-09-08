@@ -209,7 +209,7 @@ export function SendDetail(): ReactElement {
                waiting on this person's judgement, it is waiting on somebody's
                words. The verb here has to be the one that unblocks it. */
             <Btn kind="pri" onClick={() => navigate('/copy')}>
-              Write the email
+              Write
             </Btn>
           ) : null}
           {send.status === 'pending_approval' && isAdmin ? (
@@ -227,7 +227,7 @@ export function SendDetail(): ReactElement {
           ) : null}
           {!sent && send.status !== 'cancelled' ? (
             <Btn kind="link-danger" onClick={() => setConfirmingCancel(true)}>
-              Cancel send
+              Cancel
             </Btn>
           ) : null}
         </>
@@ -239,20 +239,13 @@ export function SendDetail(): ReactElement {
             can reconstruct from the email itself. */}
         <DelayReason brief={send.brief} />
         {send.status === 'awaiting_copy' ? (
-          <Bar tone="note" title="Waiting for the CRM team to write it">
-            The delivery date changed and this email is the notice to collectors. The copy below is
-            the generated starting draft — it goes to an approver only once somebody has written
-            it, in Emails to write.
-          </Bar>
+          <Bar tone="note" title="Waiting for the CRM team to write it" />
         ) : null}
         {failures.length > 0 ? (
           <Bar
             tone="fail"
             title={`${plural(failures.length, 'recipient')} could not be delivered`}
-          >
-            They are listed below with the reason; fix the missing email or HubSpot contact and
-            retry from here once sending is live.
-          </Bar>
+          />
         ) : null}
 
         <Card>
@@ -307,14 +300,11 @@ export function SendDetail(): ReactElement {
         size="sm"
         title={`Cancel “${send.subject}”?`}
         onClose={() => setConfirmingCancel(false)}
-        primary={{ label: 'Cancel send', onClick: () => void act('cancel'), destructive: true }}
-        secondary={{ label: 'Keep it', onClick: () => setConfirmingCancel(false) }}
+        primary={{ label: 'Cancel', onClick: () => void act('cancel'), destructive: true }}
+        secondary={{ label: 'Keep', onClick: () => setConfirmingCancel(false) }}
       >
         <DelayCancelWarning send={send} />
-        <p>
-          The email will not go out and drops off the plan. This is recorded in the batch history.
-          Scheduled for {formatDay(send.scheduledDate)}.
-        </p>
+        <p>It will not go out. Scheduled for {formatDay(send.scheduledDate)}.</p>
       </Dialog>
     </Page>
   );

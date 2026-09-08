@@ -308,9 +308,11 @@ export function NewReleaseModal({
       value={dates[b.key] ?? ''}
       controlId={`${dateId}-${b.key}`}
       note={
+        /* Facts, not help: the batch's size, and — once a date lands — the
+           window a collector will read. */
         b.promiseDate && b.promiseDate >= tomorrow
           ? `${plural(b.orders, 'order')} · collectors read ${shipWindowShort(b.promiseDate)}`
-          : `${plural(b.orders, 'order')} · optional — set later on the batch screen`
+          : plural(b.orders, 'order')
       }
     >
       <input
@@ -333,9 +335,7 @@ export function NewReleaseModal({
       primary={
         onDates
           ? {
-              label: `Create release — ${plural(plan?.create.length ?? 0, 'order')}${
-                previews.length > 1 ? `, ${previews.length} batches` : ''
-              }`,
+              label: 'Create',
               onClick: () => void save(),
               disabled: saving || badDate || why !== undefined,
               why: saving
@@ -345,7 +345,7 @@ export function NewReleaseModal({
                   : why,
             }
           : {
-              label: 'Next — batches & dates',
+              label: 'Next',
               onClick: () => setPane('dates'),
               disabled: why !== undefined,
               why,
@@ -403,7 +403,6 @@ export function NewReleaseModal({
               label="Title"
               value={title}
               onChange={setTitle}
-              note="from the file"
               suggested
             />
             <div className="rd-fieldrow">
@@ -411,15 +410,12 @@ export function NewReleaseModal({
                 label="Artist"
                 value={artist}
                 onChange={setArtist}
-                note="required — not in the export"
-                noteNear={!artist.trim()}
               />
               <Field
                 label="Edition size"
                 value={editionSize}
                 numeric
                 controlId={editionId}
-                note="powers the overrun check on Edition allocation"
                 /* Never prefilled from the order count: in every real export
                    the orders exceed the stated edition, so "294 on an edition
                    of 150" is ordinary and must not be validated as an error. */
@@ -516,19 +512,14 @@ export function NewReleaseModal({
                 ]}
               />
               {undated.length > 0 ? (
-                <Bar tone="warn" title={`${undated[0].name} has no promise date yet`}>
-                  Its emails are planned when its date is set — with Set promise date on the
-                  batch — and they will add their own images to pick, so the numbers above are
-                  not final.
-                </Bar>
+                /* The state alone — the owner, 8 Sep 2026: "Remove ALL helper
+                   copy." What a missing date means is the batch screen's to
+                   say when somebody gets there. */
+                <Bar tone="warn" title={`${undated[0].name} has no date — its emails are not counted yet`} />
               ) : null}
             </>
           ) : (
-            <Bar tone="note" title="No dates yet — nothing is queued">
-              The release is created with its orders and batches only. Setting a batch's
-              promise date — here, or later with Set promise date on the batch — is what
-              drafts its emails, and each email needs an image before it can go out.
-            </Bar>
+            <Bar tone="note" title="No dates yet — nothing is queued" />
           )}
 
           {/* The emails tab's own rows, before the release exists: one row

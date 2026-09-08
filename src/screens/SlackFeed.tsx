@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import type { SlackMessage } from '../types';
 import { formatDayShort } from '../logic/dates';
 import { useApp } from '../ui/AppContext';
-import { Bar, Card, CardHead, None, Page, Skeleton, Stack, Tag } from '../ui/rd';
+import { Card, CardHead, None, Page, Skeleton, Stack, Tag } from '../ui/rd';
 import { useAsync } from '../ui/useAsync';
 
 /**
@@ -37,11 +37,6 @@ export function SlackFeed(): ReactElement {
   return (
     <Page title="Slack notifications">
       <Stack>
-        <Bar tone="note" title="These messages post to the team's Slack">
-          The tool sends them at the key moments; in this prototype they collect here so the
-          wording and the moments can be judged. Production wires the same messages to a Slack
-          webhook.
-        </Bar>
         {feed.data === null ? (
           <Card>
             <Skeleton rows={6} />

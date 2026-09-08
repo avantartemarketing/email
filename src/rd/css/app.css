@@ -292,12 +292,12 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 16px 20px 8px;
+  padding: 24px 24px 12px; /* opened up 8 Sep 2026 — "spacing is generous" */
   font: var(--rd-weight-emphasis) var(--rd-size-hero) / 1.3 var(--rd-font-display);
   color: var(--rd-ink);
 }
 .rd-dialogbody {
-  padding: 8px 20px 4px;
+  padding: 12px 24px 8px; /* opened up 8 Sep 2026 — "spacing is generous" */
   font: var(--rd-weight-body) var(--rd-size-cell) / 1.5 var(--rd-font-text);
   color: var(--rd-ink-body);
 }
@@ -344,11 +344,11 @@
 .rd-fields {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 14px; /* opened up 8 Sep 2026 — "spacing is generous" */
 }
 .rd-fieldrow {
   display: flex;
-  gap: 8px;
+  gap: 14px;
 }
 .rd-fieldrow > * {
   flex: 1;

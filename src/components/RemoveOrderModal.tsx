@@ -42,7 +42,7 @@ export function RemoveOrderModal({
       onClose={onClose}
       title={order ? `Remove ${order.shopifyOrderName} — ${order.collectorName}` : 'Remove order'}
       primary={{
-        label: 'Remove order',
+        label: 'Remove',
         destructive: true,
         onClick: () => void save(),
         disabled: saving || !reason.trim(),
@@ -58,7 +58,6 @@ export function RemoveOrderModal({
           label="Reason"
           value={reason}
           onChange={setReason}
-          note="required"
           noteNear={!reason.trim()}
         />
       </div>

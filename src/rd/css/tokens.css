@@ -291,7 +291,14 @@
   --rd-inset: #f6f8fa;          /* read-only value boxes, popover inner panels */
 
   /* Action ----------------------------------------------------------------- */
-  --rd-primary: #254fad;        /* buttons */
+  /* Focus rings, selection, active tabs, the checkbox fill — NOT buttons
+     any more. The owner, 8 Sep 2026: "Make buttons black and white not blue
+     and white, and make them taller." The button fill moved to its own token
+     below; this blue keeps the jobs the ask did not touch. */
+  --rd-primary: #254fad;
+  /* Primary action fill — the ink's own near-black, so a filled button and a
+     filled chip (`.on`) read as one family. */
+  --rd-btn-pri: #181d26;
   --rd-link: #1b61c9;
 
   /* Shell ------------------------------------------------------------------
@@ -335,7 +342,9 @@
      comes out 24.4. Reusing it here quietly took 2px off every header button
      on the way past — which is the drift this token exists to stop, arriving
      through the token itself. */
-  --rd-head-control-h: 26px;
+  /* 26px until 8 Sep 2026 — the owner: "make them taller". Rendered at 26
+     the head controls sat squat beside the new 34px-tall buttons below. */
+  --rd-head-control-h: 32px;
 
   /* A tab's height — ruling 96. Ruling 22's card-head figure ("every control
      in a card head measures 30px whatever its fill"), because that is what a
@@ -423,7 +432,7 @@
      and its table looking joined; they were 6px apart where the rest of the
      redesign uses this. One token, so a third caller cannot invent a fourth
      value. */
-  --rd-card-gap: 14px;
+  --rd-card-gap: 20px;          /* 14px until 8 Sep 2026 — "spacing is generous" */
   /* A card's own inset, which `.rd-sechead` and `.rd-foot` have each carried
      as a literal 16 since they were written. Named here because a fourth
      copy is the point at which they start drifting apart. */

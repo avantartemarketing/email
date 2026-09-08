@@ -345,7 +345,7 @@ addingARelease: {
     mimeType: 'text/csv',
     buffer: Buffer.from(notAnExport),
   })
-  await page.getByRole('button', { name: 'Read the file' }).click()
+  await page.getByRole('button', { name: 'Read' }).click()
   await page.waitForTimeout(250)
   const fault = await page.evaluate(() => {
     const bar = document.querySelector('.rd-dialog .rd-failbar')
@@ -399,7 +399,7 @@ addingARelease: {
     mimeType: 'text/csv',
     buffer: Buffer.from(csv),
   })
-  await page.getByRole('button', { name: 'Read the file' }).click()
+  await page.getByRole('button', { name: 'Read' }).click()
   await page.waitForTimeout(350)
 
   const pane = await page.evaluate(() => {
@@ -476,7 +476,7 @@ addingARelease: {
      date lands — the plan table quoting the generator's real output with a
      Needed pill per image owed. */
   await page.locator('.rd-dialog .rd-fieldrow input').first().fill('Rosa Stolk')
-  await page.getByRole('button', { name: 'Next — batches & dates' }).click()
+  await page.getByRole('button', { name: 'Next' }).click()
   await page.waitForTimeout(300)
   const dateFields = await page.locator('.rd-dialog input[type="date"]').count()
   if (dateFields !== 2)
@@ -512,7 +512,7 @@ addingARelease: {
   /* One date left blank must not block: dates are asked for, never demanded. */
   if (paneThree.shut !== false)
     faults.push(`${what}: pane three's primary is shut with one date blank — a blank keeps today's flow`)
-  if (!/Create release/.test(paneThree.primary))
+  if (!/^Create/.test(paneThree.primary))
     faults.push(`${what}: pane three's primary does not create — "${paneThree.primary}"`)
 }
 
@@ -590,8 +590,8 @@ await screen('emails to write', async () => {
   if (verbs.length === 0) faults.push(`${what}: no row verbs — the seeded copy queue is empty`)
   if (verbs.some((v) => /^approve/i.test(v)))
     faults.push(`${what}: a row offers "Approve" — this queue is written, not approved`)
-  if (!verbs.some((v) => /write the email/i.test(v)))
-    faults.push(`${what}: no "Write the email" on any row`)
+  if (!verbs.some((v) => /^write$/i.test(v)))
+    faults.push(`${what}: no "Write" verb on any row`)
 
   /* What the row itself prints, read BY HEADING rather than by index — the
      column list on this screen is a thing people add to, and an index would
@@ -651,16 +651,16 @@ await screen('emails to write', async () => {
   }
   const foot = await page.evaluate(() => {
     const btn = [...document.querySelectorAll('.rd-dialogfoot button')].find((b) =>
-      /send for approval/i.test(b.textContent ?? ''),
+      /^send$/i.test((b.textContent ?? '').trim()),
     )
     if (!btn) return null
     const box = btn.getBoundingClientRect()
     return { top: box.top, bottom: box.bottom, viewport: window.innerHeight }
   })
-  if (!foot) faults.push(`${what}: no "Send for approval" button in the writer's foot`)
+  if (!foot) faults.push(`${what}: no "Send" button in the writer's foot`)
   else if (foot.bottom > foot.viewport || foot.top < 0)
     faults.push(
-      `${what}: "Send for approval" is drawn at ${Math.round(foot.top)}–${Math.round(foot.bottom)}px ` +
+      `${what}: "Send" is drawn at ${Math.round(foot.top)}–${Math.round(foot.bottom)}px ` +
         `in a ${foot.viewport}px window — the writer's one action is behind a 600px email preview`,
     )
   await page.keyboard.press('Escape')
@@ -770,7 +770,7 @@ await screen('my approvals', async () => {
   const ticks = page.locator('table.rd-t27 tbody tr [role="checkbox"]')
   await ticks.nth(0).click()
   await ticks.nth(1).click()
-  await page.getByRole('button', { name: /Change delivery date/ }).first().click()
+  await page.getByRole('button', { name: /Change date/ }).first().click()
   await page.getByRole('dialog').waitFor()
   const future = new Date(2027, 0, 15).toISOString().slice(0, 10)
   await page.getByLabel('New promised delivery date').fill(future)

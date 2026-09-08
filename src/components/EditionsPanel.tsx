@@ -154,10 +154,7 @@ export function EditionsPanel({
           title="Edition allocation"
           actions={onAddOrders ? <Btn onClick={onAddOrders}>Add orders</Btn> : undefined}
         />
-        <Bar tone="note" title="No orders to number yet">
-          Numbering starts from orders — import the Shopify order export first, and this tab
-          numbers what arrives.
-        </Bar>
+        <Bar tone="note" title="No orders to number yet" />
       </Card>
     );
   }
@@ -185,7 +182,7 @@ export function EditionsPanel({
      a file that lies. */
   const held = plan.kept;
   const broken = plan.faults.length > 0;
-  const allocateLabel = `Allocate editions — ${plural(plan.numbered, 'order')}`;
+  const allocateLabel = 'Allocate';
 
   return (
     <Stack>
@@ -226,11 +223,11 @@ export function EditionsPanel({
                 )
               ) : null}
               {held > 0 && !broken ? (
-                <Btn onClick={() => void exportCsv()}>Export warehouse CSV</Btn>
+                <Btn onClick={() => void exportCsv()}>Export</Btn>
               ) : null}
               {held > 0 ? (
                 <Btn kind="link-danger" disabled={busy} onClick={() => setClearing(true)}>
-                  Clear all numbers
+                  Clear
                 </Btn>
               ) : null}
             </>
@@ -301,18 +298,16 @@ export function EditionsPanel({
         title="Clear all edition numbers?"
         onClose={() => setClearing(false)}
         primary={{
-          label: `Clear ${plural(plan.kept, 'order')}`,
+          label: 'Clear',
           onClick: () => void clear(),
           destructive: true,
           disabled: busy,
         }}
-        secondary={{ label: 'Keep them', onClick: () => setClearing(false) }}
+        secondary={{ label: 'Keep', onClick: () => setClearing(false) }}
       >
         <Bar tone="warn" title="This clears the whole warehouse record">
-          Every allocation row goes — edition numbers AND the imported frame, glass and mounting
-          spec. Numbers already sent to the warehouse stop matching what this release says, and a
-          fresh allocation starts from 1. To CORRECT numbers instead, import a fresher warehouse
-          sheet — a re-import replaces what is held without clearing anything.
+          Edition numbers and the imported frame, glass and mounting spec all go; a fresh
+          allocation starts from 1. To correct numbers instead, import a fresher sheet.
         </Bar>
       </Dialog>
     </Stack>

@@ -54,7 +54,7 @@ export function AddSendModal({
       onClose={onClose}
       title={batchLabel ? `Add send — ${batchLabel}` : 'Add send'}
       primary={{
-        label: 'Add draft send',
+        label: 'Add',
         onClick: () => void save(),
         disabled: saving || !scheduledDate,
       }}

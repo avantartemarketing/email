@@ -60,7 +60,7 @@ export function PromiseDateModal({
       onClose={onClose}
       title={batchLabel ? `Set promise date — ${batchLabel}` : 'Set promise date'}
       primary={{
-        label: 'Set date & draft plan',
+        label: 'Set date',
         onClick: () => void save(),
         disabled: saving || !valid,
       }}
@@ -84,9 +84,7 @@ export function PromiseDateModal({
           <Facts
             items={[
               { label: 'Milestone emails', value: preview.length },
-              { label: 'Spaced', value: 'No more than 5 weeks apart' },
               { label: 'Ending', value: formatDay(date) },
-              { label: 'Then', value: 'Yours to edit, then approve' },
             ]}
           />
         </div>

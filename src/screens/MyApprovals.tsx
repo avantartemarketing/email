@@ -584,14 +584,14 @@ export function MyApprovals(): ReactElement {
               actions: [
                 { label: 'Approve', onClick: () => setBulkOpen(true) },
                 {
-                  label: 'Change email date',
+                  label: 'Change date',
                   onClick: () =>
                     pickedItems.length === 1
                       ? setMovingDate(pickedItems[0])
                       : setChoosingMove(true),
                 },
                 {
-                  label: pickedItems.length > 1 ? 'Cancel sends' : 'Cancel send',
+                  label: 'Cancel',
                   destructive: true,
                   onClick: () => setCancelling(pickedItems),
                 },
@@ -635,7 +635,7 @@ export function MyApprovals(): ReactElement {
         primary={
           preview
             ? {
-                label: `Approve — ${plural(preview.recipientCount, 'collector')}`,
+                label: 'Approve',
                 onClick: () => void approve(preview),
                 disabled:
                   !isAdmin ||
@@ -647,13 +647,13 @@ export function MyApprovals(): ReactElement {
         secondary={
           preview
             ? [
-                { label: 'Change email date', onClick: () => setMovingDate(preview) },
-                { label: 'Change delivery date', onClick: () => void openReschedule(preview) },
+                { label: 'Change date', onClick: () => setMovingDate(preview) },
+                { label: 'Change delivery', onClick: () => void openReschedule(preview) },
                 {
                   /* The one that LEAVES rather than acts, so it leaves the
                      boxed register too: four chips beside a primary is four
                      equal-looking boxes with no rank in them. */
-                  label: 'Open send detail',
+                  label: 'Detail',
                   kind: 'link' as const,
                   onClick: () => {
                     navigate(`/sends/${preview.send.id}`);
@@ -664,7 +664,7 @@ export function MyApprovals(): ReactElement {
             : undefined
         }
         danger={
-          preview ? { label: 'Cancel send', onClick: () => setCancelling([preview]) } : undefined
+          preview ? { label: 'Cancel', onClick: () => setCancelling([preview]) } : undefined
         }
       >
         {preview ? (
@@ -675,10 +675,7 @@ export function MyApprovals(): ReactElement {
                 was the email itself — which is the thing being checked. */}
             <DelayReason brief={preview.send.brief} />
             {!preview.send.imageName ? (
-              <Bar tone="warn" title="This email has no image">
-                Pick one on the release's All emails tab and it lands on this send — it keeps its
-                place in the queue.
-              </Bar>
+              <Bar tone="warn" title="This email has no image" />
             ) : null}
             <Facts
               items={[
@@ -730,7 +727,7 @@ export function MyApprovals(): ReactElement {
         secondary={
           lastFor?.lastSent
             ? {
-                label: 'Open send detail',
+                label: 'Detail',
                 onClick: () => {
                   navigate(`/sends/${lastFor.lastSent!.sendId}`);
                   setLastFor(null);
@@ -828,12 +825,12 @@ export function MyApprovals(): ReactElement {
         }
         onClose={() => setCancelling(null)}
         primary={{
-          label: cancelling && cancelling.length > 1 ? 'Cancel sends' : 'Cancel send',
+          label: 'Cancel',
           destructive: true,
           onClick: () => void cancel(),
           disabled: busy,
         }}
-        secondary={{ label: 'Keep them', onClick: () => setCancelling(null) }}
+        secondary={{ label: 'Keep', onClick: () => setCancelling(null) }}
       >
         {cancelling && cancelling.length === 1 ? (
           <>
@@ -880,10 +877,6 @@ export function MyApprovals(): ReactElement {
         onClose={() => setChoosingMove(false)}
         secondary={{ label: 'Cancel', onClick: () => setChoosingMove(false) }}
       >
-        <Bar tone="note" title="An email moves one at a time">
-          Each has its own place in its batch's plan, so the new date is checked against that
-          plan. The rest of the selection stays ticked.
-        </Bar>
         <div className="rd-fields">
           {pickedItems.map((i) => (
             <button
@@ -910,11 +903,11 @@ export function MyApprovals(): ReactElement {
         title={`Approve ${plural(pickedItems.length, 'send')}?`}
         onClose={() => setBulkOpen(false)}
         primary={{
-          label: `Approve ${plural(approvable.length, 'send')}`,
+          label: 'Approve',
           onClick: () => void approveMany(),
           disabled: busy || approvable.length === 0,
         }}
-        secondary={{ label: 'Keep reviewing', onClick: () => setBulkOpen(false) }}
+        secondary={{ label: 'Keep', onClick: () => setBulkOpen(false) }}
       >
         <p>
           They go to{' '}
@@ -931,11 +924,10 @@ export function MyApprovals(): ReactElement {
           </p>
         ) : null}
         {blocked.length > 0 ? (
-          <Bar tone="warn" title={`${plural(blocked.length, 'send')} cannot be approved yet`}>
-            {blocked.length === 1 ? 'It has' : 'They have'} no image picked, so{' '}
-            {blocked.length === 1 ? 'it stays' : 'they stay'} selected here while the rest go
-            through.
-          </Bar>
+          <Bar
+            tone="warn"
+            title={`${plural(blocked.length, 'send')} cannot be approved — no image picked`}
+          />
         ) : null}
       </Dialog>
     </Page>

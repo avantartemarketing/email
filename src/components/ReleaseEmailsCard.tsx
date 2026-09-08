@@ -260,7 +260,7 @@ export function ReleaseEmailsPanel({
         if (!row.copyRow) return null;
         return (
           <div className="rd-rowacts">
-            {!disabled ? <RowAct onClick={() => setEditingRef(row.ref)}>Edit copy</RowAct> : null}
+            {!disabled ? <RowAct onClick={() => setEditingRef(row.ref)}>Edit</RowAct> : null}
             {canToggle ? (
               disabled ? (
                 /* Switching back on is not the mirror of switching off: no
@@ -328,14 +328,14 @@ export function ReleaseEmailsPanel({
         title={switchingOff ? `Switch off “${TEMPLATE_LABELS[switchingOff]}”?` : ''}
         onClose={() => setSwitchingOff(null)}
         primary={{
-          label: 'Switch it off',
+          label: 'Switch off',
           destructive: true,
           onClick: () => {
             if (switchingOff) void toggle(switchingOff, false);
             setSwitchingOff(null);
           },
         }}
-        secondary={{ label: 'Keep it', onClick: () => setSwitchingOff(null) }}
+        secondary={{ label: 'Keep', onClick: () => setSwitchingOff(null) }}
       >
         <Bar tone="warn" title="It drops out of every future plan for this release">
           {offReach.sends > 0
@@ -432,12 +432,12 @@ function ReleaseEmailEditModal({
           : ''
       }
       primary={{
-        label: 'Save for this release',
+        label: 'Save',
         onClick: () => void save(),
         disabled: saving || !subject.trim() || !body.trim(),
       }}
       secondary={[
-        ...(customised ? [{ label: 'Reset to default', onClick: () => void save(true) }] : []),
+        ...(customised ? [{ label: 'Reset', onClick: () => void save(true) }] : []),
         { label: 'Cancel', onClick: onClose },
       ]}
     >
@@ -465,8 +465,7 @@ function ReleaseEmailEditModal({
           and an unlabelled preview claims to be all of them. */}
       {previewBatch ? (
         <div className="rd-previewas">
-          Previewing as {previewBatch.name} · {shipWindowShort(previewBatch.promiseDate!)} — other
-          batches get their own dates in the same words.
+          Previewing as {previewBatch.name} · {shipWindowShort(previewBatch.promiseDate!)}
         </div>
       ) : null}
       <EmailPreview

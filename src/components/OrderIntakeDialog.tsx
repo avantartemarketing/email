@@ -115,7 +115,7 @@ export function OrderIntakeDialog({
         onPaneTwo
           ? primary
           : {
-              label: 'Read the file',
+              label: 'Read',
               onClick: read,
               disabled: reading || !(csv || pasted).trim(),
             }

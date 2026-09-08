@@ -97,10 +97,13 @@
 }
 
 .rd-btn-pri {
-  border: 1px solid var(--rd-primary);
-  background: var(--rd-primary);
+  /* Black on white, not blue — and taller. The owner, 8 Sep 2026, reviewing
+     the writer dialogue: "Make buttons black and white not blue and white,
+     and make them taller." Rendered before/after: 26px tall → 34px. */
+  border: 1px solid var(--rd-btn-pri);
+  background: var(--rd-btn-pri);
   border-radius: var(--rd-radius-control);
-  padding: 5px 11px;
+  padding: 9px 15px;
   font: 500 var(--rd-size-head) / 1.2 var(--rd-font-text);
   color: var(--rd-card);
   white-space: nowrap;
@@ -489,7 +492,7 @@
      Without this the document's own link rule underlines the word inside the
      box, which reads as a link drawn on top of a button. */
   text-decoration: none;
-  padding: 5px 11px;
+  padding: 8px 15px; /* matched to .rd-btn-pri, 8 Sep 2026 — one foot, one height */
   border-radius: var(--rd-radius-control);
   font: 500 var(--rd-size-head) / 1.2 var(--rd-font-text);
   color: var(--rd-ink-ui);
@@ -1081,7 +1084,7 @@
    above and 8 below, so the heading sits with what it names rather than
    floating between two groups. */
 .rd-grouphd {
-  margin: 12px 0 -2px;
+  margin: 20px 0 4px; /* opened up 8 Sep 2026 — "spacing is generous" */
   font: var(--rd-weight-emphasis) var(--rd-size-cell) var(--rd-font-text);
   color: var(--rd-ink);
 }
@@ -2372,7 +2375,16 @@
   color: var(--rd-ink);
 }
 .rd-btn-grey {
-  padding: 4px 12px;
+  padding: 8px 15px; /* matched to .rd-btn-pri, 8 Sep 2026 — one foot, one height */
+}
+/* Inside a 34px row — a row action, the bulk bar's header-row controls — a
+   button keeps the pre-8-Sep compact scale. The taller buttons are for page
+   heads and dialogue feet; a 35px control inside a 34px row is ruling 11
+   broken by the kit's own hand. Measured: 27px, rows hold 34. */
+.rd-t27 .rd-btn-pri,
+.rd-t27 .rd-btn-grey,
+.rd-t27 .rd-chip {
+  padding: 4px 11px;
   font: 500 var(--rd-size-head) / 1.2 var(--rd-font-text);
   border-radius: var(--rd-radius-control);
   background: var(--rd-grey-bg);
@@ -2413,9 +2425,9 @@
 .rd-dialogfoot {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 16px;
-  padding: 14px 20px 18px;
+  gap: 10px;
+  margin-top: 20px;
+  padding: 16px 24px 20px; /* opened up 8 Sep 2026 — "spacing is generous" */
   border-top: 1px solid var(--rd-hairline-row);
 }
 /* A word that acts. Not a chip — `42c` gives Delete card and Replace image no
@@ -3494,13 +3506,13 @@ body.rd-resizing * {
    never as prose and never as a bulleted diff. */
 .rd-facts {
   display: flex;
-  gap: 8px;
-  margin: 10px 0 4px;
+  gap: 12px;
+  margin: 14px 0 8px; /* opened up 8 Sep 2026 — "spacing is generous" */
 }
 .rd-fact {
   flex: 1;
   min-width: 0;
-  padding: 7px 11px 8px;
+  padding: 12px 14px 13px;
   background: var(--rd-band);
   border-radius: var(--rd-radius-card);
 }

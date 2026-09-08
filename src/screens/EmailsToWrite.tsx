@@ -3,7 +3,7 @@ import type { ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { CopyJobItem } from '../types';
 import { daysBetween, formatDayShort, today } from '../logic/dates';
-import { NO_IMAGE_YET, shipWindowShort } from '../logic/templates';
+import { shipWindowShort } from '../logic/templates';
 import { plural } from '../ui/format';
 import { useApp } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
@@ -283,10 +283,10 @@ export function EmailsToWrite(): ReactElement {
       cell: (j) => (
         <div className="rd-rowacts" onClick={(e) => e.stopPropagation()}>
           <Btn kind="pri" onClick={() => openWriter(j)}>
-            Write the email
+            Write
           </Btn>
           <RowAct danger onClick={() => setCancelling(j)}>
-            Cancel send
+            Cancel
           </RowAct>
         </div>
       ),
@@ -412,7 +412,7 @@ export function EmailsToWrite(): ReactElement {
         primary={
           writing
             ? {
-                label: 'Send for approval',
+                label: 'Send',
                 onClick: () => void save(false),
                 disabled: saving || !subject.trim() || !body.trim(),
               }
@@ -421,9 +421,9 @@ export function EmailsToWrite(): ReactElement {
         secondary={
           writing
             ? [
-                { label: 'Save and finish later', onClick: () => void save(true) },
+                { label: 'Save', onClick: () => void save(true) },
                 {
-                  label: 'Open send detail',
+                  label: 'Detail',
                   kind: 'link' as const,
                   onClick: () => {
                     navigate(`/sends/${writing.send.id}`);
@@ -433,7 +433,7 @@ export function EmailsToWrite(): ReactElement {
               ]
             : undefined
         }
-        danger={writing ? { label: 'Cancel send', onClick: () => setCancelling(writing) } : undefined}
+        danger={writing ? { label: 'Cancel', onClick: () => setCancelling(writing) } : undefined}
       >
         {writing ? (
           <>
@@ -444,13 +444,12 @@ export function EmailsToWrite(): ReactElement {
             <DelayReason brief={writing.send.brief} />
             {!writing.send.imageName && writing.send.imageSlot ? (
               <Bar tone="warn" title="This email has no image">
-                {NO_IMAGE_YET} You can still write and send it for approval.
                 <button
                   type="button"
                   className="rd-inline-pill"
                   onClick={() => navigate(`/releases/${writing.release.id}?tab=emails`)}
                 >
-                  Pick images on the release
+                  Pick images
                 </button>
               </Bar>
             ) : null}
@@ -491,7 +490,6 @@ export function EmailsToWrite(): ReactElement {
                 onChange={setBody}
                 multiline
                 deep
-                note="{{first_name}} is personalised per collector"
               />
             </div>
             <EmailPreview
@@ -511,12 +509,12 @@ export function EmailsToWrite(): ReactElement {
         onClose={() => setCancelling(null)}
         title="Cancel this delay email?"
         primary={{
-          label: 'Cancel the send',
+          label: 'Cancel',
           onClick: () => void cancel(),
           disabled: saving,
           destructive: true,
         }}
-        secondary={{ label: 'Keep it', onClick: () => setCancelling(null) }}
+        secondary={{ label: 'Keep', onClick: () => setCancelling(null) }}
       >
         {cancelling ? (
           <>

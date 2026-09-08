@@ -323,10 +323,10 @@ export function ReleaseOrdersTable({
           actions: [
             /* One verb for the promise-moving act, everywhere — "Set…" is
                reserved for a batch's FIRST date. */
-            { label: 'Change delivery date', onClick: startPromise },
-            { label: 'Move to another batch', onClick: () => setMoving(true) },
+            { label: 'Change date', onClick: startPromise },
+            { label: 'Move', onClick: () => setMoving(true) },
             {
-              label: 'Mark cancelled',
+              label: 'Cancel',
               destructive: true,
               onClick: () => setCancelling(true),
             },
@@ -351,7 +351,7 @@ export function ReleaseOrdersTable({
           onClick: () => void cancel(),
           disabled: busy || !reason.trim(),
         }}
-        secondary={{ label: 'Keep them', onClick: () => setCancelling(false) }}
+        secondary={{ label: 'Keep', onClick: () => setCancelling(false) }}
       >
         <Bar tone="warn" title="These collectors stop receiving updates">
           The orders drop out of their batches and out of every future send; emails already sent
@@ -362,7 +362,6 @@ export function ReleaseOrdersTable({
             label="Reason"
             value={reason}
             onChange={setReason}
-            note="required"
             noteNear={!reason.trim()}
           />
         </div>
@@ -374,7 +373,7 @@ export function ReleaseOrdersTable({
         title={`Move ${plural(pickedOrderIds.length, 'order')} to another batch`}
         onClose={() => setMoving(false)}
         primary={{
-          label: 'Move them',
+          label: 'Move',
           onClick: () => void move(),
           disabled: busy || !target,
         }}
@@ -383,7 +382,7 @@ export function ReleaseOrdersTable({
         <Bar tone="note" title="They take the target batch's dates">
           Moving is a correction, not a new promise: the batch they land in keeps the promise date
           and comms plan it already has, and nothing is sent to say so. To promise a NEW date, use
-          Change delivery date on the batch instead.
+          Change date on the batch instead.
         </Bar>
         <div className="rd-fields">
           {targetBatches.map((b) => (

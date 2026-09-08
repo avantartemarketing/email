@@ -87,8 +87,7 @@ export function EditSendModal({
       ) : null}
       {pastCeiling && ceiling ? (
         <Bar tone="fail" title="That date does not fit this batch's promise">
-          {ceiling.says} A date past it is a promise problem, not an email-timing one — use
-          Change delivery date on the batch instead.
+          {ceiling.says} Use Change date on the batch instead.
         </Bar>
       ) : null}
       <div className="rd-fields">
@@ -106,7 +105,6 @@ export function EditSendModal({
           label="Headline"
           value={headline}
           onChange={setHeadline}
-          note="under the hero image"
         />
         <Field
           label="Body"
@@ -114,7 +112,6 @@ export function EditSendModal({
           onChange={setBody}
           multiline
           deep
-          note="{{first_name}} is personalised per collector"
         />
         {steps.map((step, idx) => (
           <Field
@@ -125,7 +122,6 @@ export function EditSendModal({
               setSteps((prev) => prev.map((s, i) => (i === idx ? { ...s, text: value } : s)))
             }
             multiline
-            note="what happens next"
           />
         ))}
       </div>

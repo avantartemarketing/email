@@ -151,10 +151,8 @@ export function RescheduleModal({
         secondary={{ label: 'Close', onClick: close }}
       >
         <Bar tone="note" title={`${groupName} has no promise date yet`}>
-          Nothing has been promised, so there is no date to change and no delay email for the
-          CRM team to write. Set the first date with <b>Set promise date</b> on{' '}
-          {batchLabel ? `the ${batchLabel} batch` : 'the Overview tab'} — the full comms plan
-          is created from it.
+          Set the first date with <b>Set date</b> on{' '}
+          {batchLabel ? `the ${batchLabel} batch` : 'the Overview tab'}.
         </Bar>
       </Dialog>
     );
@@ -167,7 +165,7 @@ export function RescheduleModal({
       onClose={close}
       title={batchLabel ? `Change delivery date — ${batchLabel}` : 'Change delivery date'}
       primary={{
-        label: 'Save — CRM writes the email',
+        label: 'Save',
         onClick: () => void save(),
         disabled: saving || !dateValid || !reason.trim() || selectedOrders.length === 0,
       }}
@@ -216,15 +214,13 @@ export function RescheduleModal({
           multiline
           /* Short, and still load-bearing: it names who reads this, which is
              what makes somebody write a sentence rather than a word. */
-          note="required — the CRM writer works from this"
           noteNear={!reason.trim()}
         />
       </div>
       {dateError ? <Bar tone="fail">{dateError}</Bar> : null}
       {!isLaterThanCurrent && dateValid ? (
         <Bar tone="warn" title="The new date is earlier than the current promise">
-          That is allowed, but the delay template assumes bad news — say so in the reason, so
-          whoever writes it does not send an apology for good news.
+          The delay template assumes bad news — say so in the reason.
         </Bar>
       ) : null}
       {dateValid && reason.trim() ? (

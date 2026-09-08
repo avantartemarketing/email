@@ -205,11 +205,11 @@ export function ChangeSendDateModal({
       title="Change email date"
       onClose={onClose}
       primary={{
-        label: 'Move send',
+        label: 'Move',
         onClick: () => void move(),
         disabled: saving || !date || unchanged || breached || past,
       }}
-      secondary={{ label: 'Keep the date', onClick: onClose }}
+      secondary={{ label: 'Keep', onClick: onClose }}
     >
       {item ? (
         <>
@@ -226,7 +226,6 @@ export function ChangeSendDateModal({
               label="New date"
               value={date}
               controlId={dateId}
-              note="moves this email only, not the delivery promise"
             >
               <input
                 id={dateId}
@@ -241,10 +240,7 @@ export function ChangeSendDateModal({
               not also need to hear that it is out of order. Every one of these
               shuts or qualifies a control, which is the rule they exist for. */}
           {past ? (
-            <Bar tone="warn" title="That date has already passed">
-              Pick today or later. An email cannot be scheduled backwards — to send it as soon as
-              possible, leave it on today and approve it.
-            </Bar>
+            <Bar tone="warn" title="That date has already passed">Pick today or later.</Bar>
           ) : breached && ceiling ? (
             <Bar
               tone="warn"
@@ -263,7 +259,7 @@ export function ChangeSendDateModal({
               delay notice and the plan is rebuilt around the new date.
               {onPivot ? (
                 <button type="button" className="rd-inline-pill" onClick={onPivot}>
-                  Change delivery date
+                  Change date
                 </button>
               ) : null}
             </Bar>
@@ -281,8 +277,7 @@ export function ChangeSendDateModal({
           ) : crowded && nearest !== null ? (
             <Bar tone="warn" title="Two emails close together">
               These collectors get another email within{' '}
-              {nearest === 0 ? 'the same day' : plural(nearest, 'day')} of this one — the plan
-              itself never sends two inside a week.
+              {nearest === 0 ? 'the same day' : plural(nearest, 'day')} of this one.
             </Bar>
           ) : null}
         </>

@@ -139,7 +139,7 @@ export function AddOrdersModal({
       onRead={onRead}
       parse={parse ? { fileName: parse.fileName } : null}
       primary={{
-        label: `Add ${plural(plan?.create.length ?? 0, 'order')}`,
+        label: 'Add',
         onClick: () => void add(),
         disabled: saving || why !== undefined,
         why: saving ? 'Adding…' : why,

@@ -172,7 +172,7 @@ export const TOUR_PATHS: TourPath[] = [
         caption:
           'Drop the Shopify order export into the box, or choose the file. The tool reads it, ' +
           'lists the products it found, suggests a name, and marks which lines are frames. ' +
-          'Fill in the artist and edition size, then click Next — batches & dates.',
+          'Fill in the artist and edition size, then click Next.',
         target: '.rd-dialog',
         holdMs: 12000,
         go: async () => {
@@ -181,7 +181,7 @@ export const TOUR_PATHS: TourPath[] = [
           /* The dialogue reads the dropped file asynchronously; "Read the
              file" stays shut until the drop label flips to "Replace …". */
           await waitForText('.rd-importdrop', 'Replace');
-          await clickText('.rd-dialog button', 'Read the file');
+          await clickText('.rd-dialog button', 'Read');
           await waitFor('.rd-dialog .rd-importlist tbody tr');
         },
       },
@@ -191,12 +191,12 @@ export const TOUR_PATHS: TourPath[] = [
           'Each batch gets a promised delivery date, and the email plan is built from it. ' +
           'Set a date and the table below shows exactly which emails will be queued and how ' +
           'many images need picking — before the release exists. A date can be left blank ' +
-          'and set later on the batch screen. Click Create release to finish.',
+          'and set later on the batch screen. Click Create to finish.',
         target: '.rd-dialog',
         holdMs: 12000,
         go: async () => {
           await type('.rd-fieldrow input', 'Tour Artist');
-          await clickText('.rd-dialog button', 'Next — batches');
+          await clickText('.rd-dialog button', 'Next');
           await waitForText('.rd-grouphd', 'What this will send');
           await type('.rd-dialog input[type="date"]', addDays(today(), 40));
           await settle(500);
@@ -232,15 +232,15 @@ export const TOUR_PATHS: TourPath[] = [
         },
       },
       {
-        title: 'Step 6 — Click Allocate editions',
+        title: 'Step 6 — Click Allocate',
         caption:
           'Every order now has its edition number, with no gaps in any sequence. Click Export ' +
-          'warehouse CSV to download the same file the warehouse has always worked from. Once ' +
-          'a number has been issued it never changes.',
+          'to download the same file the warehouse has always worked from. Once a number has ' +
+          'been issued it never changes.',
         target: '.rd-workscroll .rd-card',
         holdMs: 10000,
         go: async () => {
-          await clickText('button', 'Allocate editions');
+          await clickText('button', 'Allocate');
           await settle(700);
         },
       },
@@ -340,13 +340,13 @@ export const TOUR_PATHS: TourPath[] = [
       {
         title: 'Step 2 — Change the delivery date',
         caption:
-          'With no orders selected, Change delivery date moves the whole batch. Pick the new ' +
+          'With no orders selected, Change date moves the whole batch. Pick the new ' +
           'date and explain what happened — the CRM team writes the delay email from what you ' +
           'type here, so give them the real reason.',
         target: '.rd-dialog',
         holdMs: 10000,
         go: async () => {
-          await clickText('button', 'Change delivery date');
+          await clickText('button', 'Change date');
           await waitFor('.rd-dialog');
           await type('.rd-dialog input[type="date"]', addDays(today(), 31));
           await type(
@@ -379,7 +379,7 @@ export const TOUR_PATHS: TourPath[] = [
           await clickText('.rd-tab', 'All orders');
           await waitFor('table.rd-t27 tbody tr');
           await click('table.rd-t27 tbody tr .rd-cbx');
-          await clickText('.rd-bulkbar button', 'Change delivery date');
+          await clickText('.rd-bulkbar button', 'Change date');
           await waitFor('.rd-dialog');
           await type('.rd-dialog input[type="date"]', addDays(today(), 45));
           await type(
@@ -442,7 +442,7 @@ export const TOUR_PATHS: TourPath[] = [
           'approval — the next guide covers that step. Refresh the page to reset the demo.',
         holdMs: 8000,
         go: async () => {
-          await clickText('.rd-dialogfoot button', 'Send for approval');
+          await clickText('.rd-dialogfoot button', 'Send');
           await waitFor('.rd-toast', 6000);
         },
       },

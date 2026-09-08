@@ -685,6 +685,32 @@ delay email no image, matching `requiredImageSlots`):
   primary open with one date blank — failed once on purpose). Tour guide 1
   gained "Step 3 — Set the delivery dates".
 
+**Design pass (8 Sep), four standing rules from Tom** — "Review the whole
+design everywhere": (1) spacing is generous; (2) button labels one word, two
+max; (3) remove ALL helper copy; (4) buttons black and white, not blue, and
+taller. These are STANDING for all future UI work.
+- Kit: `--rd-btn-pri: #181d26` (new token — `--rd-primary` blue keeps focus/
+  selection/links only); `.rd-btn-pri` 9px pad (~35px tall), `.rd-btn-grey`/
+  `.rd-chip` matched; `--rd-head-control-h` 26→32; a scoped guard keeps
+  `.rd-t27` in-row buttons at the compact scale so rows stay 34px; spacing
+  opened: dialog head/body/foot 24px sides, `.rd-fields`/`.rd-fieldrow` gap
+  14, `--rd-card-gap` 20, `.rd-facts` roomier, `.rd-grouphd` 20px top.
+- Labels (the new vocabulary): Send / Save / Detail / Cancel / Keep / Read /
+  Next / Create / Add / Approve / Write / Move / Remove / Undo / Reset /
+  Clear / Allocate / Export / Import / Set date / Change date / Add send /
+  Pick images / Switch off / Switch on / Mark→Cancel; `Submit (N)`. Approvals
+  keeps two doors distinct as 'Change date' (email) vs 'Change delivery'
+  (promise).
+- Helper copy removed: all instructional Field notes (incl. "{{first_name}}
+  is personalised…"), teaching Bar bodies (title-only bars are fine per the
+  Bar contract), dialog explainer paragraphs trimmed to consequences/facts;
+  SlackFeed explainer bar deleted; previewas line trimmed. KEPT: evidence
+  (Why the date moved), fact bodies (who/what/when), destructive-consequence
+  lines, error remedies, Why on shut controls, tour captions.
+- tour clicks/captions + prove-screens updated to the new labels (writer-foot
+  check now finds /^send$/i; copy-queue verb /^write$/i). Full gate green,
+  all four guides re-driven, artifact republished.
+
 **Remaining is slice 5:** the Auto/Review/Info changes worklist (tags vs line items),
 pinned numbers for edition requests, and freezing a number once a collector has been
 told — which waits on Tom's "edition numbers in emails?" answer.

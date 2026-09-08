@@ -96,7 +96,7 @@ export function CsvImportDialog({
       }
       secondary={
         summary
-          ? { label: 'Import another file', onClick: reset }
+          ? { label: 'Import', onClick: reset }
           : { label: 'Cancel', onClick: close }
       }
     >

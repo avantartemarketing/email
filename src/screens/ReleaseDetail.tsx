@@ -233,13 +233,13 @@ export function ReleaseDetail(): ReactElement {
       actions={
         <>
           <Btn onClick={() => setImportOpen(true)}>Add orders</Btn>
-          <Btn onClick={() => setAllocationOpen(true)}>Import warehouse allocation</Btn>
+          <Btn onClick={() => setAllocationOpen(true)}>Import</Btn>
           {/* Only the newest, and only while nothing has sent — undoing an
               arrival two arrivals back is a diff nobody can hold in their
               head. `undoIntake` refuses the rest on its own. */}
           {undoable ? (
             <Btn kind="link-danger" onClick={() => setUndoing(undoable)}>
-              Undo this import
+              Undo
             </Btn>
           ) : null}
         </>
@@ -257,9 +257,7 @@ export function ReleaseDetail(): ReactElement {
               ? `${plural(flaggedNoContact.length, 'order')} with no matching HubSpot contact (${flaggedNoContact
                   .map((o) => o.shopifyOrderName)
                   .join(', ')}).`
-              : ''}{' '}
-            They stay in their batches and are flagged on every send until resolved in HubSpot, then
-            re-imported.
+              : ''}
           </Bar>
         ) : null}
 
@@ -272,7 +270,6 @@ export function ReleaseDetail(): ReactElement {
                 : `${missingImages.length} emails have no image`
             }
           >
-            There is no default — an email cannot be approved until its image is picked.
             <button type="button" className="rd-inline-pill" onClick={() => setTop('emails')}>
               Pick images
             </button>
@@ -354,7 +351,7 @@ export function ReleaseDetail(): ReactElement {
         title={undoing ? `Undo the import of ${undoing.source.label}?` : ''}
         onClose={() => setUndoing(null)}
         primary={{
-          label: 'Undo the import',
+          label: 'Undo',
           destructive: true,
           disabled: undoBusy,
           onClick: () => {
@@ -373,7 +370,7 @@ export function ReleaseDetail(): ReactElement {
               .finally(() => setUndoBusy(false));
           },
         }}
-        secondary={{ label: 'Keep it', onClick: () => setUndoing(null) }}
+        secondary={{ label: 'Keep', onClick: () => setUndoing(null) }}
       >
         {undoing ? (
           <>
@@ -455,7 +452,7 @@ export function ReleaseDetail(): ReactElement {
         title="This date needs another email"
         onClose={() => setImageGapOpen(false)}
         primary={{
-          label: 'Pick the images',
+          label: 'Pick images',
           onClick: () => {
             setImageGapOpen(false);
             setTop('emails');
@@ -464,13 +461,8 @@ export function ReleaseDetail(): ReactElement {
         secondary={{ label: 'Later', onClick: () => setImageGapOpen(false) }}
       >
         <p>
-          The new window is long enough to need{' '}
-          {plural(missingFromDate.length, 'more on-track update')} — collectors hear from us at
-          least every five weeks, so a longer wait is more emails.
-        </p>
-        <p>
-          {missingFromDate.length === 1 ? 'It has' : 'They have'} no image yet, and an email with
-          no image cannot be approved. The date is saved either way.
+          The new window adds {plural(missingFromDate.length, 'on-track update')} with no image
+          yet. The date is saved either way.
         </p>
       </Dialog>
     </Page>
@@ -712,8 +704,8 @@ function BatchSection({
              the one state that must not sit here silently. It clears when a
              newer delay notice exists (the sort above takes the newest). */
           <Bar tone="warn" title="Delay notice cancelled — these collectors have not been told">
-            “{cancelledDelay.subject}” was cancelled. The promise date has already changed; log
-            the delay again with Change delivery date if they still need to hear about it.
+            “{cancelledDelay.subject}” was cancelled — log the delay again if they still need
+            to hear about it.
           </Bar>
         ) : null}
         <div className="rd-headrow">
@@ -757,12 +749,12 @@ function BatchSection({
                 disabled={activeOrders.length === 0}
               >
                 {picked.size > 0 && picked.size < activeOrders.length
-                  ? `Change delivery date (${picked.size})`
-                  : 'Change delivery date'}
+                  ? `Change date (${picked.size})`
+                  : 'Change date'}
               </Btn>
             ) : (
               <Btn kind="pri" onClick={() => setPromiseOpen(true)}>
-                Set promise date
+                Set date
               </Btn>
             )}
             {draftCount > 0 ? (
@@ -773,11 +765,11 @@ function BatchSection({
                 <Why
                   says={`${plural(draftsWithNoImage, 'of these emails has', 'of these emails have')} no image yet — pick them on the All emails tab.`}
                 >
-                  <Btn disabled>{`Submit plan for approval (${draftCount})`}</Btn>
+                  <Btn disabled>{`Submit (${draftCount})`}</Btn>
                 </Why>
               ) : (
                 <Btn onClick={() => void submitPlan()}>
-                  {`Submit plan for approval (${draftCount})`}
+                  {`Submit (${draftCount})`}
                 </Btn>
               )
             ) : null}
@@ -822,7 +814,7 @@ function BatchSection({
             picked,
             label: (o) => `${o.shopifyOrderName} — ${o.collectorName}`,
             actions: batch.promiseDate
-              ? [{ label: 'Change delivery date', onClick: () => setRescheduleOpen(true) }]
+              ? [{ label: 'Change date', onClick: () => setRescheduleOpen(true) }]
               : [],
           }}
           foot={
@@ -918,7 +910,7 @@ function BatchSection({
         title={cancellingSend ? `Cancel “${cancellingSend.subject}”?` : ''}
         onClose={() => setCancellingSend(null)}
         primary={{
-          label: 'Cancel send',
+          label: 'Cancel',
           destructive: true,
           onClick: () => void confirmCancelSend(),
         }}
