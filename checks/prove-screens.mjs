@@ -636,6 +636,48 @@ await screen('permissions', async () => {
   await page.waitForTimeout(200)
 }
 
+/* ---- 2b3 · the token legend in Edit copy -----------------------------------
+   A writer should never have to already know a token's name to use it. The
+   edit dialogue lists every token its template can take with the value it
+   resolves to now, and a row click drops it into the body. */
+{
+  const what = 'token legend'
+  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' })
+  await page.locator('table tbody tr', { hasText: 'Harbour Light' }).locator('td').nth(1).click()
+  await page.waitForTimeout(500)
+  await page.locator('.rd-tab', { hasText: 'All emails' }).first().click()
+  await page.waitForTimeout(400)
+  await page
+    .locator('table.rd-t27 tbody tr', { hasText: 'Signing' })
+    .locator('button', { hasText: 'Edit' })
+    .first()
+    .click()
+  await page.waitForSelector('.rd-dialog')
+  const legend = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('.rd-dialog tr.rd-rowlink')].map(
+      (r) => r.textContent ?? '',
+    )
+    return {
+      rows: rows.length,
+      allTokens: rows.every((r) => r.includes('{{')),
+      window: rows.some((r) => r.includes('ship_window_short')),
+    }
+  })
+  if (legend.rows < 8)
+    faults.push(`${what}: ${legend.rows} token rows — the legend is not listing the vocabulary`)
+  if (!legend.allTokens) faults.push(`${what}: a legend row carries no {{token}}`)
+  if (!legend.window)
+    faults.push(`${what}: no ship_window_short row — the token the ask was really about`)
+  const before = await page.locator('.rd-dialog textarea').inputValue()
+  await page.locator('.rd-dialog tr.rd-rowlink', { hasText: 'artist' }).first().click()
+  await page.waitForTimeout(200)
+  const after = await page.locator('.rd-dialog textarea').inputValue()
+  if (after.length <= before.length)
+    faults.push(`${what}: clicking a token row put nothing in the body`)
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(200)
+}
+
 /* ---- 2c · emails to write ------------------------------------------------
    The CRM handoff (29 Aug 2026). Two things are worth proving on the render
    rather than in a unit test: the row offers the WRITER'S verb and not the

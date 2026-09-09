@@ -388,6 +388,49 @@ function ReleaseEmailEditModal({
 
   const customised = templateRef ? Boolean(release.templateOverrides[templateRef]) : false;
   const isDelay = templateRef === 'pp-delay';
+
+  /* What each token READS AS is the release's own current value — the same
+     `fields` the preview below resolves with — so this table is a legend for
+     that preview, not a second answer. */
+  const tokenRows: { token: string; value: string }[] = [
+    { token: 'first_name', value: "each collector's first name" },
+    { token: 'artist', value: fields.artist ?? '' },
+    { token: 'release_title', value: fields.release_title ?? '' },
+    { token: 'promise_date', value: fields.promise_date ?? '' },
+    { token: 'ship_window_short', value: fields.ship_window_short ?? '' },
+    ...(isDelay
+      ? [
+          { token: 'old_promise_date', value: 'the date collectors were told before' },
+          { token: 'reason_line', value: 'the generated delay sentence' },
+        ]
+      : [
+          { token: 'closing_line', value: fields.closing_line ?? '' },
+          { token: 'edition_noun', value: fields.edition_noun ?? '' },
+          { token: 'next_destination', value: fields.next_destination ?? '' },
+          { token: 'remaining_route', value: fields.remaining_route ?? '' },
+        ]),
+    ...(templateRef === 'pp-production'
+      ? [{ token: 'craft_line', value: fields.craft_line ?? '' }]
+      : []),
+  ];
+
+  /* Into the body, at the cursor — the dialogue has exactly one textarea.
+     With no cursor to honour, the token lands at the end. */
+  const insertToken = (token: string): void => {
+    const tag = `{{${token}}}`;
+    const area = document.querySelector<HTMLTextAreaElement>('.rd-dialog textarea');
+    if (area) {
+      const at = area.selectionStart ?? area.value.length;
+      const end = area.selectionEnd ?? at;
+      setBody((prev) => prev.slice(0, at) + tag + prev.slice(end));
+      requestAnimationFrame(() => {
+        area.focus();
+        area.setSelectionRange(at + tag.length, at + tag.length);
+      });
+    } else {
+      setBody((prev) => (prev ? `${prev} ${tag}` : tag));
+    }
+  };
   const previewImage = templateRef
     ? release.templateImages[templateRef === 'pp-ontrack' ? 'pp-ontrack-1' : templateRef]
     : undefined;
@@ -458,6 +501,31 @@ function ReleaseEmailEditModal({
         <Field label="Headline" value={headline} onChange={setHeadline} />
         <Field label="Body" value={body} onChange={setBody} multiline deep />
       </div>
+      {/* The tokens this template can use, each with the value it resolves to
+          right now — a writer should never have to already know that
+          {{ship_window_short}} exists to reach for it. A row click drops the
+          token into the body at the cursor. Filtered per template: the delay
+          email's two are meaningless on a milestone, and the craft line
+          belongs to Production alone. */}
+      <div className="rd-grouphd">Tokens — click to add</div>
+      <table className="rd-t rd-t27 rd-fit">
+        <thead>
+          <tr>
+            <th scope="col">Token</th>
+            <th scope="col">Reads as</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tokenRows.map((row) => (
+            <tr key={row.token} className="rd-rowlink" onClick={() => insertToken(row.token)}>
+              <td className="rd-ink">{`{{${row.token}}}`}</td>
+              <td>
+                <Cap>{row.value}</Cap>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
       {/* The form keeps the tokens — they are patched per batch at send time —
           and the preview resolves them, so what is edited and what arrives are
           both on screen and neither pretends to be the other. The batch whose

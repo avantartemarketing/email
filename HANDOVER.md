@@ -643,8 +643,13 @@ moments eg when something is due to approve or delay email needs writing."
   notifications" in the rail) showing what WOULD post; phase 2 wires the same
   objects to a webhook. listSlackFeed on the DataLayer.
 Not built from the review (still open): overdue index menu/release band,
-send-detail crumb derivation, contact-flag filter column, token menu in Edit
-copy, batch-flip preview. The two decisions for Tom stand: standing vs
+send-detail crumb derivation, contact-flag filter column, batch-flip preview.
+The token menu in Edit copy is BUILT (9 Sep): a Tokens table in the edit
+dialogue — every token the template can take, filtered per template
+(delay's two only on pp-delay, craft_line only on pp-production), each
+showing the value it resolves to now from the same `fields` the preview
+uses; a row click inserts at the body's cursor. prove-screens §2b3 covers
+it (failed once on purpose). The two decisions for Tom stand: standing vs
 assignment for "My approvals" (badge is now admin-gated only), and whether
 image-picking is formally CRM's (the badge fold assumes yes).
 
