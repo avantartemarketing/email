@@ -57,6 +57,35 @@
   color: var(--rd-ink);
   background: var(--rd-hover-square);
 }
+/* A group head (9 Sep 2026 — "organise the side bar into Releases … and
+   Actions"): a destination AND a heading. It wears the row's shape in the
+   ink's own weight, and never `.on` — the child row underneath is what
+   carries the current-page state, which is also what keeps the naming
+   check reading child rows only. */
+.rd-navhead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--rd-tab-h);
+  margin-top: 8px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--rd-radius-control);
+  background: none;
+  font: var(--rd-weight-emphasis) var(--rd-size-cell-dense) var(--rd-font-text);
+  color: var(--rd-ink);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rd-navhead:hover {
+  background: var(--rd-hover-square);
+}
+/* A child row sits inside its group: indented, one step quieter. */
+.rd-navrow.rd-navsub {
+  padding-left: 22px;
+}
 .rd-navrow.on {
   background: var(--rd-card);
   border-color: var(--rd-border);

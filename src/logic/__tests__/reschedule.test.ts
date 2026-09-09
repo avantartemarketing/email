@@ -34,6 +34,8 @@ const user: User = {
   email: 'priya@avantarte.com',
   role: 'operator',
   team: 'ops',
+  access: ['releases'],
+  hasPassword: true,
 };
 
 function makeBatch(overrides: Partial<Batch> = {}): Batch {

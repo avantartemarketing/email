@@ -572,6 +572,70 @@ await screen('promise date overview', async () => {
   }
 }
 
+/* ---- 2b2 · the grouped rail, the calendar, permissions ---------------------
+   The owner, 9 Sep 2026: the rail is two groups — Releases (holding the two
+   overviews, opening the index itself) and Actions (holding the worklists,
+   opening approvals) — plus a Permissions screen. Proven on a render because
+   every claim is a drawn thing: the group heads, the indented children, the
+   calendar's rows, the user list and its one door. */
+await screen('scheduled emails', async () => {
+  await page.goto(`${BASE}/scheduled`, { waitUntil: 'networkidle' })
+})
+{
+  const what = 'scheduled emails'
+  const rail = await page.evaluate(() => ({
+    heads: [...document.querySelectorAll('.rd-navhead')].map((h) => h.textContent?.trim()),
+    subs: document.querySelectorAll('.rd-navrow.rd-navsub').length,
+    headLeft: document.querySelector('.rd-navhead')?.getBoundingClientRect().left ?? 0,
+    subLeft:
+      document.querySelector('.rd-navrow.rd-navsub')?.getBoundingClientRect().left ?? 0,
+    subPad: document.querySelector('.rd-navrow.rd-navsub')
+      ? getComputedStyle(document.querySelector('.rd-navrow.rd-navsub')).paddingLeft
+      : '',
+    headPad: document.querySelector('.rd-navhead')
+      ? getComputedStyle(document.querySelector('.rd-navhead')).paddingLeft
+      : '',
+  }))
+  if (rail.heads.join(',') !== 'Releases,Actions')
+    faults.push(`${what}: the rail's groups read "${rail.heads.join(', ')}" — not Releases then Actions`)
+  if (rail.subs < 4)
+    faults.push(`${what}: ${rail.subs} child rows under the two groups — the four screens are not grouped`)
+  if (parseFloat(rail.subPad) <= parseFloat(rail.headPad))
+    faults.push(`${what}: child rows are not indented (${rail.subPad} vs the head's ${rail.headPad})`)
+  const rows = await page.evaluate(() => document.querySelectorAll('table.rd-t27 tbody tr').length)
+  if (rows < 10)
+    faults.push(`${what}: ${rows} rows — the seeded world schedules far more than that`)
+  const statuses = await page.evaluate(() =>
+    [...document.querySelectorAll('table.rd-t27 tbody .rd-tag')].map((p) => p.textContent?.trim()),
+  )
+  if (!statuses.some((s) => /Draft|Queued|Pending/.test(s ?? '')))
+    faults.push(`${what}: no status pill on any row — the column that says who a row waits on`)
+}
+
+await screen('permissions', async () => {
+  await page.goto(`${BASE}/permissions`, { waitUntil: 'networkidle' })
+})
+{
+  const what = 'permissions'
+  const rows = await page.evaluate(() => document.querySelectorAll('table.rd-t27 tbody tr').length)
+  if (rows < 6) faults.push(`${what}: ${rows} people listed for a six-user seed`)
+  const door = await page.getByRole('button', { name: 'Add user' }).count()
+  if (door !== 1) faults.push(`${what}: no Add user door in the head`)
+  await page.getByRole('button', { name: 'Add user' }).click()
+  await page.waitForTimeout(300)
+  const dialog = await page.evaluate(() => ({
+    open: !!document.querySelector('.rd-dialog'),
+    switches: document.querySelectorAll('.rd-dialog [role="switch"]').length,
+    password: !!document.querySelector('.rd-dialog input[type="password"]'),
+  }))
+  if (!dialog.open) faults.push(`${what}: Add user opens nothing`)
+  if (dialog.switches !== 5)
+    faults.push(`${what}: ${dialog.switches} access switches for five areas`)
+  if (!dialog.password) faults.push(`${what}: no password field — the ask was passwords`)
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(200)
+}
+
 /* ---- 2c · emails to write ------------------------------------------------
    The CRM handoff (29 Aug 2026). Two things are worth proving on the render
    rather than in a unit test: the row offers the WRITER'S verb and not the

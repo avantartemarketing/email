@@ -1,12 +1,12 @@
 import type { ArtworkSummary, EditionNote } from '../logic/editions';
 import type { ParsedLineItem } from '../logic/importer';
 import type {
-  SlackMessage,
-  DelayHandoffItem,
+  AdminArea,
   AllocationImportSummary,
   Batch,
   BatchListItem,
   CopyJobItem,
+  DelayHandoffItem,
   ImageSlot,
   Intake,
   IntakeSource,
@@ -21,8 +21,11 @@ import type {
   ReleaseSummary,
   RescheduleInput,
   RescheduleResult,
+  Role,
   ScheduledSend,
   SendStep,
+  SlackMessage,
+  Team,
   TemplateRef,
   User,
 } from '../types';
@@ -145,12 +148,31 @@ export interface SendDetailView {
   lastSent: LastSentInfo | null;
 }
 
+/** A new person for the admin, from the Permissions screen. */
+export interface CreateUserInput {
+  name: string;
+  email: string;
+  /** Accepted and discarded in phase 1 — see `User.hasPassword`. */
+  password: string;
+  role: Role;
+  team: Team;
+  access: AdminArea[];
+}
+
 export interface DataLayer {
   // --- session -----------------------------------------------------------
   getCurrentUser(): Promise<User>;
   listUsers(): Promise<User[]>;
   /** Demo affordance in phase 1; replaced by magic-link auth in phase 2. */
   setCurrentUser(userId: string): Promise<User>;
+
+  // --- permissions --------------------------------------------------------
+  // All three demand the caller hold the `permissions` area.
+  createUser(input: CreateUserInput): Promise<User>;
+  /** Replace a person's areas (and optionally their role). Refuses to strip
+      `permissions` from the last person holding it — a door with no keys. */
+  updateUserAccess(userId: string, access: AdminArea[], role?: Role): Promise<User>;
+  setUserPassword(userId: string, password: string): Promise<User>;
 
   // --- releases and import ----------------------------------------------
   listReleases(): Promise<ReleaseSummary[]>;
@@ -332,6 +354,8 @@ export interface DataLayer {
   listDelayHandoffs(): Promise<DelayHandoffItem[]>;
   /** Every send waiting on an approver, soonest first. */
   listApprovalQueue(): Promise<PendingSendItem[]>;
+  /** Every unsent send across every release, soonest first — the calendar. */
+  listScheduledSends(): Promise<PendingSendItem[]>;
   approveSend(sendId: string): Promise<ScheduledSend>;
 
   // --- send detail -------------------------------------------------------

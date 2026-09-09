@@ -1,13 +1,13 @@
 import type {
-  SlackMessage,
-  DelayHandoffItem,
+  AdminArea,
   AllocationImportSummary,
   Batch,
   BatchEvent,
-  BatchListItem,
   BatchEventType,
   BatchFulfilment,
+  BatchListItem,
   CopyJobItem,
+  DelayHandoffItem,
   ImageSlot,
   ImportSummary,
   Intake,
@@ -22,18 +22,21 @@ import type {
   ReleaseSummary,
   RescheduleInput,
   RescheduleResult,
+  Role,
   ScheduledSend,
   SendStatus,
+  SlackMessage,
   TemplateRef,
   User,
 } from '../../types';
 import type {
   AllocationPlanView,
+  Claim,
   CreateReleaseInput,
+  CreateReleaseResult,
+  CreateUserInput,
   DataLayer,
   IntakeInput,
-  Claim,
-  CreateReleaseResult,
   ReleaseEmailPatch,
   ReleaseEmailUpdateResult,
   SendDetailView,
@@ -312,6 +315,70 @@ export class MockDataLayer implements DataLayer {
     const user = this._store.users.find((u) => u.id === userId);
     if (!user) throw new Error(`Unknown user: ${userId}`);
     this._store.currentUserId = userId;
+    return this.settle(user);
+  }
+
+  // --- permissions --------------------------------------------------------
+
+  /** Managing people needs the `permissions` area, whatever the role says. */
+  private requirePermissions(): User {
+    const user = this.currentUser();
+    if (!user.access.includes('permissions')) {
+      throw new Error('Only someone with Permissions access can manage users');
+    }
+    return user;
+  }
+
+  async createUser(input: CreateUserInput): Promise<User> {
+    this.requirePermissions();
+    const name = input.name.trim();
+    const email = input.email.trim().toLowerCase();
+    if (!name) throw new Error('A name is required');
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('That is not an email address');
+    if (this._store.users.some((u) => u.email.toLowerCase() === email)) {
+      throw new Error(`${email} already has an account`);
+    }
+    if (!input.password) throw new Error('A password is required');
+    const user: User = {
+      id: this._newId('user'),
+      name,
+      email,
+      role: input.role,
+      team: input.team,
+      access: [...new Set(input.access)],
+      /* The password itself is dropped on the floor on purpose: phase 1 has
+         no auth to give it to, and a mock that remembered it would be a mock
+         teaching the wrong habit. `hasPassword` is the only trace. */
+      hasPassword: true,
+    };
+    this._store.users.push(user);
+    return this.settle(user);
+  }
+
+  async updateUserAccess(userId: string, access: AdminArea[], role?: Role): Promise<User> {
+    this.requirePermissions();
+    const user = this._store.users.find((u) => u.id === userId);
+    if (!user) throw new Error(`Unknown user: ${userId}`);
+    const next = [...new Set(access)];
+    /* Never lock the door from the inside: someone must always be able to
+       reach this screen, or no access can ever be granted again. */
+    if (
+      !next.includes('permissions') &&
+      !this._store.users.some((u) => u.id !== userId && u.access.includes('permissions'))
+    ) {
+      throw new Error(`${user.name} is the last person with Permissions access`);
+    }
+    user.access = next;
+    if (role) user.role = role;
+    return this.settle(user);
+  }
+
+  async setUserPassword(userId: string, password: string): Promise<User> {
+    this.requirePermissions();
+    const user = this._store.users.find((u) => u.id === userId);
+    if (!user) throw new Error(`Unknown user: ${userId}`);
+    if (!password) throw new Error('A password is required');
+    user.hasPassword = true;
     return this.settle(user);
   }
 
@@ -1657,6 +1724,31 @@ export class MockDataLayer implements DataLayer {
   async listApprovalQueue(): Promise<PendingSendItem[]> {
     const items = [...this._store.sends.values()]
       .filter((s) => s.status === 'pending_approval')
+      .sort(
+        (a, b) =>
+          a.scheduledDate.localeCompare(b.scheduledDate) || a.createdAt.localeCompare(b.createdAt),
+      )
+      .map((send): PendingSendItem => {
+        const release = this.mustGet(this._store.releases, send.releaseId, 'release');
+        const batch = this.mustGet(this._store.batches, send.batchId, 'batch');
+        return {
+          send,
+          release,
+          batch,
+          recipientCount: this.batchRecipientCount(send.batchId),
+          releaseBatchCount: this.releaseBatches(release.id).length,
+          lastSent: this.lastSentInfo(send.batchId),
+        };
+      });
+    return this.settle(items);
+  }
+
+  async listScheduledSends(): Promise<PendingSendItem[]> {
+    /* The calendar: everything that is going to send, whatever desk it is on.
+       Sent and cancelled sends are history and live on their releases. */
+    const upcoming = new Set(['draft', 'awaiting_copy', 'pending_approval', 'approved']);
+    const items = [...this._store.sends.values()]
+      .filter((s) => upcoming.has(s.status))
       .sort(
         (a, b) =>
           a.scheduledDate.localeCompare(b.scheduledDate) || a.createdAt.localeCompare(b.createdAt),

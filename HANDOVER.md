@@ -730,6 +730,31 @@ rules above:
   fact and long dialog title; allocation caption "Allocation: N of M";
   "Nothing yet" for no-last-email.
 
+**Grouped rail + Scheduled emails + Permissions (9 Sep):** Tom: "organise
+the side bar into Releases … and Actions … Also create a permissions tab."
+- Rail is two groups. **Releases** (a `.rd-navhead` — a destination AND a
+  heading, opens the index, never wears `.on`) holds Promise date overview
+  and the NEW **Scheduled emails** screen (`/scheduled`, `listScheduledSends`
+  — every unsent send across every release, soonest first, read-only rows
+  opening the send). **Actions** (opens /approvals) holds My approvals and
+  Emails to write. Slack notifications, Permissions and Take the tour sit
+  below. Child rows are `.rd-navrow.rd-navsub` (indented); only children
+  carry `.on`, which keeps prove-screens' naming check honest.
+- **Permissions** (`/permissions`): users table (name/email/team/role/
+  access/password-set), black Add user door, Edit per row. Model:
+  `AdminArea = releases|approvals|copy|slack|permissions`; `User.access` +
+  `User.hasPassword` (the password itself is NEVER stored in phase 1 — the
+  mock discards it on purpose; phase 2's auth server keeps a hash). Layer:
+  `createUser` / `updateUserAccess` (refuses to strip the last Permissions
+  holder) / `setUserPassword`, all gated on the caller holding
+  `permissions`. The RAIL is gated by access (what you can't open isn't
+  shown); roles still gate actions (approve needs admin). Seeds: admins
+  hold all five areas, operators everything but Permissions.
+- AppContext gains `refreshUsers`; the shell keeps the user list live so
+  the who-switcher sees new people. prove-screens §2b2 covers the grouped
+  rail anatomy, the calendar's rows and the Add user dialog (failed once
+  on purpose). 258 tests.
+
 **Remaining is slice 5:** the Auto/Review/Info changes worklist (tags vs line items),
 pinned numbers for edition requests, and freezing a number once a collector has been
 told — which waits on Tom's "edition numbers in emails?" answer.

@@ -20,7 +20,7 @@ import {
   useLocation,
   useNavigate,
 } from 'react-router-dom';
-import type { User } from './types';
+import type { AdminArea, User } from './types';
 import type { DataLayer } from './data';
 import { getDataLayer } from './data';
 import { AppContext } from './ui/AppContext';
@@ -33,10 +33,12 @@ import { Tour } from './components/Tour';
 import { ReleasesIndex } from './screens/ReleasesIndex';
 import { ReleaseDetail } from './screens/ReleaseDetail';
 import { PromiseDateOverview } from './screens/PromiseDateOverview';
+import { ScheduledEmails } from './screens/ScheduledEmails';
 import { EmailsToWrite } from './screens/EmailsToWrite';
 import { MyApprovals } from './screens/MyApprovals';
 import { SlackFeed } from './screens/SlackFeed';
 import { SendDetail } from './screens/SendDetail';
+import { Permissions } from './screens/Permissions';
 
 export function AppRoot(): ReactElement {
   const [boot, setBoot] = useState<{ data: DataLayer; user: User; users: User[] } | null>(null);
@@ -93,6 +95,9 @@ function Shell({
   const location = useLocation();
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState(initialUser);
+  /* Live, not boot-frozen: the Permissions screen adds and edits people, and
+     the who-switcher and every name lookup read this same list. */
+  const [userList, setUserList] = useState(users);
   const [whoOpen, setWhoOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const [crumb, setCrumb] = useState<string | null>(null);
@@ -123,28 +128,37 @@ function Shell({
 
   const refreshApprovals = useCallback(() => setQueueTick((n) => n + 1), []);
 
+  const refreshUsers = useCallback(async () => {
+    const next = await data.listUsers();
+    setUserList(next);
+    /* Access may have changed under the person doing the editing. */
+    const me = next.find((u) => u.id === currentUser.id);
+    if (me) setCurrentUser(me);
+  }, [data, currentUser.id]);
+
   const userName = useCallback(
     (userId: string | undefined) => {
       if (!userId) return '—';
       if (userId === 'system') return 'System';
-      return users.find((u) => u.id === userId)?.name ?? userId;
+      return userList.find((u) => u.id === userId)?.name ?? userId;
     },
-    [users],
+    [userList],
   );
 
   const contextValue = useMemo<AppContextValue>(
     () => ({
       data,
       currentUser,
-      users,
+      users: userList,
       isAdmin: currentUser.role === 'admin',
       switchUser,
       showToast,
       userName,
+      refreshUsers,
       setCrumb,
       refreshApprovals,
     }),
-    [data, currentUser, users, switchUser, showToast, userName, refreshApprovals],
+    [data, currentUser, userList, switchUser, showToast, userName, refreshUsers, refreshApprovals],
   );
 
   /* The badge counts what is DUE, not what exists.
@@ -189,11 +203,16 @@ function Shell({
     ? ['Releases', '/']
     : location.pathname.startsWith('/overview')
       ? ['Promise date overview', '/overview']
-      : location.pathname.startsWith('/copy')
-        ? ['Emails to write', '/copy']
-        : location.pathname.startsWith('/slack')
-          ? ['Slack notifications', '/slack']
-          : ['My approvals', '/approvals'];
+      : location.pathname.startsWith('/scheduled')
+        ? ['Scheduled emails', '/scheduled']
+        : location.pathname.startsWith('/copy')
+          ? ['Emails to write', '/copy']
+          : location.pathname.startsWith('/slack')
+            ? ['Slack notifications', '/slack']
+            : location.pathname.startsWith('/permissions')
+              ? ['Permissions', '/permissions']
+              : ['My approvals', '/approvals'];
+  const can = (a: AdminArea) => currentUser.access.includes(a);
   const initials = currentUser.name
     .split(' ')
     .map((part) => part[0])
@@ -211,35 +230,86 @@ function Shell({
             Post-purchase
           </div>
           <div className="rd-railnav">
-            <NavLink to="/" className={onReleases ? 'rd-navrow on' : 'rd-navrow'}>
-              Releases
-            </NavLink>
-            <NavLink
-              to="/overview"
-              className={({ isActive }) => (isActive ? 'rd-navrow on' : 'rd-navrow')}
-            >
-              Promise date overview
-            </NavLink>
-            <NavLink
-              to="/copy"
-              className={({ isActive }) => (isActive ? 'rd-navrow on' : 'rd-navrow')}
-            >
-              Emails to write
-              {copyCount.data ? <span className="rd-navcount">{copyCount.data}</span> : null}
-            </NavLink>
-            <NavLink
-              to="/approvals"
-              className={({ isActive }) => (isActive ? 'rd-navrow on' : 'rd-navrow')}
-            >
-              My approvals
-              {queueCount.data ? <span className="rd-navcount">{queueCount.data}</span> : null}
-            </NavLink>
-            <NavLink
-              to="/slack"
-              className={({ isActive }) => (isActive ? 'rd-navrow on' : 'rd-navrow')}
-            >
-              Slack notifications
-            </NavLink>
+            {/* Two groups, the owner's shape (9 Sep 2026): Releases holds the
+                two overviews and opens the index itself; Actions holds the
+                two worklists and opens approvals itself. A group head is a
+                destination AND a heading, so it wears its own class — a child
+                row is the only thing that carries `.on`, which is also what
+                keeps the naming check honest. What a person cannot open, the
+                rail does not show: `user.access`, set on Permissions. */}
+            {can('releases') ? (
+              <>
+                <NavLink to="/" className="rd-navhead">
+                  Releases
+                </NavLink>
+                <NavLink
+                  to="/overview"
+                  className={({ isActive }) =>
+                    isActive ? 'rd-navrow rd-navsub on' : 'rd-navrow rd-navsub'
+                  }
+                >
+                  Promise date overview
+                </NavLink>
+                <NavLink
+                  to="/scheduled"
+                  className={({ isActive }) =>
+                    isActive ? 'rd-navrow rd-navsub on' : 'rd-navrow rd-navsub'
+                  }
+                >
+                  Scheduled emails
+                </NavLink>
+              </>
+            ) : null}
+            {can('approvals') || can('copy') ? (
+              <>
+                <NavLink
+                  to="/approvals"
+                  className="rd-navhead"
+                >
+                  Actions
+                </NavLink>
+                {can('approvals') ? (
+                  <NavLink
+                    to="/approvals"
+                    className={({ isActive }) =>
+                      isActive ? 'rd-navrow rd-navsub on' : 'rd-navrow rd-navsub'
+                    }
+                  >
+                    My approvals
+                    {queueCount.data ? (
+                      <span className="rd-navcount">{queueCount.data}</span>
+                    ) : null}
+                  </NavLink>
+                ) : null}
+                {can('copy') ? (
+                  <NavLink
+                    to="/copy"
+                    className={({ isActive }) =>
+                      isActive ? 'rd-navrow rd-navsub on' : 'rd-navrow rd-navsub'
+                    }
+                  >
+                    Emails to write
+                    {copyCount.data ? <span className="rd-navcount">{copyCount.data}</span> : null}
+                  </NavLink>
+                ) : null}
+              </>
+            ) : null}
+            {can('slack') ? (
+              <NavLink
+                to="/slack"
+                className={({ isActive }) => (isActive ? 'rd-navrow on' : 'rd-navrow')}
+              >
+                Slack notifications
+              </NavLink>
+            ) : null}
+            {can('permissions') ? (
+              <NavLink
+                to="/permissions"
+                className={({ isActive }) => (isActive ? 'rd-navrow on' : 'rd-navrow')}
+              >
+                Permissions
+              </NavLink>
+            ) : null}
             {/* The guide, where a new starter's eye lands first. It drives the
                 real app, so it can never say something the product no longer
                 does — see Tour.tsx. */}
@@ -300,6 +370,8 @@ function Shell({
               <Route path="/" element={<ReleasesIndex />} />
               <Route path="/releases/:releaseId" element={<ReleaseDetail />} />
               <Route path="/overview" element={<PromiseDateOverview />} />
+              <Route path="/scheduled" element={<ScheduledEmails />} />
+              <Route path="/permissions" element={<Permissions />} />
               <Route path="/copy" element={<EmailsToWrite />} />
               <Route path="/approvals" element={<MyApprovals />} />
               <Route path="/slack" element={<SlackFeed />} />

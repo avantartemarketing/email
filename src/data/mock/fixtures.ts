@@ -1932,6 +1932,10 @@ export const HUBSPOT_DIRECTORY: Record<string, string> = {
 /** "For the time being, it's Elani for every one" — the owner, 1 Sep 2026. */
 export const DEFAULT_APPROVER_ID = 'user-approver';
 
+/** Admins hold every area; everyone else holds everything but Permissions. */
+const ALL_AREAS = ['releases', 'approvals', 'copy', 'slack', 'permissions'] as const;
+const STANDARD_AREAS = ['releases', 'approvals', 'copy', 'slack'] as const;
+
 export const USERS = [
   {
     id: 'user-tom',
@@ -1939,6 +1943,8 @@ export const USERS = [
     email: 'tom.lloyd@avantarte.com',
     role: 'admin' as const,
     team: 'ops' as const,
+    access: [...ALL_AREAS],
+    hasPassword: true,
   },
   {
     id: 'user-crm',
@@ -1946,6 +1952,8 @@ export const USERS = [
     email: 'maya.delacroix@avantarte.com',
     role: 'admin' as const,
     team: 'crm' as const,
+    access: [...ALL_AREAS],
+    hasPassword: true,
   },
   {
     id: 'user-crm-2',
@@ -1953,6 +1961,8 @@ export const USERS = [
     email: 'nadia.ferreira@avantarte.com',
     role: 'operator' as const,
     team: 'crm' as const,
+    access: [...STANDARD_AREAS],
+    hasPassword: true,
   },
   /* The owner named the standing approver by first name only (1 Sep 2026:
      "it's Elani for every one"), and a surname is not ours to invent. */
@@ -1962,6 +1972,8 @@ export const USERS = [
     email: 'elani@avantarte.com',
     role: 'admin' as const,
     team: 'crm' as const,
+    access: [...ALL_AREAS],
+    hasPassword: true,
   },
   {
     id: 'user-pm',
@@ -1969,6 +1981,8 @@ export const USERS = [
     email: 'priya.nair@avantarte.com',
     role: 'operator' as const,
     team: 'ops' as const,
+    access: [...STANDARD_AREAS],
+    hasPassword: true,
   },
   {
     id: 'user-warehouse',
@@ -1976,5 +1990,7 @@ export const USERS = [
     email: 'jakob.meijer@avantarte.com',
     role: 'operator' as const,
     team: 'ops' as const,
+    access: [...STANDARD_AREAS],
+    hasPassword: true,
   },
 ];

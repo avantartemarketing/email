@@ -21,12 +21,29 @@ export type Role = 'operator' | 'admin';
  */
 export type Team = 'crm' | 'ops';
 
+/**
+ * The admin's areas, as the rail groups them. `releases` covers the index,
+ * the release pages and both overviews; the rest are one screen each.
+ * Access decides what the RAIL shows a person and what the permissions
+ * screen lets them touch — it does not change what a role may do (approving
+ * still needs `admin`, whatever the rail shows).
+ */
+export type AdminArea = 'releases' | 'approvals' | 'copy' | 'slack' | 'permissions';
+
 export interface User {
   id: string;
   name: string;
   email: string;
   role: Role;
   team: Team;
+  /** The areas this person's rail shows. */
+  access: AdminArea[];
+  /**
+   * Whether a password has been set — never the password itself. Phase 1
+   * stores nothing at all (the demo's user switcher does not ask); phase 2's
+   * server keeps a hash and this stays the only thing a screen ever sees.
+   */
+  hasPassword: boolean;
 }
 
 export type ReleaseStatus = 'active' | 'completed';

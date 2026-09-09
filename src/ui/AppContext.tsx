@@ -10,6 +10,9 @@ export interface AppContextValue {
   switchUser: (userId: string) => Promise<void>;
   showToast: (content: string, isError?: boolean) => void;
   userName: (userId: string | undefined) => string;
+  /** Re-read the user list — the Permissions screen adds and edits people,
+      and the who-switcher and every name lookup read the same list. */
+  refreshUsers: () => Promise<void>;
   /** The record the bar's path ends at — see `useCrumb`. */
   setCrumb: (label: string | null) => void;
   /**

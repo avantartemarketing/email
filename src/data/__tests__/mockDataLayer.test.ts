@@ -872,6 +872,81 @@ describe('the named approver', () => {
   });
 });
 
+describe('permissions and the scheduled calendar', () => {
+  it('lists every unsent send across releases, soonest first', async () => {
+    const items = await layer.listScheduledSends();
+    expect(items.length).toBeGreaterThan(0);
+    const dates = items.map((i) => i.send.scheduledDate);
+    expect([...dates].sort()).toEqual(dates);
+    expect(items.every((i) => i.send.status !== 'sent' && i.send.status !== 'cancelled')).toBe(
+      true,
+    );
+    /* More than one release's sends — it is the calendar, not a queue. */
+    expect(new Set(items.map((i) => i.release.id)).size).toBeGreaterThan(1);
+  });
+
+  it('managing users needs the Permissions area, whatever the role', async () => {
+    await layer.setCurrentUser('user-pm'); // operator, no permissions area
+    await expect(
+      layer.createUser({
+        name: 'X',
+        email: 'x@avantarte.com',
+        password: 'pw',
+        role: 'operator',
+        team: 'ops',
+        access: ['releases'],
+      }),
+    ).rejects.toThrow(/Permissions access/);
+    await layer.setCurrentUser('user-tom');
+  });
+
+  it('adds a person who then appears with their areas, password never stored', async () => {
+    const user = await layer.createUser({
+      name: 'Sam Porter',
+      email: 'sam.porter@avantarte.com',
+      password: 'a-password-nobody-keeps',
+      role: 'operator',
+      team: 'crm',
+      access: ['releases', 'copy'],
+    });
+    expect(user.hasPassword).toBe(true);
+    expect(user.access).toEqual(['releases', 'copy']);
+    const listed = await layer.listUsers();
+    expect(listed.some((u) => u.email === 'sam.porter@avantarte.com')).toBe(true);
+    expect(JSON.stringify(listed)).not.toContain('a-password-nobody-keeps');
+    await expect(
+      layer.createUser({
+        name: 'Sam Again',
+        email: 'sam.porter@avantarte.com',
+        password: 'pw',
+        role: 'operator',
+        team: 'crm',
+        access: ['releases'],
+      }),
+    ).rejects.toThrow(/already has an account/);
+  });
+
+  it('never strips the last person with Permissions access', async () => {
+    const holders = (await layer.listUsers()).filter((u) => u.access.includes('permissions'));
+    for (const holder of holders.slice(1)) {
+      await layer.updateUserAccess(
+        holder.id,
+        holder.access.filter((a) => a !== 'permissions'),
+      );
+    }
+    await expect(
+      layer.updateUserAccess(
+        holders[0].id,
+        holders[0].access.filter((a) => a !== 'permissions'),
+      ),
+    ).rejects.toThrow(/last person with Permissions/);
+    // leave the world as found
+    for (const holder of holders.slice(1)) {
+      await layer.updateUserAccess(holder.id, holder.access);
+    }
+  });
+});
+
 describe('promises at import', () => {
   /* Night Garden's export under a fresh name, because the claim guard is
      real: reusing its titles fails at the door, which is the guard working. */
