@@ -1929,8 +1929,11 @@ export const HUBSPOT_DIRECTORY: Record<string, string> = {
  * purpose — Maya approves sends AND writes delay copy, Jakob does neither,
  * and collapsing the two would make one of those people impossible.
  */
-/** "For the time being, it's Elani for every one" — the owner, 1 Sep 2026. */
+/** The default owners: Elani for the warehouse ("it's Elani for every one",
+    1 Sep 2026), and Priya as the standing PM — everything before Preparing
+    for dispatch sits on the PM's list (Elani, 10 Sep 2026). */
 export const DEFAULT_APPROVER_ID = 'user-approver';
+export const DEFAULT_PM_ID = 'user-pm';
 
 /** Admins hold every area; everyone else holds everything but Permissions. */
 const ALL_AREAS = ['releases', 'approvals', 'copy', 'slack', 'permissions'] as const;
@@ -1975,11 +1978,14 @@ export const USERS = [
     access: [...ALL_AREAS],
     hasPassword: true,
   },
+  /* Admin since 10 Sep 2026: PMs own (and so approve) every send before
+     Preparing for dispatch — an owner who cannot approve is a list nobody
+     can clear, the same rule setOwners enforces. */
   {
     id: 'user-pm',
     name: 'Priya Nair',
     email: 'priya.nair@avantarte.com',
-    role: 'operator' as const,
+    role: 'admin' as const,
     team: 'ops' as const,
     access: [...STANDARD_AREAS],
     hasPassword: true,

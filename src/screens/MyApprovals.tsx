@@ -6,7 +6,7 @@ import type { SendDetailView } from '../data/DataLayer';
 import { daysBetween, formatDayShort, today } from '../logic/dates';
 import { inheritedSentStory } from '../logic/reschedule';
 import { NO_IMAGE_YET, shipWindowShort } from '../logic/templates';
-import { isOverdueApproval, needsApprovingNow } from '../logic/approvals';
+import { isOverdueApproval, needsApprovingNow, ownerFor } from '../logic/approvals';
 import { TEMPLATE_LABELS, plural } from '../ui/format';
 import { useApp } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
@@ -359,25 +359,23 @@ export function MyApprovals(): ReactElement {
       cell: (i) => (i.releaseBatchCount > 1 ? <Tag tone="teal">{i.batch.name}</Tag> : <None />),
     },
     {
-      id: 'approver',
-      /* Whose list this sits on — the release names its approver now. "You"
-         rather than your own name, because the question this column answers
-         is "is this mine", not "who is that". Any admin can still approve;
-         the name says who is EXPECTED to. */
-      title: 'Approver',
-      /* Off by default while every release names the same approver — the
-         owner, 8 Sep 2026: "screens generally way too busy". One click in
-         Columns brings it back the day two approvers exist. */
-      defaultHidden: true,
+      id: 'owner',
+      /* Whose list this SEND sits on — the stage handover (10 Sep 2026):
+         the PM before dispatch, the warehouse for Preparing for dispatch.
+         "You" rather than your own name, because the question this column
+         answers is "is this mine". Any admin can still approve. */
+      title: 'Owner',
       kind: 'choice',
-      caption: 'APPROVER',
+      caption: 'OWNER',
       value: (i) =>
-        i.release.approverId === currentUser.id ? 'You' : userName(i.release.approverId),
+        ownerFor(i.release, i.send) === currentUser.id
+          ? 'You'
+          : userName(ownerFor(i.release, i.send)),
       cell: (i) =>
-        i.release.approverId === currentUser.id ? (
+        ownerFor(i.release, i.send) === currentUser.id ? (
           <span className="rd-ink">You</span>
         ) : (
-          userName(i.release.approverId)
+          userName(ownerFor(i.release, i.send))
         ),
     },
     {

@@ -54,3 +54,18 @@ export function isOverdueApproval(
 ): boolean {
   return send.status === 'pending_approval' && send.scheduledDate < todayDay;
 }
+
+/**
+ * Whose list a send sits on — the handover Elani described (10 Sep 2026):
+ * the PM owns everything up to dispatch, because until it reaches the
+ * warehouse only the PM knows whether the plan is on track; Preparing for
+ * dispatch is where it becomes the warehouse's. Delay notices follow the
+ * same rule — a date change before dispatch is the PM's to approve.
+ * Naming is not gating: any admin can still approve.
+ */
+export function ownerFor(
+  release: { pmOwnerId: string; warehouseOwnerId: string },
+  send: { templateRef: string },
+): string {
+  return send.templateRef === 'pp-dispatch' ? release.warehouseOwnerId : release.pmOwnerId;
+}

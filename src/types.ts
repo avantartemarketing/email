@@ -193,13 +193,16 @@ export interface Release {
   /** Hero image picked per slot; unset slots use the HubSpot master's image. */
   templateImages: Partial<Record<ImageSlot, string>>;
   /**
-   * Who approves this release's emails — a user id, always set. The owner,
-   * 1 Sep 2026: "for each release we should be able to set the approver. For
-   * the time being, it's Elani for every one." Naming is not gating: any
-   * admin can still approve (a named approver goes on holiday and the delay
-   * notice does not wait) — this says whose list the work sits on.
+   * The handover Elani described (10 Sep 2026): "everything before that
+   * should be with a PM … the preparing for dispatch email can be where it
+   * is handed over to the warehouse." Two named owners, always set; a send's
+   * owner is `ownerFor(release, send)` — the PM for every email and delay
+   * notice before dispatch, the warehouse for Preparing for dispatch.
+   * Naming is not gating: any admin can still approve — these say whose
+   * LIST the work sits on.
    */
-  approverId: string;
+  pmOwnerId: string;
+  warehouseOwnerId: string;
   createdAt: string;
 }
 
@@ -409,6 +412,7 @@ export interface ScheduledSend {
 
 export type BatchEventType =
   | 'batch_created'
+  | 'order_changed'
   | 'promise_date_set'
   | 'reschedule'
   | 'orders_split'
@@ -476,6 +480,35 @@ export interface DelayHandoffItem {
   send: ScheduledSend;
   release: Release;
   batch: Batch;
+}
+
+/**
+ * A change the shop's data implies but a person has not confirmed — the
+ * review-first rule (the owner, 10 Sep 2026): customer support does not
+ * always tag consistently, so a sync PROPOSES and someone applies. Applied
+ * or dismissed, it stays as the record of who decided.
+ */
+export interface ChangeProposal {
+  id: string;
+  releaseId: string;
+  orderId: string;
+  shopifyOrderName: string;
+  collectorName: string;
+  kind: 'frame_removed' | 'frame_added' | 'spec_changed';
+  /** What applying does, in words: "Moves to Unframed", "Frame → White Abachi". */
+  detail: string;
+  /** The tag or field difference that raised it. */
+  evidence: string;
+  at: string;
+  status: 'pending' | 'applied' | 'dismissed';
+  decidedBy?: string;
+  decidedAt?: string;
+  /** What applying writes — carried so apply needs no second read of the shop. */
+  payload?: {
+    toFulfilment?: BatchFulfilment;
+    frameLineItemTitle?: string | null;
+    frameSku?: string | null;
+  };
 }
 
 export interface Notification {

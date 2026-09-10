@@ -2,10 +2,11 @@ import { useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 import type { Batch, Order, OrderAllocation, ReleaseDetail } from '../types';
 import { formatDayShort } from '../logic/dates';
+import { fulfilmentLabel } from '../logic/fulfilment';
 import { inheritedSentStory } from '../logic/reschedule';
 import { frameFinishTag, fulfilmentValueTag, plural, specTag } from '../ui/format';
 import { useApp } from '../ui/AppContext';
-import { Bar, Cap, Dialog, None, Tag } from '../ui/rd';
+import { Bar, Cap, Dialog, None, Pill, Tag } from '../ui/rd';
 import { Flag } from '../ui/Flag';
 import { DataTable } from '../ui/DataTable';
 import type { Column } from '../ui/DataTable';
@@ -173,26 +174,25 @@ export function ReleaseOrdersTable({
     },
     {
       id: 'frame',
-      title: 'Frame finish',
+      title: 'Frame colour',
       kind: 'choice',
-      caption: 'FRAME FINISH',
+      caption: 'FRAME COLOUR',
       value: (r) => r.allocation?.frameFinish,
       cell: (r) => frameFinishTag(r.allocation?.frameFinish) ?? <None />,
     },
     {
       id: 'glass',
-      title: 'Glass',
+      title: 'Glazing',
       kind: 'choice',
-      caption: 'GLASS',
+      caption: 'GLAZING',
       value: (r) => r.allocation?.glass,
       cell: (r) => specTag(r.allocation?.glass) ?? <None />,
     },
     {
       id: 'mounting',
-      title: 'Mounting type',
-      defaultHidden: true,
+      title: 'Mount type',
       kind: 'choice',
-      caption: 'MOUNTING',
+      caption: 'MOUNT TYPE',
       value: (r) => r.allocation?.mountingType,
       cell: (r) => specTag(r.allocation?.mountingType) ?? <None />,
     },
@@ -231,6 +231,31 @@ export function ReleaseOrdersTable({
       value: (r) => r.batch?.promiseDate,
       groupLabel: (key) => (key ? formatDayShort(key) : ''),
       cell: (r) => (r.batch?.promiseDate ? formatDayShort(r.batch.promiseDate) : <None />),
+    },
+    {
+      id: 'dispatch',
+      /* The shop's own answer to "has this left" — Elani (10 Sep 2026): "the
+         Shopify fulfilment status is probably the most accurate view on
+         whether something has dispatched." On hold outranks the status, and
+         is the fact that changes what we send: holds never hear from the
+         plan, at the collector's own request. */
+      title: 'Dispatch',
+      kind: 'choice',
+      caption: 'DISPATCH',
+      order: ['On hold', 'Unfulfilled', 'Partial', 'Fulfilled'],
+      value: (r) => fulfilmentLabel(r.order),
+      cell: (r) => {
+        const label = fulfilmentLabel(r.order);
+        return label === 'Fulfilled' ? (
+          <Pill tone="green">Fulfilled</Pill>
+        ) : label === 'On hold' ? (
+          <Pill tone="amber">On hold</Pill>
+        ) : label === 'Partial' ? (
+          <Pill tone="blue">Partial</Pill>
+        ) : (
+          'Unfulfilled'
+        );
+      },
     },
     {
       id: 'customer',

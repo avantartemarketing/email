@@ -205,8 +205,8 @@ export const TOUR_PATHS: TourPath[] = [
       {
         title: 'Step 4 — Check the orders',
         caption:
-          'Here is Harbour Light as an example. Every print is one row, showing its frame, ' +
-          'glass, batch and promised delivery date. The order number links to Shopify. Use the ' +
+          'Here is Harbour Light as an example. Every print is one row, showing its frame ' +
+          'colour, glazing, batch and promised delivery date. The order number links to Shopify. Use the ' +
           'checkboxes to cancel orders, move them, or change delivery dates in bulk.',
         /* The container, not the table: All orders scrolls sideways, and the
            table's own rectangle is its scrollWidth — a spotlight the size of
@@ -457,8 +457,9 @@ export const TOUR_PATHS: TourPath[] = [
         title: 'Step 1 — Open My approvals',
         caption:
           'This shows what needs approving in the next seven days, and what is coming after ' +
-          'that. Each release names its approver — that is set on the release page, and right ' +
-          'now it is Elani for everything.',
+          'that. Each email has an owner: the PM until dispatch, the warehouse for Preparing ' +
+          'for dispatch. Both are set on the release page, and the Owner column says whose ' +
+          'each one is.',
         target: 'table.rd-t27',
         holdMs: 9000,
         go: async (navigate) => {

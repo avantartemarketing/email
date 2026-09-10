@@ -2,12 +2,14 @@ import type {
   Batch,
   BatchFulfilment,
   ImageSlot,
+  Order,
   ScheduledSend,
   SendRecipient,
 } from '../../types';
 import { addDays, parseDay, today } from '../../logic/dates';
 import { requiredImageSlots } from '../../logic/templates';
 import { parseShopifyOrderExport } from '../../logic/importer';
+import type { ParsedLineItem } from '../../logic/importer';
 import { productsInFile, proposeRelease, skusFor } from '../../logic/intake';
 import { MockDataLayer } from './MockDataLayer';
 
@@ -454,6 +456,76 @@ You can expect more updates along the way, but please don't hesitate to contact 
     reason: 'Two prints marked on the border in QC and have to be pulled again',
     userId: 'user-pm',
   });
+
+  /* ---- Elani's world (10 Sep) --------------------------------------------
+     The shop's delivery truth on the orders, and changes waiting for review
+     — seeded THROUGH the real sync detection, so the demo shows exactly
+     what the integration will do when it is live. */
+  clock(0);
+  const flOrders = [...layer._store.orders.values()].filter(
+    (o) => o.releaseId === fallingLight.id && !o.removed,
+  );
+  /* The unframed batch's plan is nearly done — most of it has left. */
+  flOrders
+    .filter((o) => o.batchId === flUnframed.id)
+    .slice(0, 90)
+    .forEach((o) => {
+      o.fulfillmentStatus = 'fulfilled';
+    });
+  /* Two holds, at the collectors' own request — they hear nothing until
+     the hold lifts. */
+  flOrders
+    .filter((o) => o.batchId === flFramed.id)
+    .slice(4, 6)
+    .forEach((o) => {
+      o.shopifyTags = [...(o.shopifyTags ?? []), 'On hold — collector request'];
+    });
+  /* A fresh export, two orders of it changed: one framed collector had
+     customer support remove the frame (the tag from the frames SOP), and
+     one changed frame colour (a new frame SKU beside the print). Everything
+     else in the mini-export is unchanged, which is what a real sync mostly
+     carries. */
+  const miniItem = (o: Order, tags: string[]): ParsedLineItem => ({
+    shopifyOrderName: o.shopifyOrderName,
+    lineItemTitle: o.lineItemTitle,
+    variant: o.variant,
+    quantity: 1,
+    sku: o.sku,
+    financialStatus: o.financialStatus,
+    fulfillmentStatus: o.fulfillmentStatus,
+    email: o.email,
+    collectorName: o.collectorName,
+    orderDate: o.orderDate,
+    country: o.country,
+    shopifyTags: tags,
+    row: 0,
+  });
+  const framedOrders = flOrders.filter((o) => o.batchId === flFramed.id);
+  const removedFrame = framedOrders[0];
+  /* The colour change needs the frame-to-print SKU join, so it wants an
+     order whose print line carries an art-coded SKU. */
+  const recoloured = framedOrders.find(
+    (o) => o !== removedFrame && o.sku && o.sku.split('-').length >= 3,
+  );
+  await layer.syncRelease(
+    fallingLight.id,
+    [
+      /* No frame will be made — the SOP tag says why. */
+      miniItem(removedFrame, ['frame removed']),
+      ...(recoloured
+        ? [
+            /* A different frame SKU beside the same print — a colour change. */
+            miniItem(recoloured, ['frame updated']),
+            {
+              ...miniItem(recoloured, []),
+              lineItemTitle: 'White Abachi wood frame - UV protective acrylic',
+              sku: `${(recoloured.sku ?? '').split('-').slice(0, 2).join('-')}-FR-WHITEABACH`,
+            },
+          ]
+        : []),
+    ],
+    'shopify-2026-09-10',
+  );
 
   // Back to real time, signed in as Tom, with honest loading latency.
   layer._setClock(null);

@@ -26,7 +26,7 @@ import { getDataLayer } from './data';
 import { AppContext } from './ui/AppContext';
 import type { AppContextValue } from './ui/AppContext';
 import { useAsync } from './ui/useAsync';
-import { needsApprovingNow } from './logic/approvals';
+import { needsApprovingNow, ownerFor } from './logic/approvals';
 import { Skeleton } from './ui/rd';
 import Menu from './rd/components/Menu';
 import { Tour } from './components/Tour';
@@ -167,12 +167,12 @@ function Shell({
      rather than the work is a badge somebody learns to ignore. */
   const queueCount = useAsync(
     async () =>
-      /* Admins only, mirroring the copy badge's rule below: an operator
-         cannot approve anything, so a count here is a summons to the wrong
-         person. The page itself stays open to everyone. */
-      currentUser.role === 'admin'
-        ? (await data.listApprovalQueue()).filter((i) => needsApprovingNow(i.send)).length
-        : 0,
+      /* YOUR list under the stage handover — the PM's sends before dispatch,
+         the warehouse's from Preparing for dispatch. The page still shows
+         everything with its Owner column; the summons is personal. */
+      (await data.listApprovalQueue()).filter(
+        (i) => needsApprovingNow(i.send) && ownerFor(i.release, i.send) === currentUser.id,
+      ).length,
     [location.pathname, queueTick, currentUser.id],
   );
 

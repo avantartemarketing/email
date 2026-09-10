@@ -5,6 +5,7 @@ import type {
   AllocationImportSummary,
   Batch,
   BatchListItem,
+  ChangeProposal,
   CopyJobItem,
   DelayHandoffItem,
   ImageSlot,
@@ -50,8 +51,8 @@ export interface CreateReleaseInput {
   productMatch?: { lineItemTitles: string[]; skus: string[] };
   /** Milestones switched off for this release (dispatch can't be). */
   disabledTemplates?: TemplateRef[];
-  /** Who approves this release's emails. Unset takes the standing default. */
-  approverId?: string;
+  /** The two named owners. Unset takes the standing defaults. */
+  owners?: { pmId?: string; warehouseId?: string };
   /**
    * Pane-three answers from the New release dialogue: the batching decision
    * and each batch's promise date, recorded at the door so the plans (and the
@@ -148,6 +149,16 @@ export interface SendDetailView {
   lastSent: LastSentInfo | null;
 }
 
+/** What one sync did — the door's report. */
+export interface SyncResult {
+  /** New orders taken in (late sales, miss-outs). */
+  added: number;
+  /** Existing orders whose status and tags were refreshed. */
+  refreshed: number;
+  /** Changes now waiting for review. */
+  newProposals: number;
+}
+
 /** A new person for the admin, from the Permissions screen. */
 export interface CreateUserInput {
   name: string;
@@ -204,11 +215,23 @@ export interface DataLayer {
    */
   setProductMatch(releaseId: string, match: { lineItemTitles: string[]; skus: string[] }): Promise<Release>;
   /**
-   * Name who approves this release's emails. Must be an admin — the same
-   * standing `approveSend` checks, so the name on the list is always a person
-   * who can actually clear it.
+   * Name the release's owners — the PM (everything before dispatch) and the
+   * warehouse (Preparing for dispatch). Each must be an admin, so the name
+   * on a list is always a person who can clear it.
    */
-  setApprover(releaseId: string, userId: string): Promise<Release>;
+  setOwners(releaseId: string, owners: { pmId?: string; warehouseId?: string }): Promise<Release>;
+  /**
+   * THE Shopify seam. Phase 2's integration calls this with the shop's
+   * orders as JSON; until then the Sync door feeds it a CSV — same array,
+   * same behaviour. It adds orders that are new (a late sale, a miss-out),
+   * refreshes fulfilment status and tags on the ones already here, and turns
+   * every tag- or line-implied CHANGE into a proposal for a person to review
+   * — nothing moves an order until somebody applies it.
+   */
+  syncRelease(releaseId: string, items: ParsedLineItem[], sourceLabel: string): Promise<SyncResult>;
+  listChangeProposals(releaseId: string): Promise<ChangeProposal[]>;
+  applyChangeProposal(proposalId: string): Promise<void>;
+  dismissChangeProposal(proposalId: string): Promise<void>;
   /** Which releases already claim any of these titles. Empty means free. */
   claimantsOf(lineItemTitles: string[]): Promise<Claim[]>;
   /**

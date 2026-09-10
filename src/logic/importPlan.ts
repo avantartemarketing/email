@@ -87,7 +87,8 @@ function draftRelease(kind: ProductKind, disabledTemplates: TemplateRef[]): Rele
     disabledTemplates,
     templateOverrides: {},
     templateImages: {},
-    approverId: '',
+    pmOwnerId: '',
+    warehouseOwnerId: '',
     createdAt: '',
   };
 }

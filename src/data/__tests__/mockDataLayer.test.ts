@@ -225,7 +225,9 @@ describe('live behaviour through the interface', () => {
   it('operators cannot approve; admins can', async () => {
     const queue = await layer.listApprovalQueue();
     const pending = queue.find((i) => i.send.status === 'pending_approval')!;
-    await layer.setCurrentUser('user-pm');
+    /* Nadia is CRM's operator — Priya stopped being one on 10 Sep, when
+       PMs took ownership of every pre-dispatch send. */
+    await layer.setCurrentUser('user-crm-2');
     await expect(layer.approveSend(pending.send.id)).rejects.toThrow(/Only admins/);
     await layer.setCurrentUser('user-tom');
     const approved = await layer.approveSend(pending.send.id);
@@ -760,8 +762,10 @@ describe('adding a release from a file', () => {
   it('every order remembers the arrival that made it', async () => {
     const { release } = await releaseByTitle('Falling Light');
     const detail = await layer.getRelease(release.id);
-    expect(detail.intakes).toHaveLength(1);
-    const [intake] = detail.intakes;
+    /* Two arrivals now: the founding CSV, and the seeded Shopify sync
+       (which added nothing — a sync mostly carries what is already here). */
+    expect(detail.intakes).toHaveLength(2);
+    const intake = detail.intakes.find((i) => i.source.kind === 'csv_upload')!;
     expect(intake.source).toEqual({
       kind: 'csv_upload',
       label: 'falling-light-2026-04-26.csv',
@@ -832,7 +836,8 @@ describe('adding a release from a file', () => {
   it('refuses to undo or delete once a collector has been written to', async () => {
     const { release } = await releaseByTitle('Falling Light');
     const detail = await layer.getRelease(release.id);
-    await expect(layer.undoIntake(detail.intakes[0].id)).rejects.toThrow(/already gone out/);
+    const founding = detail.intakes.find((i) => i.source.kind === 'csv_upload')!;
+    await expect(layer.undoIntake(founding.id)).rejects.toThrow(/already gone out/);
     await expect(layer.deleteRelease(release.id)).rejects.toThrow(/cannot be deleted/);
   });
 
@@ -856,19 +861,30 @@ describe('adding a release from a file', () => {
   });
 });
 
-describe('the named approver', () => {
-  it('defaults every release to Elani — "it\'s Elani for every one"', async () => {
+describe('the named owners', () => {
+  it('defaults every release to Priya (PM) and Elani (warehouse)', async () => {
     const summaries = await layer.listReleases();
-    for (const s of summaries) expect(s.release.approverId).toBe('user-approver');
+    for (const s of summaries) {
+      expect(s.release.pmOwnerId).toBe('user-pm');
+      expect(s.release.warehouseOwnerId).toBe('user-approver');
+    }
+  });
+
+  it('routes a send to its stage owner — PM before dispatch, warehouse for dispatch', async () => {
+    const { ownerFor } = await import('../../logic/approvals');
+    const release = { pmOwnerId: 'pm', warehouseOwnerId: 'wh' };
+    expect(ownerFor(release, { templateRef: 'pp-printing' })).toBe('pm');
+    expect(ownerFor(release, { templateRef: 'pp-delay' })).toBe('pm');
+    expect(ownerFor(release, { templateRef: 'pp-dispatch' })).toBe('wh');
   });
 
   it('can be reassigned to another admin, and refuses a non-admin', async () => {
     const { release } = await releaseByTitle('Blue Interval');
-    const changed = await layer.setApprover(release.id, 'user-crm');
-    expect(changed.approverId).toBe('user-crm');
-    // an approver who can't approve is a list nobody can clear
-    await expect(layer.setApprover(release.id, 'user-pm')).rejects.toThrow(/admin/);
-    await layer.setApprover(release.id, 'user-approver'); // leave the world as found
+    const changed = await layer.setOwners(release.id, { warehouseId: 'user-crm' });
+    expect(changed.warehouseOwnerId).toBe('user-crm');
+    // an owner who can't approve is a list nobody can clear
+    await expect(layer.setOwners(release.id, { pmId: 'user-crm-2' })).rejects.toThrow(/admin/);
+    await layer.setOwners(release.id, { warehouseId: 'user-approver' }); // as found
   });
 });
 
@@ -1040,6 +1056,95 @@ describe('promises at import', () => {
     expect(again.summary.batchesCreated).toHaveLength(0);
     const after = await layer.getRelease(release.id);
     expect(after.batches).toHaveLength(1);
+  });
+});
+
+describe("the shop's truth — sync, holds, changes", () => {
+  it('seeded pending changes through the real sync path', async () => {
+    const { release } = await releaseByTitle('Falling Light');
+    const proposals = await layer.listChangeProposals(release.id);
+    const pending = proposals.filter((p) => p.status === 'pending');
+    expect(pending.some((p) => p.kind === 'frame_removed')).toBe(true);
+    for (const p of pending) {
+      expect(p.evidence).toBeTruthy();
+      expect(p.detail).toBeTruthy();
+    }
+  });
+
+  it('a sync of unchanged orders proposes nothing new', async () => {
+    const { release } = await releaseByTitle('Falling Light');
+    const before = (await layer.listChangeProposals(release.id)).length;
+    const detail = await layer.getRelease(release.id);
+    const o = detail.orders.find((x) => !x.removed)!;
+    const again = await layer.syncRelease(
+      release.id,
+      [
+        {
+          shopifyOrderName: o.shopifyOrderName,
+          lineItemTitle: o.lineItemTitle,
+          variant: o.variant,
+          quantity: 1,
+          sku: o.sku,
+          financialStatus: o.financialStatus,
+          fulfillmentStatus: o.fulfillmentStatus,
+          email: o.email,
+          collectorName: o.collectorName,
+          orderDate: o.orderDate,
+          country: o.country,
+          shopifyTags: o.shopifyTags ?? [],
+          row: 0,
+        },
+      ],
+      'shopify-again',
+    );
+    expect(again.added).toBe(0);
+    expect(again.newProposals).toBe(0);
+    expect((await layer.listChangeProposals(release.id)).length).toBe(before);
+  });
+
+  it('holds never hear from the plan; a delay never reaches a fulfilled order', async () => {
+    const { receivesSend, isOnHold } = await import('../../logic/fulfilment');
+    expect(
+      receivesSend(
+        { shopifyTags: ['On hold — collector request'], fulfillmentStatus: null },
+        { type: 'milestone' },
+      ),
+    ).toBe(false);
+    expect(receivesSend({ shopifyTags: [], fulfillmentStatus: 'fulfilled' }, { type: 'delay' })).toBe(
+      false,
+    );
+    expect(
+      receivesSend({ shopifyTags: [], fulfillmentStatus: 'fulfilled' }, { type: 'milestone' }),
+    ).toBe(true);
+
+    /* And the seeded holds really are excluded from their batch's next send. */
+    const { release } = await releaseByTitle('Falling Light');
+    const detail = await layer.getRelease(release.id);
+    const holds = detail.orders.filter((o) => !o.removed && isOnHold(o));
+    expect(holds.length).toBeGreaterThanOrEqual(2);
+    const upcoming = detail.sends.find(
+      (snd) => snd.batchId === holds[0].batchId && snd.status !== 'sent' && snd.status !== 'cancelled',
+    );
+    expect(upcoming).toBeTruthy();
+    const view = await layer.getSendDetail(upcoming!.id);
+    expect(view.prospectiveRecipients.some((o) => holds.some((h) => h.id === o.id))).toBe(false);
+  });
+
+  it('applying a frame removal moves the order and logs who decided', async () => {
+    const { release } = await releaseByTitle('Falling Light');
+    const proposals = await layer.listChangeProposals(release.id);
+    const removal = proposals.find((p) => p.kind === 'frame_removed' && p.status === 'pending')!;
+    await layer.applyChangeProposal(removal.id);
+    const detail = await layer.getRelease(release.id);
+    const order = detail.orders.find((o) => o.id === removal.orderId)!;
+    const batch = detail.batches.find((b) => b.id === order.batchId)!;
+    expect(batch.fulfilment).toBe('unframed');
+    expect(order.frameLineItemTitle).toBeNull();
+    expect(detail.events.some((e) => e.type === 'order_changed')).toBe(true);
+    const after = await layer.listChangeProposals(release.id);
+    const decided = after.find((p) => p.id === removal.id)!;
+    expect(decided.status).toBe('applied');
+    expect(decided.decidedBy).toBe('user-tom');
   });
 });
 

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import type { CopyJobItem } from '../types';
 import { daysBetween, formatDayShort, today } from '../logic/dates';
 import { shipWindowShort } from '../logic/templates';
+import { ownerFor } from '../logic/approvals';
 import { plural } from '../ui/format';
 import { useApp } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
@@ -102,7 +103,7 @@ export function EmailsToWrite(): ReactElement {
     setSaving(true);
     try {
       await data.submitDelayCopy(writing.send.id, { subject, body }, { hold });
-      const approver = userName(writing.release.approverId);
+      const approver = userName(ownerFor(writing.release, writing.send));
       showToast(
         hold
           ? 'Saved as a draft'
@@ -382,7 +383,7 @@ export function EmailsToWrite(): ReactElement {
                     </td>
                     <td>{h.release.title}</td>
                     <td>{userName(h.send.copyWrittenBy)}</td>
-                    <td>{userName(h.release.approverId)}</td>
+                    <td>{userName(ownerFor(h.release, h.send))}</td>
                     <td>
                       {h.send.status === 'approved' ? (
                         <Pill tone="green">Approved</Pill>

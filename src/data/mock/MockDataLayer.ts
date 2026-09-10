@@ -6,6 +6,7 @@ import type {
   BatchEventType,
   BatchFulfilment,
   BatchListItem,
+  ChangeProposal,
   CopyJobItem,
   DelayHandoffItem,
   ImageSlot,
@@ -41,11 +42,15 @@ import type {
   ReleaseEmailUpdateResult,
   SendDetailView,
   SendPatch,
+  SyncResult,
 } from '../DataLayer';
 import { formatDay, toDay } from '../../logic/dates';
-import { needsApprovingNow } from '../../logic/approvals';
+import { needsApprovingNow, ownerFor } from '../../logic/approvals';
 import { allocationOrderKey, parseEditionAllocationCsv } from '../../logic/allocation';
-import { DEFAULT_APPROVER_ID } from './fixtures';
+import { receivesSend } from '../../logic/fulfilment';
+import { artworkKeyOf, resolveFulfilments } from '../../logic/intake';
+import { isFrameLine } from '../../logic/importer';
+import { DEFAULT_APPROVER_ID, DEFAULT_PM_ID } from './fixtures';
 import {
   classifyFulfilment,
   orderDedupeKey,
@@ -107,6 +112,7 @@ interface Store {
   /** What the Slack connection would have posted, oldest first. Phase 2
       posts these same objects to a webhook; phase 1 shows them on /slack. */
   slack: SlackMessage[];
+  proposals: ChangeProposal[];
 }
 
 /* One list, in the logic layer, so the slot predicate and this class cannot
@@ -135,6 +141,7 @@ export class MockDataLayer implements DataLayer {
       intakes: [],
       images: IMAGE_OPTIONS.map((name) => ({ name })),
       slack: [],
+    proposals: [],
     };
     this.hubspotDirectory = hubspotDirectory;
   }
@@ -225,9 +232,16 @@ export class MockDataLayer implements DataLayer {
    * and receives one email; an order with no email address receives none. The
    * field is drawn as "N collectors", so it counts collectors.
    */
-  private batchRecipientCount(batchId: string): number {
+  /** The orders a SEND actually reaches: batch membership minus Elani's two
+      exclusions — holds never hear from the plan, and a delay notice never
+      goes to an order that has already dispatched. */
+  private sendRecipients(send: Pick<ScheduledSend, 'batchId' | 'type'>): Order[] {
+    return this.activeBatchOrders(send.batchId).filter((o) => receivesSend(o, send));
+  }
+
+  private sendRecipientCount(send: Pick<ScheduledSend, 'batchId' | 'type'>): number {
     return new Set(
-      this.activeBatchOrders(batchId)
+      this.sendRecipients(send)
         .map((o) => o.email)
         .filter((e): e is string => Boolean(e)),
     ).size;
@@ -426,7 +440,7 @@ export class MockDataLayer implements DataLayer {
           templateRef: s.templateRef,
           type: s.type,
           batchName: this._store.batches.get(s.batchId)?.name ?? '',
-          recipientCount: this.batchRecipientCount(s.batchId),
+          recipientCount: this.sendRecipientCount(s),
         })),
         pendingApprovalCount: sends.filter((s) => s.status === 'pending_approval').length,
         overdueCount: overdue.length,
@@ -526,9 +540,10 @@ export class MockDataLayer implements DataLayer {
       disabledTemplates,
       templateOverrides: {},
       templateImages: {},
-      /* "It's Elani for every one" — the standing default until somebody
-         names a different admin on the release. */
-      approverId: input.approverId ?? DEFAULT_APPROVER_ID,
+      /* The standing defaults: Priya's list until dispatch, Elani's from
+         Preparing for dispatch — the handover Elani described (10 Sep). */
+      pmOwnerId: input.owners?.pmId ?? DEFAULT_PM_ID,
+      warehouseOwnerId: input.owners?.warehouseId ?? DEFAULT_APPROVER_ID,
       createdAt: nowIso,
     };
     if (!release.title) throw new Error('Release title is required');
@@ -673,6 +688,7 @@ export class MockDataLayer implements DataLayer {
       );
       if (order && item.financialStatus) order.financialStatus = item.financialStatus;
       if (order && item.fulfillmentStatus) order.fulfillmentStatus = item.fulfillmentStatus;
+      if (order && item.shopifyTags && item.shopifyTags.length > 0) order.shopifyTags = item.shopifyTags;
     }
 
     const batchesCreated = this.releaseBatches(release.id)
@@ -763,15 +779,198 @@ export class MockDataLayer implements DataLayer {
     return this.settle(release);
   }
 
-  async setApprover(releaseId: string, userId: string): Promise<Release> {
+  async setOwners(
+    releaseId: string,
+    owners: { pmId?: string; warehouseId?: string },
+  ): Promise<Release> {
     const release = this.mustGet(this._store.releases, releaseId, 'release');
-    const user = this._store.users.find((u) => u.id === userId);
-    if (!user) throw new Error(`Unknown user: ${userId}`);
-    if (user.role !== 'admin') {
-      throw new Error(`${user.name} can't approve sends — the approver must be an admin`);
+    for (const userId of [owners.pmId, owners.warehouseId]) {
+      if (userId === undefined) continue;
+      const user = this._store.users.find((u) => u.id === userId);
+      if (!user) throw new Error(`Unknown user: ${userId}`);
+      if (user.role !== 'admin') {
+        throw new Error(`${user.name} can't approve sends — an owner must be an admin`);
+      }
     }
-    release.approverId = userId;
+    if (owners.pmId) release.pmOwnerId = owners.pmId;
+    if (owners.warehouseId) release.warehouseOwnerId = owners.warehouseId;
     return this.settle(release);
+  }
+
+  // --- the Shopify seam ---------------------------------------------------
+
+  /**
+   * One entry for the shop's truth, whatever carried it. Phase 2's Shopify
+   * integration calls this with API JSON; today the Sync door feeds it a
+   * parsed CSV — the same array, so swapping the transport changes nothing
+   * here. Additions are safe and happen (the same dedupe as every import);
+   * CHANGES only ever become proposals, because customer support does not
+   * always tag consistently and a wrong automatic move emails the wrong
+   * promise to a real collector — the review-first rule, 10 Sep 2026.
+   */
+  async syncRelease(
+    releaseId: string,
+    items: ParsedLineItem[],
+    sourceLabel: string,
+  ): Promise<SyncResult> {
+    const release = this.mustGet(this._store.releases, releaseId, 'release');
+    const claimed = new Set(release.productMatch.lineItemTitles);
+    const relevant = items.filter(
+      (i) => claimed.size === 0 || claimed.has(i.lineItemTitle) || isFrameLine(i),
+    );
+
+    /* New orders first — a late sale or a miss-out is not a change to review,
+       it is the standing intake with its standing notes and dedupe. */
+    const before = [...this._store.orders.values()].filter(
+      (o) => o.releaseId === releaseId,
+    ).length;
+    const intake = this.takeIn(release, relevant, { kind: 'shopify_sync', label: sourceLabel });
+    const added = intake.summary.newOrders;
+
+    /* The joins the file states, computed once over the WHOLE file — the
+       same reads the import itself uses, so sync and intake cannot disagree
+       about what a frame line means. */
+    const incomingFulfilment = resolveFulfilments(items);
+    const frameByArtwork = new Map<string, { lineItemTitle: string; sku: string | null }>();
+    for (const item of items) {
+      if (!isFrameLine(item)) continue;
+      const key = `${item.shopifyOrderName.trim().toLowerCase()}::${artworkKeyOf(item).toLowerCase()}`;
+      if (!frameByArtwork.has(key)) {
+        frameByArtwork.set(key, { lineItemTitle: item.lineItemTitle, sku: item.sku });
+      }
+    }
+    const incomingByKey = new Map<string, ParsedLineItem>();
+    for (const item of items) {
+      if (isFrameLine(item)) continue;
+      incomingByKey.set(orderDedupeKey(item.shopifyOrderName, item.lineItemTitle), item);
+    }
+
+    const nowIso = this.now().toISOString();
+    let refreshed = 0;
+    let newProposals = 0;
+    const pendingFor = (orderId: string, kind: ChangeProposal['kind']) =>
+      this._store.proposals.some(
+        (pr) => pr.orderId === orderId && pr.kind === kind && pr.status === 'pending',
+      );
+    const propose = (order: Order, proposal: Omit<ChangeProposal, 'id' | 'releaseId' | 'orderId' | 'shopifyOrderName' | 'collectorName' | 'at' | 'status'>) => {
+      if (pendingFor(order.id, proposal.kind)) return;
+      this._store.proposals.push({
+        id: this._newId('change'),
+        releaseId,
+        orderId: order.id,
+        shopifyOrderName: order.shopifyOrderName,
+        collectorName: order.collectorName,
+        at: nowIso,
+        status: 'pending',
+        ...proposal,
+      });
+      newProposals += 1;
+    };
+
+    for (const order of this._store.orders.values()) {
+      if (order.releaseId !== releaseId || order.removed) continue;
+      const key = orderDedupeKey(order.shopifyOrderName, order.lineItemTitle);
+      const incoming = incomingByKey.get(key);
+      if (!incoming) continue;
+      refreshed += 1;
+      if (release.productKind !== 'print') continue;
+
+      const batch = this._store.batches.get(order.batchId);
+      const current: BatchFulfilment =
+        batch?.fulfilment ?? (order.frameLineItemTitle ? 'framed' : 'unframed');
+      const stated = incomingFulfilment.get(key) ?? 'unframed';
+      const tags = incoming.shopifyTags ?? [];
+      const removedTag = tags.find((t) => /frame\s*(removed|cancelled)/i.test(t)) ?? null;
+
+      if (current === 'framed' && (stated === 'unframed' || removedTag)) {
+        propose(order, {
+          kind: 'frame_removed',
+          detail: 'Moves to Unframed — no frame will be made',
+          evidence: removedTag ? `tag “${removedTag}”` : 'no frame line in the shop',
+          payload: { toFulfilment: 'unframed', frameLineItemTitle: null, frameSku: null },
+        });
+      } else if (current === 'unframed' && stated === 'framed' && !removedTag) {
+        const frame = frameByArtwork.get(
+          `${order.shopifyOrderName.trim().toLowerCase()}::${artworkKeyOf(order).toLowerCase()}`,
+        );
+        propose(order, {
+          kind: 'frame_added',
+          detail: `Moves to Framed${frame ? ` — ${frame.lineItemTitle}` : ''}`,
+          evidence: 'a frame line in the shop',
+          payload: {
+            toFulfilment: 'framed',
+            frameLineItemTitle: frame?.lineItemTitle ?? null,
+            frameSku: frame?.sku ?? null,
+          },
+        });
+      } else if (current === 'framed' && stated === 'framed') {
+        const frame = frameByArtwork.get(
+          `${order.shopifyOrderName.trim().toLowerCase()}::${artworkKeyOf(order).toLowerCase()}`,
+        );
+        if (frame && frame.sku && frame.sku !== order.frameSku) {
+          propose(order, {
+            kind: 'spec_changed',
+            detail: `Frame → ${frame.lineItemTitle}`,
+            evidence: `SKU ${order.frameSku ?? '—'} → ${frame.sku}`,
+            payload: { frameLineItemTitle: frame.lineItemTitle, frameSku: frame.sku },
+          });
+        }
+      }
+    }
+    void before;
+    return this.settle({ added, refreshed, newProposals });
+  }
+
+  async listChangeProposals(releaseId: string): Promise<ChangeProposal[]> {
+    return this.settle(
+      this._store.proposals
+        .filter((pr) => pr.releaseId === releaseId)
+        .sort((a, b) => b.at.localeCompare(a.at)),
+    );
+  }
+
+  async applyChangeProposal(proposalId: string): Promise<void> {
+    const user = this.requireAdmin();
+    const proposal = this._store.proposals.find((pr) => pr.id === proposalId);
+    if (!proposal) throw new Error(`Unknown change: ${proposalId}`);
+    if (proposal.status !== 'pending') throw new Error('Already decided');
+    const release = this.mustGet(this._store.releases, proposal.releaseId, 'release');
+    const order = this._store.orders.get(proposal.orderId);
+    if (!order) throw new Error(`Unknown order: ${proposal.orderId}`);
+
+    const payload = proposal.payload ?? {};
+    if (payload.frameLineItemTitle !== undefined) order.frameLineItemTitle = payload.frameLineItemTitle;
+    if (payload.frameSku !== undefined) order.frameSku = payload.frameSku;
+    let moved = '';
+    if (payload.toFulfilment) {
+      const target = this.intakeBatch(release, payload.toFulfilment);
+      if (target.id !== order.batchId) {
+        order.batchId = target.id;
+        moved = ` — moved to ${target.name}`;
+      }
+    }
+    this._addEvent(
+      release.id,
+      order.batchId,
+      'order_changed',
+      `${order.shopifyOrderName}: ${proposal.detail}${moved} (${proposal.evidence})`,
+      { orderIds: [order.id] },
+    );
+    proposal.status = 'applied';
+    proposal.decidedBy = user.id;
+    proposal.decidedAt = this.now().toISOString();
+    await this.settle(undefined);
+  }
+
+  async dismissChangeProposal(proposalId: string): Promise<void> {
+    const user = this.requireAdmin();
+    const proposal = this._store.proposals.find((pr) => pr.id === proposalId);
+    if (!proposal) throw new Error(`Unknown change: ${proposalId}`);
+    if (proposal.status !== 'pending') throw new Error('Already decided');
+    proposal.status = 'dismissed';
+    proposal.decidedBy = user.id;
+    proposal.decidedAt = this.now().toISOString();
+    await this.settle(undefined);
   }
 
   /**
@@ -1427,7 +1626,15 @@ export class MockDataLayer implements DataLayer {
     opts: { sendId?: string } = {},
   ): void {
     const release = this._store.releases.get(releaseId);
-    const approver = this._store.users.find((u) => u.id === release?.approverId);
+    const send = opts.sendId ? this._store.sends.get(opts.sendId) : undefined;
+    /* The mention is the send's OWNER under the stage handover — the PM
+       before dispatch, the warehouse for Preparing for dispatch. */
+    const ownerId = release
+      ? send
+        ? ownerFor(release, send)
+        : release.pmOwnerId
+      : undefined;
+    const approver = this._store.users.find((u) => u.id === ownerId);
     const channel: SlackMessage['channel'] = kind === 'delay_copy_requested' ? '#crm' : '#post-purchase';
     const mention =
       kind === 'due_to_approve'
@@ -1627,7 +1834,7 @@ export class MockDataLayer implements DataLayer {
           send,
           release,
           batch,
-          recipientCount: this.batchRecipientCount(send.batchId),
+          recipientCount: this.sendRecipientCount(send),
           releaseBatchCount: this.releaseBatches(release.id).length,
           notification: unread.get(send.id) ?? null,
         };
@@ -1735,7 +1942,7 @@ export class MockDataLayer implements DataLayer {
           send,
           release,
           batch,
-          recipientCount: this.batchRecipientCount(send.batchId),
+          recipientCount: this.sendRecipientCount(send),
           releaseBatchCount: this.releaseBatches(release.id).length,
           lastSent: this.lastSentInfo(send.batchId),
         };
@@ -1760,7 +1967,7 @@ export class MockDataLayer implements DataLayer {
           send,
           release,
           batch,
-          recipientCount: this.batchRecipientCount(send.batchId),
+          recipientCount: this.sendRecipientCount(send),
           releaseBatchCount: this.releaseBatches(release.id).length,
           lastSent: this.lastSentInfo(send.batchId),
         };
@@ -1830,7 +2037,7 @@ export class MockDataLayer implements DataLayer {
       send,
       release,
       batch,
-      prospectiveRecipients: this.activeBatchOrders(send.batchId),
+      prospectiveRecipients: this.sendRecipients(send),
       releaseBatchCount: this.releaseBatches(release.id).length,
       lastSent: this.lastSentInfo(send.batchId),
     });

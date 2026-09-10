@@ -46,6 +46,7 @@ import { AddSendModal } from '../components/AddSendModal';
 import { EditSendModal } from '../components/EditSendModal';
 import { RemoveOrderModal } from '../components/RemoveOrderModal';
 import { AddOrdersModal } from '../components/AddOrdersModal';
+import { SyncModal } from '../components/SyncModal';
 import { EditionsPanel } from '../components/EditionsPanel';
 import { AllocationImportModal } from '../components/AllocationImportModal';
 import { ReleaseEmailsPanel } from '../components/ReleaseEmailsCard';
@@ -55,12 +56,26 @@ export function ReleaseDetail(): ReactElement {
   const { releaseId } = useParams<{ releaseId: string }>();
   const { data, showToast, userName, users, refreshApprovals } = useApp();
   const detail = useAsync(() => data.getRelease(releaseId!), [releaseId]);
+  const proposals = useAsync(() => data.listChangeProposals(releaseId!), [releaseId]);
   /* Handoffs are CREATED on this page (a reschedule, a submitted plan, a
      cancel), so the rail badges must move here too — not on the next
      navigation. */
   const reloadAll = () => {
     detail.reload();
+    proposals.reload();
     refreshApprovals();
+  };
+  const pendingChanges = (proposals.data ?? []).filter((pr) => pr.status === 'pending');
+
+  const decideChange = async (proposalId: string, apply: boolean): Promise<void> => {
+    try {
+      if (apply) await data.applyChangeProposal(proposalId);
+      else await data.dismissChangeProposal(proposalId);
+      showToast(apply ? 'Applied' : 'Dismissed');
+      reloadAll();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : String(err), true);
+    }
   };
   /* Two levels, two pieces of state — the owner, 29 Aug 2026: "The batches is
      a tab and then the different batches is a sub level within that." It used
@@ -93,6 +108,8 @@ export function ReleaseDetail(): ReactElement {
   const [undoing, setUndoing] = useState<Intake | null>(null);
   const [undoBusy, setUndoBusy] = useState(false);
   const [approverOpen, setApproverOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
+  const [changesOpen, setChangesOpen] = useState(false);
   // The shell's path ends at the record this screen is showing.
   useCrumb(detail.data?.release.title);
 
@@ -218,20 +235,28 @@ export function ReleaseDetail(): ReactElement {
             {d.release.editionSize ? ` · edition of ${d.release.editionSize}` : ''}
           </span>
           {productKindTag(d.release.productKind)}
-          {/* Whose list this release's emails sit on. A button, because the
-              approver is set HERE — there is no settings page hiding it. */}
+          {/* The handover, worn on the release: the PM's list until
+              dispatch, the warehouse's from Preparing for dispatch. Buttons,
+              because the owners are set HERE — no settings page hides them. */}
           <button
             type="button"
             className="rd-linkbtn"
             onClick={() => setApproverOpen(true)}
-            title="Change who approves this release's emails"
           >
-            Approver · {userName(d.release.approverId)}
+            PM · {userName(d.release.pmOwnerId)}
+          </button>
+          <button
+            type="button"
+            className="rd-linkbtn"
+            onClick={() => setApproverOpen(true)}
+          >
+            Warehouse · {userName(d.release.warehouseOwnerId)}
           </button>
         </>
       }
       actions={
         <>
+          <Btn onClick={() => setSyncOpen(true)}>Sync</Btn>
           <Btn onClick={() => setImportOpen(true)}>Add orders</Btn>
           <Btn onClick={() => setAllocationOpen(true)}>Import</Btn>
           {/* Only the newest, and only while nothing has sent — undoing an
@@ -273,6 +298,19 @@ export function ReleaseDetail(): ReactElement {
             <div className="rd-baracts">
               <button type="button" className="rd-chip" onClick={() => setTop('emails')}>
                 Pick images
+              </button>
+            </div>
+          </Bar>
+        ) : null}
+
+        {pendingChanges.length > 0 ? (
+          <Bar
+            tone="warn"
+            title={`${plural(pendingChanges.length, 'change')} from the shop to review`}
+          >
+            <div className="rd-baracts">
+              <button type="button" className="rd-chip" onClick={() => setChangesOpen(true)}>
+                Review
               </button>
             </div>
           </Bar>
@@ -399,42 +437,105 @@ export function ReleaseDetail(): ReactElement {
       <Dialog
         open={approverOpen}
         size="sm"
-        title="Who approves this release's emails?"
+        title="Who owns this release's emails?"
         onClose={() => setApproverOpen(false)}
-        secondary={{ label: 'Cancel', onClick: () => setApproverOpen(false) }}
+        secondary={{ label: 'Done', onClick: () => setApproverOpen(false) }}
       >
-        {/* Admins only: the name on the list must be a person `approveSend`
+        {/* Admins only: the name on a list must be a person `approveSend`
             will actually let through. Naming is not gating — any admin can
-            still cover — this decides whose list the work sits on. */}
-        <div className="rd-fields">
-          {users
-            .filter((u) => u.role === 'admin')
-            .map((u) => (
-              <button
-                key={u.id}
-                type="button"
-                role="radio"
-                aria-checked={u.id === d.release.approverId}
-                className={u.id === d.release.approverId ? 'rd-pickrow on' : 'rd-pickrow'}
-                onClick={() => {
-                  void data
-                    .setApprover(d.release.id, u.id)
-                    .then(() => {
-                      setApproverOpen(false);
-                      showToast(`Approver — ${u.name}`);
-                      detail.reload();
-                    })
-                    .catch((err: unknown) =>
-                      showToast(err instanceof Error ? err.message : String(err), true),
-                    );
-                }}
-              >
-                <span className="rd-pickname">{u.name}</span>
-                <span className="rd-picknote">{u.email}</span>
-              </button>
-            ))}
-        </div>
+            still cover — these decide whose list each send sits on. */}
+        {(
+          [
+            { role: 'pmId' as const, current: d.release.pmOwnerId, says: 'PM — until dispatch' },
+            {
+              role: 'warehouseId' as const,
+              current: d.release.warehouseOwnerId,
+              says: 'Warehouse — Preparing for dispatch',
+            },
+          ]
+        ).map((slot) => (
+          <div key={slot.role}>
+            <div className="rd-grouphd">{slot.says}</div>
+            <div className="rd-fields">
+              {users
+                .filter((u) => u.role === 'admin')
+                .map((u) => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={u.id === slot.current}
+                    className={u.id === slot.current ? 'rd-pickrow on' : 'rd-pickrow'}
+                    onClick={() => {
+                      void data
+                        .setOwners(d.release.id, { [slot.role]: u.id })
+                        .then(() => {
+                          showToast(`${slot.role === 'pmId' ? 'PM' : 'Warehouse'} — ${u.name}`);
+                          detail.reload();
+                        })
+                        .catch((err: unknown) =>
+                          showToast(err instanceof Error ? err.message : String(err), true),
+                        );
+                    }}
+                  >
+                    <span className="rd-pickname">{u.name}</span>
+                    <span className="rd-picknote">{u.email}</span>
+                  </button>
+                ))}
+            </div>
+          </div>
+        ))}
       </Dialog>
+      <Dialog
+        open={changesOpen}
+        size="lg"
+        title="Changes from the shop"
+        onClose={() => setChangesOpen(false)}
+        secondary={{ label: 'Done', onClick: () => setChangesOpen(false) }}
+      >
+        {/* Review first — customer support does not always tag consistently,
+            so nothing moves an order until a person applies it. Applied, it
+            lands in batch history with who decided and the evidence. */}
+        <table className="rd-t rd-t27 rd-fit">
+          <thead>
+            <tr>
+              <th scope="col">Order</th>
+              <th scope="col">Change</th>
+              <th scope="col">Evidence</th>
+              <th scope="col" aria-hidden />
+            </tr>
+          </thead>
+          <tbody>
+            {pendingChanges.map((pr) => (
+              <tr key={pr.id}>
+                <td className="rd-ink">
+                  {pr.shopifyOrderName} · {pr.collectorName}
+                </td>
+                <td>
+                  <Cap>{pr.detail}</Cap>
+                </td>
+                <td>
+                  <Cap>{pr.evidence}</Cap>
+                </td>
+                <td>
+                  <div className="rd-rowacts">
+                    <RowAct onClick={() => void decideChange(pr.id, true)}>Apply</RowAct>
+                    <RowAct danger onClick={() => void decideChange(pr.id, false)}>
+                      Dismiss
+                    </RowAct>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Dialog>
+      <SyncModal
+        open={syncOpen}
+        release={d.release}
+        onClose={() => setSyncOpen(false)}
+        onSynced={reloadAll}
+      />
       <AddOrdersModal
         open={importOpen}
         release={d.release}

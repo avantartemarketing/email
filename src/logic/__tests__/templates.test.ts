@@ -35,7 +35,8 @@ function makeRelease(overrides: Partial<Release> = {}): Release {
     disabledTemplates: [],
     templateOverrides: {},
     templateImages: {},
-    approverId: 'user-approver',
+    pmOwnerId: 'user-pm',
+    warehouseOwnerId: 'user-approver',
     createdAt: '2026-05-01T00:00:00.000Z',
     ...overrides,
   };

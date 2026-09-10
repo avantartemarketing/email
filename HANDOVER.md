@@ -760,6 +760,48 @@ the side bar into Releases … and Actions … Also create a permissions tab."
   rail anatomy, the calendar's rows and the Add user dialog (failed once
   on purpose). 258 tests.
 
+**Elani's round (10 Sep) — from the prototype meeting transcript, decisions
+by Tom (AskUserQuestion): two owners per release; build fulfilment+holds,
+tag-driven changes and the filter→batch motion; Shopify integration is the
+frame with CSV interim; REVIEW FIRST for tag changes. The Thursday PM+
+warehouse Slack digest is PARKED (not selected).**
+- **Owners**: `Release.pmOwnerId` + `warehouseOwnerId` replace `approverId`.
+  `ownerFor(release, send)` (logic/approvals.ts): pp-dispatch → warehouse,
+  everything else incl. delay notices → PM. Defaults Priya (now ADMIN in
+  fixtures — an owner must be able to approve) and Elani. `setOwners`
+  replaces `setApprover`; release subhead wears both chips → one dialog,
+  two pick lists. My approvals Owner column (visible — it varies now);
+  rail badge counts sends where ownerFor === you; Slack due_to_approve
+  mentions the send's owner.
+- **The Shopify seam**: `syncRelease(releaseId, items, label)` is THE entry
+  the integration will call; the release's new Sync door (SyncModal) feeds
+  it a CSV in the interim and reports Facts (New orders / Refreshed / To
+  review). Additions run the standing intake; statuses AND tags refresh on
+  matched orders; changes only ever become `ChangeProposal`s.
+- **Changes queue (review first)**: detection — framed order with no frame
+  line or an SOP tag (/frame\s*(removed|cancelled)/) → frame_removed;
+  unframed + new frame line → frame_added; different frame SKU (art-code
+  join) → spec_changed. Pending proposals draw a warn band on the release
+  ("N changes from the shop to review" → Review dialog, Apply/Dismiss per
+  row). Apply moves the order/updates the spec + `order_changed` event
+  naming evidence and decider. Dedupe: no second pending proposal per
+  order+kind.
+- **Fulfilment + holds**: logic/fulfilment.ts — `fulfilmentLabel` (On hold ▸
+  Fulfilled ▸ Partial ▸ Unfulfilled; hold outranks), `receivesSend` (holds
+  never receive; delay never reaches fulfilled). Wired into every
+  recipientCount + prospectiveRecipients. All orders gains a Dispatch
+  column (choice/filterable). ⚠ hold = any tag containing "hold" — the
+  exact CS tag needs confirming with Elani (her SOP doc is the source).
+  ⚠ detection tag vocabulary from the meeting ("frame removed", SKU-in-tags
+  for colour changes) — reconcile with the SOP when Tom shares it.
+- **Elani's words**: order columns renamed Frame colour / Glazing / Mount
+  type (mount now visible); her window-mount motion = filter → select all
+  → Change date (existing split flow).
+- Seeded demo: Falling Light — 90 unframed orders fulfilled, 2 holds on
+  Framed, one pending frame_removed proposal created through the REAL
+  syncRelease. 263 tests; prove-screens §2b2b (owners chips, Dispatch
+  values, Review dialog, Owner routing — failed once on purpose).
+
 **Remaining is slice 5:** the Auto/Review/Info changes worklist (tags vs line items),
 pinned numbers for edition requests, and freezing a number once a collector has been
 told — which waits on Tom's "edition numbers in emails?" answer.

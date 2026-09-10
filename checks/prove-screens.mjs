@@ -636,6 +636,75 @@ await screen('permissions', async () => {
   await page.waitForTimeout(200)
 }
 
+/* ---- 2b2b · Elani's round: owners, the shop's truth, changes ---------------
+   From the 10 Sep meeting. Three drawn claims: the release wears BOTH owners
+   (the PM until dispatch, the warehouse from Preparing for dispatch); the
+   orders table answers "has this left" in the shop's own words with holds
+   outranking status; and a tag-implied change is a band with a real Review
+   door, never an applied move. */
+{
+  const what = "elani's round"
+  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' })
+  await page.locator('table tbody tr', { hasText: 'Falling Light' }).locator('td').nth(1).click()
+  await page.waitForTimeout(600)
+  const head = await page.evaluate(() => document.querySelector('.rd-subhead')?.textContent ?? '')
+  if (!/PM ·/.test(head) || !/Warehouse ·/.test(head))
+    faults.push(`${what}: the release does not wear both owners — "${head.slice(0, 80)}"`)
+  const dispatchVals = await page.evaluate(() => {
+    const heads = [...document.querySelectorAll('table.rd-t27 thead th')].map(
+      (h) => h.textContent?.trim() ?? '',
+    )
+    const at = heads.indexOf('Dispatch')
+    if (at === -1) return null
+    return [...document.querySelectorAll('table.rd-t27 tbody tr')].map(
+      (r) => r.children[at]?.textContent?.trim() ?? '',
+    )
+  })
+  if (!dispatchVals) faults.push(`${what}: no Dispatch column on All orders`)
+  else if (!dispatchVals.some((v) => /Fulfilled|On hold/.test(v)))
+    faults.push(`${what}: the Dispatch column never says Fulfilled or On hold on the seeded release`)
+  const band = await page.evaluate(
+    () =>
+      [...document.querySelectorAll('.rd-warnbar')].find((b) =>
+        /change.*from the shop/i.test(b.textContent ?? ''),
+      )?.textContent ?? '',
+  )
+  if (!band) faults.push(`${what}: no changes-to-review band on a release with a pending change`)
+  await page.getByRole('button', { name: 'Review' }).click()
+  await page.waitForTimeout(300)
+  const review = await page.evaluate(() => ({
+    rows: document.querySelectorAll('.rd-dialog tbody tr').length,
+    verbs: [...document.querySelectorAll('.rd-dialog tbody button')].map((b) => b.textContent?.trim()),
+  }))
+  if (review.rows < 1) faults.push(`${what}: the Review dialogue lists no changes`)
+  if (!review.verbs.includes('Apply') || !review.verbs.includes('Dismiss'))
+    faults.push(`${what}: a change row does not offer Apply and Dismiss — got ${review.verbs.join(', ')}`)
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(200)
+
+  await page.goto(`${BASE}/approvals`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(400)
+  const owners = await page.evaluate(() => {
+    const heads = [...document.querySelectorAll('table.rd-t27 thead th')].map(
+      (h) => h.textContent?.trim() ?? '',
+    )
+    const at = heads.indexOf('Owner')
+    if (at === -1) return null
+    return [
+      ...new Set(
+        [...document.querySelectorAll('table.rd-t27 tbody tr')].map(
+          (r) => r.children[at]?.textContent?.trim() ?? '',
+        ),
+      ),
+    ]
+  })
+  if (!owners) faults.push(`${what}: no Owner column on My approvals`)
+  else if (owners.length < 2)
+    faults.push(
+      `${what}: one owner across the whole queue (${owners.join(', ')}) — the PM/warehouse handover is not routing`,
+    )
+}
+
 /* ---- 2b3 · the token legend in Edit copy -----------------------------------
    A writer should never have to already know a token's name to use it. The
    edit dialogue lists every token its template can take with the value it
