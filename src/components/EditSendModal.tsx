@@ -81,13 +81,11 @@ export function EditSendModal({
       secondary={{ label: 'Cancel', onClick: onClose }}
     >
       {send?.status === 'approved' ? (
-        <Bar tone="warn" title="This send is already approved">
-          Saving moves it back to pending approval.
-        </Bar>
+        <Bar tone="warn" title="Approved — saving resets it" />
       ) : null}
       {pastCeiling && ceiling ? (
-        <Bar tone="fail" title="That date does not fit this batch's promise">
-          {ceiling.says} Use Change date on the batch instead.
+        <Bar tone="fail" title="Later than the promise">
+          {ceiling.says}
         </Bar>
       ) : null}
       <div className="rd-fields">

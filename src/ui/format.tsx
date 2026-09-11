@@ -154,3 +154,20 @@ export function specTag(value: string | null | undefined): ReactElement | null {
 export function plural(count: number, singular: string, pluralForm?: string): string {
   return `${count} ${count === 1 ? singular : (pluralForm ?? `${singular}s`)}`;
 }
+
+/**
+ * A subject as it reads in a TABLE, where the artist's name is already on the
+ * row.
+ *
+ * Every subject this app writes opens "<Artist> · ", and every table that
+ * shows one also carries a Release column naming the same release. So the
+ * first third of a 280px cell was spent repeating the neighbouring cell, and
+ * what got cut off the end — "…delivery date", "…Framing in progress" — was
+ * the half that said which email it is. Stripping the prefix is not hiding a
+ * fact; it is putting the fact in one place. The real subject is unchanged
+ * and still shown in full on the send itself.
+ */
+export function subjectInTable(subject: string): string {
+  const cut = subject.indexOf(' · ');
+  return cut === -1 ? subject : subject.slice(cut + 3);
+}

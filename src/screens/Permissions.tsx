@@ -2,7 +2,7 @@ import { useId, useState } from 'react';
 import type { ReactElement } from 'react';
 import type { AdminArea, Role, Team, User } from '../types';
 import { useApp } from '../ui/AppContext';
-import { Bar, Btn, Cap, Dialog, Page, Pill, RowAct, Tag } from '../ui/rd';
+import { Bar, Btn, Cap, Dialog, Page, Pill, RowAct } from '../ui/rd';
 import { DataTable } from '../ui/DataTable';
 import type { Column } from '../ui/DataTable';
 import Field from '../rd/components/Field';
@@ -38,7 +38,7 @@ export function Permissions(): ReactElement {
   if (!currentUser.access.includes('permissions')) {
     return (
       <Page title="Permissions">
-        <Bar tone="fail" title="You do not have access to Permissions" />
+        <Bar tone="fail" title="No access." />
       </Page>
     );
   }
@@ -74,9 +74,7 @@ export function Permissions(): ReactElement {
       kind: 'choice',
       caption: 'TEAM',
       value: (u) => (u.team === 'crm' ? 'CRM' : 'Ops'),
-      cell: (u) => (
-        <Tag tone={u.team === 'crm' ? 'steel' : 'stone'}>{u.team === 'crm' ? 'CRM' : 'Ops'}</Tag>
-      ),
+      cell: (u) => (u.team === 'crm' ? 'CRM' : 'Ops'),
     },
     {
       id: 'role',
@@ -194,13 +192,13 @@ function AddUserDialog({
   };
 
   const why = !name.trim()
-    ? 'A name is required.'
+    ? 'No name.'
     : !email.trim()
-      ? 'An email is required.'
+      ? 'No email.'
       : !password
-        ? 'A password is required.'
+        ? 'No password.'
         : access.length === 0
-          ? 'Pick at least one area.'
+          ? 'No area picked.'
           : undefined;
 
   const save = async (): Promise<void> => {
@@ -255,7 +253,7 @@ function AddUserDialog({
             value={role}
             options={[
               { label: 'Operator', value: 'operator' },
-              { label: 'Admin — can approve emails', value: 'admin' },
+              { label: 'Admin', value: 'admin' },
             ]}
             onChange={(v) => setRole(v as Role)}
           />
@@ -328,7 +326,7 @@ function EditUserDialog({
         label: 'Save',
         onClick: () => void save(),
         disabled: saving || access.length === 0,
-        why: access.length === 0 ? 'Pick at least one area.' : undefined,
+        why: access.length === 0 ? 'No area picked.' : undefined,
       }}
       secondary={{ label: 'Cancel', onClick: onClose }}
     >
@@ -338,7 +336,7 @@ function EditUserDialog({
           value={role}
           options={[
             { label: 'Operator', value: 'operator' },
-            { label: 'Admin — can approve emails', value: 'admin' },
+            { label: 'Admin', value: 'admin' },
           ]}
           onChange={(v) => setRole(v as Role)}
         />
@@ -346,7 +344,6 @@ function EditUserDialog({
           label="New password"
           value={password}
           controlId={pwId}
-          note="blank keeps the current one"
         >
           <input
             id={pwId}
@@ -388,7 +385,7 @@ function AccessSwitches({
             className={on ? 'rd-sw on' : 'rd-sw'}
             onClick={() => onChange(on ? access.filter((a) => a !== area) : [...access, area])}
           >
-            <span className="rd-swlab" style={{ flex: 1, textAlign: 'left' }}>
+            <span className="rd-swlab">
               {label}
             </span>
             <span className="rd-swt" aria-hidden>

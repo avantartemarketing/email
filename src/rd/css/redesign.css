@@ -24,7 +24,10 @@
      here, rather than as a margin on the head of every screen that has one.
      `.rd-head` keeps its 2px, so the title's top edge lands at 60px against
      the 46px top bar where it was 66. */
-  padding: 12px var(--rd-page-x) 26px;
+  /* The top stays 12 — the owner asked for that specifically and the generous
+     -spacing rule of 11 Sep does not reopen a decision aimed at this edge. The
+     sides and the floor are the ones that were mean. */
+  padding: 12px var(--rd-page-x) 44px;
 }
 
 /* ---------- Page head ---------- */
@@ -60,7 +63,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 2px 2px 10px;
+  margin: 2px 2px var(--rd-gap);
 }
 .rd-secname {
   font: 500 var(--rd-size-section) var(--rd-font-text);
@@ -89,7 +92,7 @@
   gap: 10px;
   border: 1px solid var(--rd-field-border);
   border-radius: var(--rd-radius-control);
-  padding: 7px 12px;
+  padding: 9px 14px;
   font: 400 var(--rd-size-cell) var(--rd-font-text);
   color: var(--rd-ink);
   background: var(--rd-card);
@@ -119,16 +122,16 @@
    2026, pointing at one: "a button should never be that thin." */
 .rd-baracts {
   display: flex;
-  gap: 10px;
-  margin-top: 10px;
+  gap: var(--rd-gap-tight);
+  margin-top: 14px;
 }
 
 /* ---------- Bands ---------- */
 
 .rd-warnbar {
   display: flex;
-  gap: 9px;
-  padding: 9px 14px;
+  gap: 10px;
+  padding: 13px var(--rd-card-inset);
   background: var(--rd-warn-bg);
   border: 1px solid var(--rd-warn-border);
   border-radius: var(--rd-radius-inset);
@@ -172,13 +175,13 @@
 }
 
 .rd-sechead {
-  padding: 13px 16px 8px;
+  padding: 18px var(--rd-card-inset) 14px;
   font: 500 var(--rd-size-section) var(--rd-font-text);
   color: var(--rd-ink);
 }
 
 .rd-foot {
-  padding: 8px 14px 9px;
+  padding: 14px var(--rd-card-inset);
   font: 400 var(--rd-size-caption) / 1.5 var(--rd-font-text);
   /* Concept literal #7a8290; the rulings name no such ink, and a panel footer
      is a caption, which ruling 1 puts on --ink-muted. */
@@ -434,11 +437,11 @@
    what it was: six pixels less, on every `.rd-tpad` table in the app. */
 .rd-tpad th:first-child,
 .rd-tpad td:first-child {
-  padding-left: 16px;
+  padding-left: var(--rd-card-inset);
 }
 .rd-tpad th:last-child,
 .rd-tpad td:last-child {
-  padding-right: 16px;
+  padding-right: var(--rd-card-inset);
 }
 /* A row the warning above names. The tint indexes the sentence; the sentence
    is what says why. */
@@ -461,12 +464,12 @@
 .rd-toolbar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: var(--rd-gap-tight);
+  margin-bottom: var(--rd-gap);
 }
 .rd-chips {
   display: inline-flex;
-  gap: 6px;
+  gap: 8px;
 }
 /* A chip that is a FILTER, showing whether it is on. The Archived chip has
    worn `rd-chip-on` since it was written and nothing ever defined it, so the
@@ -475,9 +478,9 @@
    phantom-class test pairs quote characters across the whole file, and an
    apostrophe upstream had been shifting that pairing past this literal. */
 .rd-chip-on {
-  border-color: var(--rd-primary);
-  color: var(--rd-primary);
-  background: var(--rd-row-sel);
+  border-color: var(--rd-ink);
+  color: var(--rd-ink);
+  background: var(--rd-band);
 }
 
 .rd-chip {
@@ -570,7 +573,7 @@
    CARD to scroll and the page never to. */
 .rd-viewbar {
   flex-wrap: wrap;
-  row-gap: 8px;
+  row-gap: var(--rd-gap-tight);
 }
 /* A live filter reads as applied, not as an offer. The × is quiet inside it —
    it is not the point of the chip. */
@@ -592,7 +595,7 @@
 .rd-viewvalue {
   display: flex;
   gap: 6px;
-  padding: 8px;
+  padding: var(--rd-gap-tight);
   border-top: 1px solid var(--rd-border);
 }
 .rd-viewvalue input {
@@ -617,7 +620,7 @@
    concept draws its own, which is the one place this diverges. */
 .rd-fieldselect {
   max-width: 100%;
-  padding: 6px 10px;
+  padding: 8px var(--rd-gap-tight);
   border: 1px solid var(--rd-field-border);
   border-radius: var(--rd-radius-field);
   background: var(--rd-card);
@@ -653,6 +656,11 @@
    aim at, and a control whose name arrives after it has already been read as
    nameless. */
 .rd-swlab {
+  /* Grows, so the switch's track sits at the far end of the row rather than
+     beside the word. It was two inline declarations at one call site until
+     11 Sep 2026 — the kit's own rule is that no value is typed there. */
+  flex: 1;
+  text-align: left;
   font: 500 var(--rd-size-cell-dense) var(--rd-font-text);
   color: var(--rd-ink);
 }
@@ -689,7 +697,10 @@
    this carries the reason. */
 .rd-why {
   position: relative;
-  display: inline-block;
+  /* inline-FLEX, not inline-block: a wrapper sitting on a text baseline
+     carries the strut's descender, so the box came out taller than the
+     button inside it and the row it sat in grew by two pixels. */
+  display: inline-flex;
 }
 /* The concept holds a hidden tip at opacity 0. That is fine in a mock, where
    every tip sits on a page that fits; in the app the Products sheet puts one
@@ -870,8 +881,8 @@
 .rd-tabs {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-bottom: 14px;
+  gap: var(--rd-gap-inner);
+  margin-bottom: var(--rd-card-gap);
 }
 /* The one role the underline keeps: where the strip is the top edge of the
    surface it switches, it says "the content starts here". It runs the WHOLE
@@ -879,7 +890,7 @@
    on a tab the lozenge has already marked. */
 .rd-tabs-capped {
   border-bottom: 1px solid var(--rd-border);
-  padding-bottom: 6px;
+  padding-bottom: var(--rd-gap-tight);
 }
 .rd-tab {
   display: inline-flex;
@@ -942,7 +953,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 2px;
+  gap: var(--rd-gap-inner);
   /* Pulled up into the tab strip's own bottom margin: the two rows are one
      control between them, and the gap the strip leaves for CONTENT is not the
      gap that belongs between a heading and the thing it heads. */
@@ -1079,7 +1090,7 @@
    above and 8 below, so the heading sits with what it names rather than
    floating between two groups. */
 .rd-grouphd {
-  margin: 20px 0 4px; /* opened up 8 Sep 2026 — "spacing is generous" */
+  margin: var(--rd-card-gap) 0 var(--rd-gap-inner); /* opened up again 11 Sep 2026 */
   font: var(--rd-weight-emphasis) var(--rd-size-cell) var(--rd-font-text);
   color: var(--rd-ink);
 }
@@ -1087,9 +1098,9 @@
    rather than a warning. Worded, like every other band in the system. */
 .rd-infobar {
   display: flex;
-  gap: 9px;
-  margin-bottom: 12px;
-  padding: 9px 14px;
+  gap: 10px;
+  margin-bottom: var(--rd-gap);
+  padding: 13px var(--rd-card-inset);
   background: var(--rd-blue-bg);
   border: 1px solid var(--rd-blue-border);
   border-radius: var(--rd-radius-inset);
@@ -1459,7 +1470,7 @@
      to. The float menus at 20 and the dialogues at 40 were already clear. */
   z-index: 10;
   width: 308px;
-  padding: 12px;
+  padding: var(--rd-card-inset);
   background: var(--rd-card);
   border-radius: var(--rd-radius-float);
   box-shadow: var(--rd-shadow-float);
@@ -1481,7 +1492,7 @@
   overflow: hidden;
 }
 .rd-pophd {
-  padding: 10px 14px;
+  padding: var(--rd-gap-tight) var(--rd-card-inset);
   border-bottom: 1px solid var(--rd-hairline-row);
   font: 500 var(--rd-size-cell) var(--rd-font-text);
   color: var(--rd-ink);
@@ -1490,7 +1501,7 @@
   display: flex;
   align-items: baseline;
   gap: 10px;
-  padding: 10px 14px;
+  padding: var(--rd-gap-tight) var(--rd-card-inset);
   border-bottom: 1px solid var(--rd-hairline-row);
 }
 .rd-popline:last-child {
@@ -1547,7 +1558,7 @@
   align-items: baseline;
   gap: 10px;
   height: 30px;
-  padding: 0 14px;
+  padding: 0 var(--rd-card-inset);
   border-top: 1px solid var(--rd-border);
   font: var(--rd-weight-emphasis) var(--rd-size-cell) / 30px var(--rd-font-text);
   color: var(--rd-ink);
@@ -1689,14 +1700,14 @@
 .rd-kband {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: var(--rd-gap-tight);
+  margin-bottom: var(--rd-card-gap);
 }
 .rd-kpi {
   background: var(--rd-card);
   border: 1px solid var(--rd-border);
   border-radius: var(--rd-radius-card);
-  padding: 12px 16px 13px;
+  padding: 16px var(--rd-card-inset) 18px;
 }
 /* The label names the currency — never a symbol welded to the figure. Four of
    six currencies here use $, so a glyph cannot tell them apart anyway. */
@@ -2286,6 +2297,13 @@
   gap: 6px;
   min-width: 0;
 }
+/* In a figure column the pair packs to the right, with the figure last —
+   otherwise a block-level flex box ignores the column's own alignment and
+   the numbers stop lining up down the page. */
+.rd-t th.n .rd-cellflex,
+.rd-t td.n .rd-cellflex {
+  justify-content: flex-end;
+}
 .rd-cellflex .rd-ellip {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2300,10 +2318,15 @@
 /* ---------- Search ---------- */
 
 .rd-search {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
+  /* One height with the chips beside it, 11 Sep 2026. Padding alone made this
+     33px against the toolbar's 24px chips, so every table in the app opened
+     with four controls on one line and one of them taller than the rest. */
+  height: var(--rd-head-control-h);
+  padding: 0 14px;
   border: 1px solid var(--rd-border);
   border-radius: var(--rd-radius-inset);
   font: 400 var(--rd-size-head) var(--rd-font-text);
@@ -2379,14 +2402,24 @@
 .rd-t27 .rd-btn-pri,
 .rd-t27 .rd-btn-grey,
 .rd-t27 .rd-chip {
-  padding: 4px 11px;
+  padding: 5px 12px;
   font: 500 var(--rd-size-head) / 1.2 var(--rd-font-text);
   border-radius: var(--rd-radius-control);
-  background: var(--rd-grey-bg);
-  border: 1px solid var(--rd-grey-bg);
+  /* White on a hairline, not a grey fill. The owner's rule of 8 Sep is that
+     buttons are black and white; a grey-on-grey lozenge inside a grey row
+     reads as a disabled control, and the Approve button — the most consequential
+     one in the app — was wearing it. Height still 27 against the 34px row:
+     ruling 11 is not reopened, only the fill. */
+  background: var(--rd-card);
+  border: 1px solid var(--rd-border);
   color: var(--rd-ink);
   white-space: nowrap;
   cursor: pointer;
+}
+.rd-t27 .rd-btn-pri:hover:not(:disabled),
+.rd-t27 .rd-btn-grey:hover:not(:disabled),
+.rd-t27 .rd-chip:hover:not(:disabled) {
+  border-color: var(--rd-ink-muted);
 }
 /* Destructive is red in the word, which is the thing that carries it. */
 .rd-btn-danger {
@@ -2420,11 +2453,26 @@
 .rd-dialogfoot {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 20px;
-  padding: 16px 24px 20px; /* opened up 8 Sep 2026 — "spacing is generous" */
+  gap: var(--rd-gap-tight);
+  /* No margin of its own: the body below the last field already pays for the
+     space, and stacking the two put 56px of nothing between the form and the
+     button that submits it. The rule is the separation. */
+  margin-top: 0;
+  padding: var(--rd-gap) var(--rd-dialog-inset) var(--rd-gap-wide);
   border-top: 1px solid var(--rd-hairline-row);
 }
+/* The foot's own spacer, pushing a destructive word to the far end. It was an
+   inline `style={{flex:1}}` on the element until 11 Sep 2026 — the one thing
+   this kit's own rule forbids at the point of use. */
+.rd-footgap {
+  flex: 1;
+}
+/* A link-kind action standing among boxed ones needs air, or it reads as a
+   button that failed to draw rather than a word that acts. */
+.rd-footlink {
+  margin-left: var(--rd-gap-inner);
+}
+
 /* A word that acts. Not a chip — `42c` gives Delete card and Replace image no
    box at all, because a box among three boxed buttons would read as a fourth
    of the same weight. */
@@ -2459,8 +2507,8 @@
 .rd-seclist {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 12px;
+  gap: var(--rd-gap-tight);
+  margin-top: var(--rd-gap);
 }
 .rd-secs-hd {
   display: flex;
@@ -3410,7 +3458,7 @@ body.rd-resizing * {
   left: 0;
   z-index: 30;
   width: 250px;
-  padding: 10px 12px 10px;
+  padding: var(--rd-card-inset);
   background: var(--rd-card);
   border: 1px solid var(--rd-border);
   border-radius: var(--rd-radius-card);
@@ -3482,7 +3530,7 @@ body.rd-resizing * {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: var(--rd-gap-tight);
   margin-top: 10px;
   padding-top: 9px;
   border-top: 1px solid var(--rd-hairline-row);
@@ -3501,13 +3549,21 @@ body.rd-resizing * {
    never as prose and never as a bulleted diff. */
 .rd-facts {
   display: flex;
-  gap: 12px;
-  margin: 14px 0 8px; /* opened up 8 Sep 2026 — "spacing is generous" */
+  /* Wrapping, and each box sized to what it holds — 11 Sep 2026. Five equal
+     boxes meant the widest value ("Production in progress · 26 Aug 2026")
+     wrapped to three lines while the four beside it held one, and flex
+     stretched all five to the tallest: four boxes of white with a figure at
+     the top. Now the long one takes the width it needs and the row breaks
+     when it runs out, so every box on a line is the same height because its
+     content is. */
+  flex-wrap: wrap;
+  gap: var(--rd-gap-tight);
+  margin: var(--rd-gap) 0; /* opened up again 11 Sep 2026 */
 }
 .rd-fact {
-  flex: 1;
-  min-width: 0;
-  padding: 12px 14px 13px;
+  flex: 1 1 auto;
+  min-width: 120px;
+  padding: 14px 16px 15px;
   background: var(--rd-band);
   border-radius: var(--rd-radius-card);
 }
@@ -3526,8 +3582,8 @@ body.rd-resizing * {
 /* Under a hairline, because it is the same three facts at a LATER time rather
    than three more facts. */
 .rd-after {
-  margin-top: 14px;
-  padding-top: 12px;
+  margin-top: var(--rd-gap);
+  padding-top: var(--rd-gap);
   border-top: 1px solid var(--rd-hairline-row);
 }
 .rd-after-t {
@@ -3629,7 +3685,7 @@ body.rd-resizing * {
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 6px 8px;
+  padding: 8px var(--rd-gap-tight);
   border: 0;
   border-radius: 4px;
   background: none;
@@ -4169,6 +4225,9 @@ body.rd-resizing * {
 .rd-head .rd-chip,
 .rd-head .rd-select,
 .rd-head .rd-btn-pri,
+.rd-headacts .rd-chip,
+.rd-headacts .rd-select,
+.rd-headacts .rd-btn-pri,
 .rd-secbar .rd-chip,
 .rd-secbar .rd-select,
 .rd-secbar .rd-btn-pri {
@@ -4180,8 +4239,13 @@ body.rd-resizing * {
   padding-top: 0;
   padding-bottom: 0;
 }
+/* `.rd-headacts` joined this list on 11 Sep 2026: a batch section's own head
+   uses it WITHOUT `.rd-head` around it, so Submit and Add send were the only
+   two head controls in the app drawn as hairlines rather than grey blocks. */
 .rd-head .rd-chip,
 .rd-head .rd-select,
+.rd-headacts .rd-chip,
+.rd-headacts .rd-select,
 .rd-secbar .rd-chip,
 .rd-secbar .rd-select {
   background: var(--rd-btn-sec);
@@ -4190,6 +4254,8 @@ body.rd-resizing * {
 }
 .rd-head .rd-chip:hover,
 .rd-head .rd-select:hover,
+.rd-headacts .rd-chip:hover,
+.rd-headacts .rd-select:hover,
 .rd-secbar .rd-chip:hover,
 .rd-secbar .rd-select:hover {
   background: var(--rd-btn-sec-hover);
@@ -4416,7 +4482,7 @@ body.rd-resizing * {
   padding: 18px 20px 0;
 }
 .rd-importbody {
-  padding: 10px 20px 4px;
+  padding: var(--rd-card-inset) var(--rd-card-inset) 4px;
 }
 /* Choosing files: the dashed edge this system uses for "nothing here yet",
    with the input itself covering the box so the whole block is the target. */
@@ -4424,7 +4490,7 @@ body.rd-resizing * {
   position: relative;
   display: block;
   margin-top: 10px;
-  padding: 14px;
+  padding: 22px var(--rd-card-inset);
   border: 1px dashed var(--rd-field-border);
   border-radius: var(--rd-radius-control);
   background: var(--rd-inset);
@@ -4481,6 +4547,9 @@ body.rd-resizing * {
   align-items: center;
   gap: 6px;
   min-width: 0;
+  /* Takes the row's slack, so who-is-signed-in sits at the far right. An
+     empty spacer <span> with an inline style used to do this. */
+  flex: 1;
   font: var(--rd-weight-body) var(--rd-size-head) / 1 var(--rd-font-text);
 }
 .rd-barseg {
@@ -4680,8 +4749,8 @@ body.rd-resizing * {
 .rd-head {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin: 2px 2px 12px;
+  gap: var(--rd-gap-tight);
+  margin: 2px 2px var(--rd-card-gap); /* 12px until 11 Sep 2026 */
 }
 
 /* ---------- vocabulary that outlived the screens it was drawn for ----------

@@ -22,7 +22,6 @@ import {
   Card,
   CardHead,
   Dialog,
-  Empty,
   Facts,
   None,
   Page,
@@ -240,14 +239,14 @@ export function ReleaseDetail(): ReactElement {
               because the owners are set HERE — no settings page hides them. */}
           <button
             type="button"
-            className="rd-linkbtn"
+            className="rd-linkbtn rd-linkbtn-mut"
             onClick={() => setApproverOpen(true)}
           >
             PM · {userName(d.release.pmOwnerId)}
           </button>
           <button
             type="button"
-            className="rd-linkbtn"
+            className="rd-linkbtn rd-linkbtn-mut"
             onClick={() => setApproverOpen(true)}
           >
             Warehouse · {userName(d.release.warehouseOwnerId)}
@@ -272,18 +271,19 @@ export function ReleaseDetail(): ReactElement {
     >
       <Stack>
         {flaggedNoEmail.length > 0 || flaggedNoContact.length > 0 ? (
-          <Bar tone="warn" title="Some orders can't receive email yet">
-            {flaggedNoEmail.length > 0
-              ? `${plural(flaggedNoEmail.length, 'order')} with no email address (${flaggedNoEmail
-                  .map((o) => o.shopifyOrderName)
-                  .join(', ')}). `
-              : ''}
-            {flaggedNoContact.length > 0
-              ? `${plural(flaggedNoContact.length, 'order')} with no matching HubSpot contact (${flaggedNoContact
-                  .map((o) => o.shopifyOrderName)
-                  .join(', ')}).`
-              : ''}
-          </Bar>
+          <Bar
+            tone="warn"
+            title={[
+              flaggedNoEmail.length > 0
+                ? `${plural(flaggedNoEmail.length, 'order')} with no email`
+                : '',
+              flaggedNoContact.length > 0
+                ? `${plural(flaggedNoContact.length, 'order')} with no HubSpot contact`
+                : '',
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          />
         ) : null}
 
         {missingImages.length > 0 ? (
@@ -306,7 +306,7 @@ export function ReleaseDetail(): ReactElement {
         {pendingChanges.length > 0 ? (
           <Bar
             tone="warn"
-            title={`${plural(pendingChanges.length, 'change')} from the shop to review`}
+            title={`${plural(pendingChanges.length, 'change')} from the shop`}
           >
             <div className="rd-baracts">
               <button type="button" className="rd-chip" onClick={() => setChangesOpen(true)}>
@@ -359,14 +359,6 @@ export function ReleaseDetail(): ReactElement {
               </Btn>
             }
           />
-          <Empty>
-            Review the All emails tab (pick each send's image), then import the Shopify order export to
-            create this release's orders
-            {d.release.productKind === 'print'
-              ? ' — framed and unframed prints land in their own batches with separate timelines'
-              : ''}
-            .
-          </Empty>
         </Card>
       ) : batch ? (
         <BatchSection
@@ -388,7 +380,7 @@ export function ReleaseDetail(): ReactElement {
       <Dialog
         open={undoing !== null}
         size="sm"
-        title={undoing ? `Undo the import of ${undoing.source.label}?` : ''}
+        title={undoing ? `Undo ${undoing.source.label}?` : ''}
         onClose={() => setUndoing(null)}
         primary={{
           label: 'Undo',
@@ -428,16 +420,14 @@ export function ReleaseDetail(): ReactElement {
                 order stays in the dedupe set — deliberately, so a cancelled
                 order in a re-uploaded export stays gone — and "removing" 294
                 of them would poison the import of the correct file. */}
-            <Bar tone="warn" title="These orders are deleted, not cancelled">
-              Nothing has been sent to them. The same export can be added again afterwards.
-            </Bar>
+            <Bar tone="warn" title="These orders are deleted, not cancelled" />
           </>
         ) : null}
       </Dialog>
       <Dialog
         open={approverOpen}
         size="sm"
-        title="Who owns this release's emails?"
+        title="Owners"
         onClose={() => setApproverOpen(false)}
         secondary={{ label: 'Done', onClick: () => setApproverOpen(false) }}
       >
@@ -446,11 +436,11 @@ export function ReleaseDetail(): ReactElement {
             still cover — these decide whose list each send sits on. */}
         {(
           [
-            { role: 'pmId' as const, current: d.release.pmOwnerId, says: 'PM — until dispatch' },
+            { role: 'pmId' as const, current: d.release.pmOwnerId, says: 'PM' },
             {
               role: 'warehouseId' as const,
               current: d.release.warehouseOwnerId,
-              says: 'Warehouse — Preparing for dispatch',
+              says: 'Warehouse',
             },
           ]
         ).map((slot) => (
@@ -563,10 +553,7 @@ export function ReleaseDetail(): ReactElement {
         }}
         secondary={{ label: 'Later', onClick: () => setImageGapOpen(false) }}
       >
-        <p>
-          The new window adds {plural(missingFromDate.length, 'on-track update')} with no image
-          yet. The date is saved either way.
-        </p>
+        <p>{plural(missingFromDate.length, 'on-track update')} with no image.</p>
       </Dialog>
     </Page>
   );
@@ -806,10 +793,7 @@ function BatchSection({
           /* The date moved and the email telling collectors was cancelled —
              the one state that must not sit here silently. It clears when a
              newer delay notice exists (the sort above takes the newest). */
-          <Bar tone="warn" title="Delay notice cancelled — these collectors have not been told">
-            “{cancelledDelay.subject}” was cancelled — log the delay again if they still need
-            to hear about it.
-          </Bar>
+          <Bar tone="warn" title="Delay notice cancelled — these collectors have not been told" />
         ) : null}
         <div className="rd-headrow">
           <div className="rd-kband">
@@ -820,7 +804,7 @@ function BatchSection({
               </div>
             </div>
             <div className="rd-kpi">
-              <div className="rd-l">Collectors in this batch</div>
+              <div className="rd-l">Collectors</div>
               <div className="rd-v">
                 {activeOrders.length}
                 {picked.size > 0 ? (
@@ -866,7 +850,7 @@ function BatchSection({
                  one at a time has been told the same thing ten times, late. */
               draftsWithNoImage > 0 ? (
                 <Why
-                  says={`${plural(draftsWithNoImage, 'of these emails has', 'of these emails have')} no image yet — pick them on the All emails tab.`}
+                  says={`${plural(draftsWithNoImage, 'email', 'emails')} with no image`}
                 >
                   <Btn disabled>{`Submit (${draftCount})`}</Btn>
                 </Why>
@@ -881,7 +865,7 @@ function BatchSection({
             ) : (
               /* Shut, and it says why — the one control on this header that
                  used to be dark in silence. */
-              <Why says="Set a promise date first — the plan and its dates hang off it.">
+              <Why says="No promise date.">
                 <Btn disabled>Add send</Btn>
               </Why>
             )}
@@ -900,15 +884,15 @@ function BatchSection({
           table="batch-orders"
           title="Orders"
           noun="order"
-          searchPlaceholder="Search orders, collectors, editions"
+          searchPlaceholder="Search"
           columns={orderColumns}
           rows={activeOrders}
           rowKey={(o) => o.id}
           empty="No orders in this batch."
           headActions={
             hasAllocations ? (
-              <span className="rd-none">
-                Allocation: {allocatedCount} of {activeOrders.length}
+              <span className="rd-vnote">
+                Allocation {allocatedCount} of {activeOrders.length}
               </span>
             ) : undefined
           }
@@ -983,7 +967,7 @@ function BatchSection({
             ? editingSend.templateRef === 'pp-dispatch'
               ? {
                   date: batch.promiseDate,
-                  says: `The dispatch email must go out before the promised window opens on ${formatDayShort(batch.promiseDate)}.`,
+                  says: `Window opens ${formatDayShort(batch.promiseDate)}.`,
                 }
               : (() => {
                   const dispatch = batchSends.find(
@@ -992,7 +976,7 @@ function BatchSection({
                   const date = dispatch?.scheduledDate ?? batch.promiseDate!;
                   return {
                     date,
-                    says: `No update can land after the dispatch email on ${formatDayShort(date)}.`,
+                    says: `Dispatch email ${formatDayShort(date)}.`,
                   };
                 })()
             : null
@@ -1016,11 +1000,10 @@ function BatchSection({
           destructive: true,
           onClick: () => void confirmCancelSend(),
         }}
-        secondary={{ label: 'Keep it', onClick: () => setCancellingSend(null) }}
+        secondary={{ label: 'Keep', onClick: () => setCancellingSend(null) }}
       >
         {cancellingSend ? <DelayCancelWarning send={cancellingSend} /> : null}
         <p>
-          The email will not go out and drops off the plan. This is recorded in the batch history.
           Scheduled for {cancellingSend ? formatDayShort(cancellingSend.scheduledDate) : ''}
           {cancellingSend && cancellingSend.scheduledDate < today() ? ' (overdue)' : ''}.
         </p>

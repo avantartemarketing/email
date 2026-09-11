@@ -205,9 +205,11 @@ export const TOUR_PATHS: TourPath[] = [
       {
         title: 'Step 4 — Check the orders',
         caption:
-          'Here is Harbour Light as an example. Every print is one row, showing its frame ' +
-          'colour, glazing, batch and promised delivery date. The order number links to Shopify. Use the ' +
-          'checkboxes to cancel orders, move them, or change delivery dates in bulk.',
+          'Here is Harbour Light as an example. Every print is one row: its framing, batch, ' +
+          'promised delivery date and who bought it. The order number links to Shopify, and ' +
+          'Columns adds the warehouse spec — frame colour, glazing, mount — once a sheet is ' +
+          'imported. Use the checkboxes to cancel orders, move them, or change delivery dates ' +
+          'in bulk.',
         /* The container, not the table: All orders scrolls sideways, and the
            table's own rectangle is its scrollWidth — a spotlight the size of
            the screen, which is no spotlight at all. */

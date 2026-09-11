@@ -24,7 +24,7 @@ export function RemoveOrderModal({
     setSaving(true);
     try {
       await data.removeOrder(order.id, reason);
-      showToast(`${order.shopifyOrderName} removed — no further emails to ${order.collectorName}`);
+      showToast(`${order.shopifyOrderName} removed`);
       setReason('');
       onSaved();
       onClose();

@@ -59,8 +59,8 @@ export function EmailPreview({
             {imageName
               ? `Hero image · ${imageName}`
               : sent
-                ? 'Sent on the HubSpot master\u2019s own image'
-                : 'No image picked yet'}
+                ? 'Master image'
+                : 'No image'}
           </div>
           {headline ? <h1 className="rd-mailhead">{headline}</h1> : null}
           <div className="rd-mailbody">{renderForRecipient(body, sample)}</div>

@@ -97,10 +97,10 @@ export function AddOrdersModal({
   const why =
     ticked.size === 0
       ? claimed.length === 0
-        ? 'This release does not claim a product yet — tick one.'
+        ? 'No product ticked.'
         : 'Tick at least one product.'
       : (plan?.create.length ?? 0) === 0
-        ? 'Every order in this file is already here.'
+        ? 'Nothing new in this file.'
         : undefined;
 
   const add = async (): Promise<void> => {
@@ -149,9 +149,7 @@ export function AddOrdersModal({
       {parse && plan ? (
         <>
           {foreign.length > 0 ? (
-            <Bar tone="warn" title="A product this release does not claim yet">
-              Ticking “{foreign[0]}” adds it to what {release.title} claims from now on.
-            </Bar>
+            <Bar tone="warn" title={`“${foreign[0]}” is not claimed by ${release.title}`} />
           ) : null}
 
           <FileProductsTable

@@ -46,7 +46,7 @@ function NextSendCell({
         key: send.sendId,
         label: [
           `${idx === 0 ? 'Next · ' : ''}${formatDayShort(send.scheduledDate)}`,
-          `${TEMPLATE_LABELS[send.templateRef]}${send.type === 'delay' ? ' (delay)' : ''}`,
+          TEMPLATE_LABELS[send.templateRef],
           send.batchName,
           plural(send.recipientCount, 'collector'),
         ].join(' · '),
@@ -214,7 +214,7 @@ export function ReleasesIndex(): ReactElement {
         <DataTable
           table="releases"
           noun="release"
-          searchPlaceholder="Search releases and artists"
+          searchPlaceholder="Search"
           columns={columns}
           rows={rows}
           rowKey={(r) => r.release.id}

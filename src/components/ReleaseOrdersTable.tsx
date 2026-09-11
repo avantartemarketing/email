@@ -109,7 +109,7 @@ export function ReleaseOrdersTable({
     setBusy(true);
     try {
       const n = await data.removeOrders(pickedOrderIds, reason);
-      showToast(`${plural(n, 'order')} cancelled — no further emails to them`);
+      showToast(`${plural(n, 'order')} cancelled`);
       setCancelling(false);
       setReason('');
       picked.clear();
@@ -126,7 +126,7 @@ export function ReleaseOrdersTable({
     try {
       const n = await data.moveOrdersToBatch(pickedOrderIds, target);
       const name = batches.find((b) => b.id === target)?.name ?? 'the batch';
-      showToast(`${plural(n, 'order')} moved to ${name} — they follow its dates from now on`);
+      showToast(`${plural(n, 'order')} moved to ${name}`);
       setMoving(false);
       setTarget('');
       picked.clear();
@@ -160,21 +160,32 @@ export function ReleaseOrdersTable({
     {
       id: 'print',
       title: 'Print name',
+      /* Off by default, 11 Sep 2026: every cell in it reads
+         "<the page's own title> - <the Framing column's own value>", so on a
+         112-row release it was 112 copies of two facts already on screen. It
+         stays available in Columns, because a release that claims more than
+         one product needs it. */
+      defaultHidden: true,
       kind: 'text',
       value: (r) => r.allocation?.printName ?? r.order.lineItemTitle,
       cell: (r) => <Cap>{r.allocation?.printName ?? r.order.lineItemTitle}</Cap>,
     },
     {
       id: 'fulfilment',
-      title: 'Fulfilment',
+      /* "Framing", not "Fulfilment", 11 Sep 2026. Its values are Framed and
+         Unframed and it sits two columns from Dispatch, whose values are
+         Fulfilled and Unfulfilled — one screen, two columns named for
+         delivery, and only one of them about it. */
+      title: 'Framing',
       kind: 'choice',
-      caption: 'FULFILMENT',
+      caption: 'FRAMING',
       value: (r) => r.allocation?.fulfilment ?? r.order.variant,
       cell: (r) => fulfilmentValueTag(r.allocation?.fulfilment ?? r.order.variant) ?? <None />,
     },
     {
       id: 'frame',
       title: 'Frame colour',
+      defaultHidden: true,
       kind: 'choice',
       caption: 'FRAME COLOUR',
       value: (r) => r.allocation?.frameFinish,
@@ -183,6 +194,7 @@ export function ReleaseOrdersTable({
     {
       id: 'glass',
       title: 'Glazing',
+      defaultHidden: true,
       kind: 'choice',
       caption: 'GLAZING',
       value: (r) => r.allocation?.glass,
@@ -191,6 +203,7 @@ export function ReleaseOrdersTable({
     {
       id: 'mounting',
       title: 'Mount type',
+      defaultHidden: true,
       kind: 'choice',
       caption: 'MOUNT TYPE',
       value: (r) => r.allocation?.mountingType,
@@ -335,13 +348,12 @@ export function ReleaseOrdersTable({
     <>
       <DataTable
         table="release-orders"
-        title="All orders"
         noun="print"
-        searchPlaceholder="Search orders, collectors, editions"
+        searchPlaceholder="Search"
         columns={columns}
         rows={rows}
         rowKey={(r) => r.key}
-        empty="No orders imported for this release yet."
+        empty="No orders yet."
         select={{
           picked,
           label: (r) => `${r.order.shopifyOrderName} — ${r.order.collectorName}`,
@@ -360,7 +372,7 @@ export function ReleaseOrdersTable({
         foot={
           <>
             {active.length} order{active.length === 1 ? '' : 's'}
-            {removed > 0 ? ` · ${removed} cancelled and not listed` : ''}
+            {removed > 0 ? ` · ${removed} cancelled` : ''}
           </>
         }
       />
@@ -371,17 +383,14 @@ export function ReleaseOrdersTable({
         title={`Cancel ${plural(pickedOrderIds.length, 'order')}?`}
         onClose={() => setCancelling(false)}
         primary={{
-          label: `Cancel ${plural(pickedOrderIds.length, 'order')}`,
+          label: 'Cancel',
           destructive: true,
           onClick: () => void cancel(),
           disabled: busy || !reason.trim(),
         }}
         secondary={{ label: 'Keep', onClick: () => setCancelling(false) }}
       >
-        <Bar tone="warn" title="These collectors stop receiving updates">
-          The orders drop out of their batches and out of every future send; emails already sent
-          stay in the log. Nothing is refunded or cancelled in Shopify.
-        </Bar>
+        <Bar tone="warn" title="These collectors stop receiving updates" />
         <div className="rd-fields">
           <Field
             label="Reason"
@@ -395,7 +404,7 @@ export function ReleaseOrdersTable({
       <Dialog
         open={moving}
         size="sm"
-        title={`Move ${plural(pickedOrderIds.length, 'order')} to another batch`}
+        title={`Move ${plural(pickedOrderIds.length, 'order')}`}
         onClose={() => setMoving(false)}
         primary={{
           label: 'Move',
@@ -404,11 +413,7 @@ export function ReleaseOrdersTable({
         }}
         secondary={{ label: 'Cancel', onClick: () => setMoving(false) }}
       >
-        <Bar tone="note" title="They take the target batch's dates">
-          Moving is a correction, not a new promise: the batch they land in keeps the promise date
-          and comms plan it already has, and nothing is sent to say so. To promise a NEW date, use
-          Change date on the batch instead.
-        </Bar>
+        <Bar tone="note" title="They take the target batch's dates" />
         <div className="rd-fields">
           {targetBatches.map((b) => (
             <button
@@ -435,11 +440,10 @@ export function ReleaseOrdersTable({
         onClose={() => setChoosingBatch(false)}
         secondary={{ label: 'Cancel', onClick: () => setChoosingBatch(false) }}
       >
-        <Bar tone="note" title="A promise date belongs to one batch">
-          Your selection spans {plural(pickedBatches.length, 'batch', 'batches')}, and each has its
-          own date, plan and delay email. Do them one at a time — the rest of the selection stays
-          ticked.
-        </Bar>
+        <Bar
+          tone="note"
+          title={`Your selection spans ${plural(pickedBatches.length, 'batch', 'batches')}`}
+        />
         <div className="rd-fields">
           {batches
             .filter((b) => pickedBatches.includes(b.id))

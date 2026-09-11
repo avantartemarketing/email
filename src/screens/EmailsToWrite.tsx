@@ -104,13 +104,7 @@ export function EmailsToWrite(): ReactElement {
     try {
       await data.submitDelayCopy(writing.send.id, { subject, body }, { hold });
       const approver = userName(ownerFor(writing.release, writing.send));
-      showToast(
-        hold
-          ? 'Saved as a draft'
-          : writing.send.scheduledDate <= today()
-            ? `Sent to ${approver} for approval — ${plural(writing.recipientCount, 'collector')} waiting`
-            : `Sent to ${approver} for approval — goes out ${formatDayShort(writing.send.scheduledDate)}`,
-      );
+      showToast(hold ? 'Saved' : `Sent to ${approver}`);
       setWriting(null);
       reload();
     } catch (err) {
@@ -125,7 +119,7 @@ export function EmailsToWrite(): ReactElement {
     setSaving(true);
     try {
       await data.cancelSend(cancelling.send.id);
-      showToast('Delay email cancelled');
+      showToast('Cancelled');
       setCancelling(null);
       setWriting(null);
       reload();
@@ -320,7 +314,7 @@ export function EmailsToWrite(): ReactElement {
               </div>
             </div>
             <div className="rd-kpi">
-              <div className="rd-l">Collectors waiting to hear</div>
+              <div className="rd-l">Collectors waiting</div>
               <div className="rd-v">
                 {jobs.length > 0 ? (
                   <>
@@ -346,12 +340,12 @@ export function EmailsToWrite(): ReactElement {
             table="copy-queue"
             noun="email"
             nounPlural="emails"
-            searchPlaceholder="Search reasons and releases"
+            searchPlaceholder="Search"
             columns={columns}
             rows={jobs}
             rowKey={(j) => j.send.id}
             onRowClick={(j) => openWriter(j)}
-            empty="Nothing to write. A delay email lands here the moment somebody changes a delivery date."
+            empty="Nothing to write."
 
           />
         )}
@@ -363,7 +357,7 @@ export function EmailsToWrite(): ReactElement {
         {handoffs.data && handoffs.data.length > 0 ? (
           <Card>
             <CardHead title="Handed over" />
-            <table className="rd-t rd-t27 rd-fit">
+            <table className="rd-t rd-t27 rd-fit rd-tpad">
               <thead>
                 <tr>
                   <th scope="col">Email</th>
@@ -388,7 +382,7 @@ export function EmailsToWrite(): ReactElement {
                       {h.send.status === 'approved' ? (
                         <Pill tone="green">Approved</Pill>
                       ) : (
-                        <Pill tone="amber">Waiting for approval</Pill>
+                        <Pill tone="amber">Waiting</Pill>
                       )}
                     </td>
                   </tr>
@@ -509,7 +503,7 @@ export function EmailsToWrite(): ReactElement {
         open={cancelling !== null}
         size="sm"
         onClose={() => setCancelling(null)}
-        title="Cancel this delay email?"
+        title="Cancel this email?"
         primary={{
           label: 'Cancel',
           onClick: () => void cancel(),
@@ -521,17 +515,18 @@ export function EmailsToWrite(): ReactElement {
         {cancelling ? (
           <>
             {/* The one consequence somebody cancelling from THIS page can miss:
-                the promise has already moved. Cancelling the email does not
-                move it back — it only means nobody is told. */}
-            <Bar tone="warn" title="The delivery date has already changed">
-              {plural(cancelling.recipientCount, 'collector')} on {cancelling.release.title} have
-              been moved to{' '}
-              {cancelling.send.brief
-                ? shipWindowShort(cancelling.send.brief.newPromiseDate)
-                : 'a new date'}
-              . Cancelling means they are never told, and their next email will be a milestone
-              written against the new date.
-            </Bar>
+                the promise has already moved. The new window is the fact, and
+                the band carries it in the title — the two sentences that used
+                to follow were the consequence and the instruction, which the
+                11 Sep 2026 sweep takes off every band in the app. */}
+            <Bar
+              tone="warn"
+              title={`Delivery date already moved to ${
+                cancelling.send.brief
+                  ? shipWindowShort(cancelling.send.brief.newPromiseDate)
+                  : 'a new date'
+              }`}
+            />
             <Facts
               items={[
                 { label: 'Release', value: cancelling.release.title },

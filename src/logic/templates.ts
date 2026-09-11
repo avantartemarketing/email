@@ -491,12 +491,10 @@ export function onTrackSlotsFor(
  * ------------------------------------------------------------------------ */
 
 /** Said by the shut Approve control and thrown by the layer behind it. */
-export const NO_IMAGE_YET =
-  "This email has no image yet — pick one on the release's All emails tab, then approve.";
+export const NO_IMAGE_YET = 'No image picked.';
 
 /** Said when somebody tries to approve a delay email nobody has written. */
-export const NOT_WRITTEN_YET =
-  'The CRM team has not written this delay email yet — it is in Emails to write.';
+export const NOT_WRITTEN_YET = 'Not written yet.';
 
 /** `pp-ontrack-3` → "On track 3"; every other slot takes its template label. */
 export function slotLabel(slot: ImageSlot): string {

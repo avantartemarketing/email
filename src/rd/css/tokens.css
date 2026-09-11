@@ -188,7 +188,7 @@
      rail toggle sits in front of the path, so the path starts past it. That is
      ElevenLabs' own arrangement and it is deliberate — the toggle is a control
      on the bar, not part of the address. */
-  --rd-page-x: 22px;
+  --rd-page-x: 32px;            /* 22px until 11 Sep 2026 */
 
   /* Ruling 95's floor: the smallest a thing you AIM at may be. Bought with
      padding or an overlay, never by growing what is drawn — the drawing
@@ -432,11 +432,36 @@
      and its table looking joined; they were 6px apart where the rest of the
      redesign uses this. One token, so a third caller cannot invent a fourth
      value. */
-  --rd-card-gap: 20px;          /* 14px until 8 Sep 2026 — "spacing is generous" */
+  --rd-card-gap: 28px;          /* 14px → 20px 8 Sep → 28px 11 Sep 2026 */
   /* A card's own inset, which `.rd-sechead` and `.rd-foot` have each carried
      as a literal 16 since they were written. Named here because a fourth
      copy is the point at which they start drifting apart. */
-  --rd-card-inset: 16px;
+  --rd-card-inset: 20px;        /* 16px until 11 Sep 2026 */
+
+  /* ---- The spacing scale, 11 Sep 2026 ----------------------------------
+     The owner, reviewing every screen: "cramped spacing, spacing should be
+     expansive and generous". Before this the kit had no scale at all — each
+     rule typed its own 8, 9, 10, 12 or 14, and the sum of thirty small mean
+     numbers is a screen that reads as cramped even though no single rule
+     looks wrong. Four steps, and every gap in the kit is now one of them.
+
+     They are not a geometric run. 6 is the gap INSIDE a thing (a chip and
+     its chevron); 12 between two things on one line; 18 between a thing and
+     the next thing down the page; 28 between two sections that are about
+     different subjects, which is `--rd-card-gap` above. */
+  --rd-gap-inner: 8px;
+  --rd-gap-tight: 12px;
+  --rd-gap: 18px;
+  /* Two steps above `--rd-gap`, below the 28px that separates subjects: a
+     field stack wants more air than a field ROW does (the eye travels further
+     down a column than across a line), and an empty card's one sentence wants
+     the whole card to be air. */
+  --rd-gap-wide: 22px;
+  --rd-gap-room: 34px;
+  /* A dialogue is inset further than a card: it is a floating object with
+     nothing around it, so its own edges are the only thing holding its
+     content, and 20px there reads as a crop. */
+  --rd-dialog-inset: 28px;
 
   /* Category tags (ruling 12) --------------------------------------------
      The admin has TWO lozenge shapes and the shape carries the distinction: a

@@ -7,7 +7,7 @@ import { daysBetween, formatDayShort, today } from '../logic/dates';
 import { inheritedSentStory } from '../logic/reschedule';
 import { NO_IMAGE_YET, shipWindowShort } from '../logic/templates';
 import { isOverdueApproval, needsApprovingNow, ownerFor } from '../logic/approvals';
-import { TEMPLATE_LABELS, plural } from '../ui/format';
+import { TEMPLATE_LABELS, plural, subjectInTable } from '../ui/format';
 import { useApp } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
 import {
@@ -179,7 +179,7 @@ export function MyApprovals(): ReactElement {
       showToast(
         item.send.scheduledDate <= today()
           ? 'Approved'
-          : `Approved — queued for ${formatDayShort(item.send.scheduledDate)}`,
+          : `Approved · ${formatDayShort(item.send.scheduledDate)}`,
       );
       setPreview(null);
       reload();
@@ -204,9 +204,7 @@ export function MyApprovals(): ReactElement {
       setBulkOpen(false);
       showToast(
         blocked.length > 0
-          ? `Approved ${done} of ${pickedItems.length} — ${plural(blocked.length, 'send')} still ${
-              blocked.length === 1 ? 'needs' : 'need'
-            } an image`
+          ? `Approved ${done} of ${pickedItems.length}`
           : `Approved ${plural(done, 'send')}`,
         blocked.length > 0,
       );
@@ -230,7 +228,7 @@ export function MyApprovals(): ReactElement {
       picked.replace(
         new Set([...picked.ids].filter((id) => !cancelling.some((i) => i.send.id === id))),
       );
-      showToast(done === 1 ? 'Send cancelled' : `${plural(done, 'send')} cancelled`);
+      showToast(done === 1 ? 'Cancelled' : `${plural(done, 'send')} cancelled`);
       setCancelling(null);
       setPreview(null);
       reload();
@@ -268,7 +266,7 @@ export function MyApprovals(): ReactElement {
     return (
       <div className="rd-rowacts" onClick={(e) => e.stopPropagation()}>
         {!isAdmin ? (
-          <Why says="Only admins can approve sends">{approveBtn}</Why>
+          <Why says="Admins only.">{approveBtn}</Why>
         ) : noImage ? (
           <Why says={NO_IMAGE_YET}>{approveBtn}</Why>
         ) : (
@@ -331,7 +329,6 @@ export function MyApprovals(): ReactElement {
       cell: (i) => (
         <span className="rd-ink">
           {TEMPLATE_LABELS[i.send.templateRef]}
-          {i.send.type === 'delay' ? ' (delay)' : ''}
         </span>
       ),
     },
@@ -339,8 +336,8 @@ export function MyApprovals(): ReactElement {
       id: 'subject',
       title: 'Subject',
       kind: 'text',
-      value: (i) => i.send.subject,
-      cell: (i) => <Cap>{i.send.subject}</Cap>,
+      value: (i) => subjectInTable(i.send.subject),
+      cell: (i) => <Cap>{subjectInTable(i.send.subject)}</Cap>,
     },
     {
       id: 'release',
@@ -501,7 +498,6 @@ export function MyApprovals(): ReactElement {
       : []),
   ];
 
-  const nextComing = coming[0];
 
   return (
     /* No subtitle, and no band announcing that approving is admin-only. The
@@ -537,7 +533,7 @@ export function MyApprovals(): ReactElement {
             </div>
           </div>
           <div className="rd-kpi">
-            <div className="rd-l">Due in the next 7 days</div>
+            <div className="rd-l">Due this week</div>
             <div className="rd-v">
               {now.length > 0 ? (
                 <>
@@ -570,7 +566,7 @@ export function MyApprovals(): ReactElement {
             table="approvals-now"
             title="To approve now"
             noun="send"
-            searchPlaceholder="Search subjects and releases"
+            searchPlaceholder="Search"
             columns={columnsFor('now')}
             rows={now}
             rowKey={(i) => i.send.id}
@@ -599,25 +595,19 @@ export function MyApprovals(): ReactElement {
                 },
               ],
             }}
-            empty={
-              nextComing
-                ? `Nothing needs approving in the next 7 days. The next one is ${formatDayShort(
-                    nextComing.send.scheduledDate,
-                  )} — it is in Coming up below.`
-                : 'Nothing waiting for approval. New and rescheduled comms plans land here before anything can send.'
-            }
+            empty="Nothing to approve."
           />
 
           <DataTable
             table="approvals-coming"
             title="Coming up"
             noun="send"
-            searchPlaceholder="Search subjects and releases"
+            searchPlaceholder="Search"
             columns={columnsFor('coming')}
             rows={coming}
             rowKey={(i) => i.send.id}
             onRowClick={(i) => setPreview(i)}
-            empty="Nothing scheduled beyond the next 7 days. Sends appear here as soon as a release has a promise date and its plan is submitted."
+            empty="Nothing coming up."
           />
         </>
       )}
@@ -686,18 +676,18 @@ export function MyApprovals(): ReactElement {
                   /* The promise, next to the email that claims it — so "is
                      what this says still true?" is answerable without leaving
                      the dialogue or trusting memory. */
-                  label: 'Promised dispatch',
+                  label: 'Promised',
                   value: preview.batch.promiseDate
                     ? shipWindowShort(preview.batch.promiseDate)
                     : 'Not set',
                 },
                 { label: 'Recipients', value: preview.recipientCount },
                 {
-                  label: 'Submitted by',
+                  label: 'From',
                   value: userName(preview.send.copyWrittenBy ?? preview.send.createdBy),
                 },
                 {
-                  label: 'They last received',
+                  label: 'Last email',
                   value: preview.lastSent
                     ? `${TEMPLATE_LABELS[preview.lastSent.templateRef]} · ${formatDayShort(
                         preview.lastSent.sentAt.slice(0, 10),
@@ -743,11 +733,9 @@ export function MyApprovals(): ReactElement {
               items={[
                 {
                   label: 'Email',
-                  value: `${TEMPLATE_LABELS[lastFor.lastSent.templateRef]}${
-                    lastFor.lastSent.type === 'delay' ? ' (delay)' : ''
-                  }`,
+                  value: TEMPLATE_LABELS[lastFor.lastSent.templateRef],
                 },
-                { label: 'Went out on', value: lastFor.lastSent.batchName },
+                { label: 'Batch', value: lastFor.lastSent.batchName },
                 { label: 'Release', value: lastFor.release.title },
               ]}
             />
@@ -836,9 +824,8 @@ export function MyApprovals(): ReactElement {
           <>
             <DelayCancelWarning send={cancelling[0].send} />
             <p>
-            The email will not go out and drops off the plan. This is recorded in the batch history.
-            Scheduled for {formatDayShort(cancelling[0].send.scheduledDate)}
-            {isOverdueApproval(cancelling[0].send) ? ' (overdue)' : ''}.
+              Scheduled for {formatDayShort(cancelling[0].send.scheduledDate)}
+              {isOverdueApproval(cancelling[0].send) ? ' (overdue)' : ''}.
             </p>
           </>
         ) : cancelling ? (
@@ -846,10 +833,6 @@ export function MyApprovals(): ReactElement {
             {cancelling.filter((i) => i.send.type === 'delay').map((i) => (
               <DelayCancelWarning key={i.send.id} send={i.send} />
             ))}
-            <p>
-              None of these emails will go out, and each drops off its plan. This is recorded in
-              the batch history.
-            </p>
             <table className="rd-t rd-t27 rd-fit">
               <thead>
                 <tr>
@@ -873,7 +856,7 @@ export function MyApprovals(): ReactElement {
       <Dialog
         open={choosingMove}
         size="sm"
-        title="Which email is moving?"
+        title="Which email?"
         onClose={() => setChoosingMove(false)}
         secondary={{ label: 'Cancel', onClick: () => setChoosingMove(false) }}
       >
@@ -910,24 +893,16 @@ export function MyApprovals(): ReactElement {
         secondary={{ label: 'Keep', onClick: () => setBulkOpen(false) }}
       >
         <p>
-          They go to{' '}
           {plural(
             pickedItems.reduce((sum, i) => sum + i.recipientCount, 0),
             'collector',
-          )}{' '}
-          in total. Each one goes out on its own scheduled day.
+          )}
+          {pickedItems.some((i) => isOverdueApproval(i.send))
+            ? ` · ${pickedItems.filter((i) => isOverdueApproval(i.send)).length} overdue`
+            : ''}
         </p>
-        {pickedItems.some((i) => isOverdueApproval(i.send)) ? (
-          <p>
-            {plural(pickedItems.filter((i) => isOverdueApproval(i.send)).length, 'is', 'are')}{' '}
-            already overdue and will go out in the next send run.
-          </p>
-        ) : null}
         {blocked.length > 0 ? (
-          <Bar
-            tone="warn"
-            title={`${plural(blocked.length, 'send')} cannot be approved — no image picked`}
-          />
+          <Bar tone="warn" title={`${plural(blocked.length, 'send')} — no image`} />
         ) : null}
       </Dialog>
     </Page>

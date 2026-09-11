@@ -499,7 +499,9 @@ export function Dialog({
               <button
                 key={s.label}
                 type="button"
-                className={s.kind === 'link' ? 'rd-linkbtn rd-linkbtn-mut' : 'rd-chip'}
+                className={
+                  s.kind === 'link' ? 'rd-linkbtn rd-linkbtn-mut rd-footlink' : 'rd-chip'
+                }
                 onClick={s.onClick}
               >
                 {s.label}
@@ -507,7 +509,7 @@ export function Dialog({
             ))}
             {danger ? (
               <>
-                <span style={{ flex: 1 }} />
+                <span className="rd-footgap" />
                 <button type="button" className="rd-linkbtn rd-linkbtn-danger" onClick={danger.onClick}>
                   {danger.label}
                 </button>

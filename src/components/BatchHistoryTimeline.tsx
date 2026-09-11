@@ -19,7 +19,7 @@ import { Empty } from '../ui/rd';
  */
 export function BatchHistoryTimeline({ events }: { events: BatchEvent[] }): ReactElement {
   if (events.length === 0) {
-    return <Empty>Nothing has happened to this batch yet.</Empty>;
+    return <Empty>No history yet.</Empty>;
   }
 
   // Newest first, and each day's entries under one heading.

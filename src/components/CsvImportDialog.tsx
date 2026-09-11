@@ -20,7 +20,6 @@ import Field from '../rd/components/Field';
 export function CsvImportDialog({
   open,
   title,
-  hint,
   fileHint,
   wrongFile,
   onClose,
@@ -30,8 +29,6 @@ export function CsvImportDialog({
 }: {
   open: boolean;
   title: string;
-  /** One line: what this sheet is and what re-importing does. */
-  hint: ReactNode;
   fileHint: string;
   wrongFile: string;
   onClose: () => void;
@@ -96,13 +93,12 @@ export function CsvImportDialog({
       }
       secondary={
         summary
-          ? { label: 'Import', onClick: reset }
+          ? { label: 'Again', onClick: reset }
           : { label: 'Cancel', onClick: close }
       }
     >
       {summary ?? (
         <>
-          <p>{hint}</p>
           <label className="rd-importdrop">
             {fileName ? `Replace ${fileName}` : fileHint}
             <input
@@ -114,7 +110,7 @@ export function CsvImportDialog({
           {csvText ? null : (
             <div className="rd-fields">
               <Field
-                label="Or paste the CSV contents"
+                label="Paste CSV"
                 value={pasted}
                 onChange={setPasted}
                 multiline

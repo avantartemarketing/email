@@ -43,11 +43,7 @@ export function SlackFeed(): ReactElement {
           </Card>
         ) : feed.data.length === 0 ? (
           <Card>
-            <CardHead title="Nothing sent yet" />
-            <div className="rd-slackempty">
-              Messages appear when an email falls due to approve, a delay email needs writing, or
-              a delay notice is cancelled.
-            </div>
+            <CardHead title="Nothing yet" />
           </Card>
         ) : (
           <Card>

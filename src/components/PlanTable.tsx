@@ -139,7 +139,7 @@ export function PlanTable({
       columns={columns}
       rows={rows}
       rowKey={(r) => r.send.id}
-      empty="No sends planned yet — set a promise date to generate the milestone plan."
+      empty="No sends planned yet."
       foot={
         cancelled.length > 0
           ? `${cancelled.length} cancelled send${cancelled.length === 1 ? '' : 's'}`

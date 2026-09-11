@@ -20,9 +20,7 @@ export function ImportIssues({
       <Bar
         tone="fail"
         title={`${issues.length} row${issues.length === 1 ? '' : 's'} could not be read`}
-      >
-        Everything else was imported.
-      </Bar>
+      />
       <table className="rd-t rd-t27 rd-fit rd-importlist">
         <thead>
           <tr>

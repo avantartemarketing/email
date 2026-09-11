@@ -136,13 +136,13 @@ export function OrderIntakeDialog({
               void take(e.dataTransfer.files[0]);
             }}
           >
-            {fileName ? `Replace ${fileName}` : 'Choose the Shopify order export, or drop it here'}
+            {fileName ? `Replace ${fileName}` : 'Shopify order export — CSV'}
             <input type="file" onChange={(e) => void take(e.target.files?.[0])} />
           </label>
           {csv ? null : (
             <div className="rd-fields">
               <Field
-                label="Or paste the export"
+                label="Paste export"
                 value={pasted}
                 onChange={setPasted}
                 controlId={pasteId}
@@ -244,7 +244,7 @@ export function FileProductsTable({
     <>
       {products.length > 12 ? (
         <div className="rd-fields">
-          <Field label="Filter products" value={filter} onChange={setFilter} controlId={filterId} />
+          <Field label="Filter" value={filter} onChange={setFilter} controlId={filterId} />
         </div>
       ) : null}
       <table className="rd-t rd-t27 rd-fit rd-importlist">
@@ -304,7 +304,7 @@ export function FileProductsTable({
       </table>
       <Foot>
         {shown.total > shown.rows.length
-          ? `Showing ${shown.rows.length} of ${shown.total} products · filter to find one`
+          ? `${shown.rows.length} of ${shown.total} products`
           : `${tickedRows.length} of ${products.length} products ticked · ${foot}`}
       </Foot>
     </>

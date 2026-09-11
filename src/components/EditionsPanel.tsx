@@ -245,7 +245,7 @@ export function EditionsPanel({
               value:
                 release.editionSize !== null
                   ? release.editionSize
-                  : 'Not set — overruns unchecked',
+                  : 'Not set',
             },
           ]}
         />
@@ -273,7 +273,7 @@ export function EditionsPanel({
 
       {plan.notes.length > 0 ? (
         <Card>
-          <CardHead title={`${plural(plan.notes.length, 'thing')} to know`} />
+          <CardHead title="Notes" />
           <table className="rd-t rd-t27 rd-fit">
             <thead>
               <tr>
@@ -297,7 +297,7 @@ export function EditionsPanel({
 
       <Dialog
         open={clearing}
-        title="Clear all edition numbers?"
+        title="Clear numbers?"
         onClose={() => setClearing(false)}
         primary={{
           label: 'Clear',
@@ -307,7 +307,7 @@ export function EditionsPanel({
         }}
         secondary={{ label: 'Keep', onClick: () => setClearing(false) }}
       >
-        <Bar tone="warn" title="This clears the whole warehouse record">
+        <Bar tone="warn" title="Numbers and warehouse spec are both cleared">
           Edition numbers and the imported frame, glass and mounting spec all go; a fresh
           allocation starts from 1. To correct numbers instead, import a fresher sheet.
         </Bar>

@@ -60,14 +60,14 @@ export function PromiseDateModal({
       onClose={onClose}
       title={batchLabel ? `Set promise date — ${batchLabel}` : 'Set promise date'}
       primary={{
-        label: 'Set date',
+        label: 'Set',
         onClick: () => void save(),
         disabled: saving || !valid,
       }}
       secondary={{ label: 'Cancel', onClick: onClose }}
     >
       <div className="rd-fields">
-        <Field label="Promised dispatch date" value={date} controlId={dateId}>
+        <Field label="Dispatch date" value={date} controlId={dateId}>
           <input
             id={dateId}
             type="date"
@@ -77,7 +77,7 @@ export function PromiseDateModal({
           />
         </Field>
       </div>
-      {date && !valid ? <Bar tone="fail">The promise date must be in the future.</Bar> : null}
+      {date && !valid ? <Bar tone="fail" title="The date must be in the future" /> : null}
       {valid ? (
         <div className="rd-after">
           <div className="rd-after-t">What gets drafted</div>

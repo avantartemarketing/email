@@ -121,7 +121,7 @@ function Shell({
     async (userId: string) => {
       const user = await data.setCurrentUser(userId);
       setCurrentUser(user);
-      showToast(`Now working as ${user.name} — phase 2 replaces this with magic-link sign-in`);
+      showToast(`Working as ${user.name}`);
     },
     [data, showToast],
   );
@@ -314,7 +314,7 @@ function Shell({
                 real app, so it can never say something the product no longer
                 does — see Tour.tsx. */}
             <button type="button" className="rd-navrow" onClick={() => setTourOpen(true)}>
-              Take the tour
+              Tour
             </button>
           </div>
         </nav>
@@ -340,7 +340,6 @@ function Shell({
                 <span className="rd-barhere">{area}</span>
               )}
             </div>
-            <span style={{ flex: 1 }} />
             <Menu
               chipClass="rd-who"
               chip={
@@ -356,7 +355,7 @@ function Shell({
               heading="Working as"
               items={users.map((u) => ({
                 key: u.id,
-                label: `${u.id === currentUser.id ? '✓' : '  '}  ${u.name} · ${u.role}`,
+                label: `${u.name} · ${u.role}`,
                 on: u.id === currentUser.id,
               }))}
               onPick={(id) => {

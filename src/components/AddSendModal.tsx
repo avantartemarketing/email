@@ -9,7 +9,7 @@ import Field from '../rd/components/Field';
 import { SelectField } from '../rd/components/Picker';
 
 const TEMPLATE_OPTIONS = (Object.keys(TEMPLATE_LABELS) as TemplateRef[]).map((ref) => ({
-  label: `${TEMPLATE_LABELS[ref]} (${ref})`,
+  label: TEMPLATE_LABELS[ref],
   value: ref,
 }));
 

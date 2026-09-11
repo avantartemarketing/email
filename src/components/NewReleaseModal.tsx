@@ -166,9 +166,7 @@ export function NewReleaseModal({
     ticked.size === 0
       ? 'Tick at least one product.'
       : artists.length > 1
-        ? `Tick one artist — ${twoArtists[0]?.name} and ${
-            twoArtists.find((a) => a.artistCode === artists[1])?.name
-          } are different artists.`
+        ? 'Two artists ticked.'
         : clash
           ? `“${clash.lineItemTitle}” already belongs to ${clash.releaseTitle}.`
           : !artist.trim()
@@ -304,14 +302,14 @@ export function NewReleaseModal({
   const dateFieldFor = (b: ImportBatchPreview): ReactElement => (
     <Field
       key={b.key}
-      label={previews.length > 1 ? `${b.name} — promised dispatch date` : 'Promised dispatch date'}
+      label={previews.length > 1 ? `${b.name} — dispatch date` : 'Dispatch date'}
       value={dates[b.key] ?? ''}
       controlId={`${dateId}-${b.key}`}
       note={
         /* Facts, not help: the batch's size, and — once a date lands — the
            window a collector will read. */
         b.promiseDate && b.promiseDate >= tomorrow
-          ? `${plural(b.orders, 'order')} · collectors read ${shipWindowShort(b.promiseDate)}`
+          ? `${plural(b.orders, 'order')} · ${shipWindowShort(b.promiseDate)}`
           : plural(b.orders, 'order')
       }
     >
@@ -361,8 +359,7 @@ export function NewReleaseModal({
         <>
           {clash ? (
             <Bar tone="fail" title={`“${clash.lineItemTitle}” is already claimed`}>
-              {clash.releaseTitle} — {plural(clash.orderCount, 'order')}. Add these orders to it
-              instead.
+              {clash.releaseTitle} — {plural(clash.orderCount, 'order')}
               <div className="rd-baracts">
                 <button
                   type="button"
@@ -379,8 +376,7 @@ export function NewReleaseModal({
           ) : artists.length > 1 ? (
             <Bar tone="fail" title="Two artists are ticked">
               {twoArtists[0]?.name} and{' '}
-              {twoArtists.find((a) => a.artistCode === artists[1])?.name}. A release is one
-              artist — create one, then add the other from its own page.
+              {twoArtists.find((a) => a.artistCode === artists[1])?.name}
             </Bar>
           ) : null}
 
@@ -478,11 +474,11 @@ export function NewReleaseModal({
                 value={shipTogether ? 'together' : 'split'}
                 options={[
                   {
-                    label: `Framed and unframed ship separately — Framed ${fulfilmentCounts.framed} · Unframed ${fulfilmentCounts.unframed}`,
+                    label: `Separately — Framed ${fulfilmentCounts.framed} · Unframed ${fulfilmentCounts.unframed}`,
                     value: 'split',
                   },
                   {
-                    label: `Everything ships together — one batch of ${plan.create.length}`,
+                    label: `Together — one batch of ${plan.create.length}`,
                     value: 'together',
                   },
                 ]}
@@ -498,7 +494,7 @@ export function NewReleaseModal({
               previews.map(dateFieldFor)
             )}
           </div>
-          {badDate ? <Bar tone="fail">The promise date must be in the future.</Bar> : null}
+          {badDate ? <Bar tone="fail" title="The date must be in the future" /> : null}
 
           <div className="rd-grouphd">What this will send</div>
           {preview.emailsQueued > 0 ? (
@@ -517,7 +513,7 @@ export function NewReleaseModal({
                 /* The state alone — the owner, 8 Sep 2026: "Remove ALL helper
                    copy." What a missing date means is the batch screen's to
                    say when somebody gets there. */
-                <Bar tone="warn" title={`${undated[0].name} has no date — its emails are not counted yet`} />
+                <Bar tone="warn" title={`${undated[0].name} has no date`} />
               ) : null}
             </>
           ) : (

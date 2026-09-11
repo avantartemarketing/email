@@ -323,8 +323,12 @@ export function DataTable<T>({
 
   return (
     <Card>
-      {title || headActions ? <CardHead title={title ?? ''} actions={headActions} /> : null}
-      <div style={{ padding: '0 var(--rd-card-inset)' }}>
+      {/* A table under a tab strip needs no head — the tab already named it —
+          but it may still owe a count. Without a title that count used to get
+          a head row of its own: an empty bar with one grey caption floated at
+          the far right of it. It rides the toolbar instead. */}
+      {title ? <CardHead title={title} actions={headActions} /> : null}
+      <div className="rd-tablebar">
         <ViewControls
           fields={fields}
           rows={rows}
@@ -333,6 +337,7 @@ export function DataTable<T>({
           searchPlaceholder={searchPlaceholder ?? `Search ${noun}s`}
           fieldsMenu={fieldsMenu}
         />
+        {!title && headActions ? <span className="rd-tablebarend">{headActions}</span> : null}
       </div>
       <div className="rd-scroll">
         <table
@@ -367,7 +372,7 @@ export function DataTable<T>({
                  blank without explaining is a table somebody reloads. */
               <tr>
                 <td className="rd-prose" colSpan={span}>
-                  Nothing matches the filters on this table. Remove a chip above to see more.
+                  Nothing matches.
                 </td>
               </tr>
             ) : grouping ? (

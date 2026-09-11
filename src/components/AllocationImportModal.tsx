@@ -41,10 +41,9 @@ export function AllocationImportModal({
   return (
     <CsvImportDialog
       open={open}
-      title={`Import warehouse allocation — ${release.title}`}
-      hint="The validation rows above the header are skipped automatically, and re-importing a fresher sheet replaces what is here — the sheet stays the warehouse's source of truth."
-      fileHint="Choose the allocation sheet as CSV, or drop it here"
-      wrongFile="That file type is not accepted — upload the allocation sheet as CSV"
+      title={`Allocation — ${release.title}`}
+      fileHint="Allocation sheet — CSV"
+      wrongFile="Not a CSV"
       onClose={onClose}
       onRun={run}
       onReset={() => setSummary(null)}
@@ -66,8 +65,7 @@ export function AllocationImportModal({
             {summary.unmatchedOrderNumbers.length > 0 ? (
               <Bar tone="note" title="Not found here">
                 {summary.unmatchedOrderNumbers.slice(0, 8).join(', ')}
-                {summary.unmatchedOrderNumbers.length > 8 ? ', …' : ''}. They belong to another
-                release, or their orders have not been imported yet.
+                {summary.unmatchedOrderNumbers.length > 8 ? ', …' : ''}
               </Bar>
             ) : null}
             <ImportIssues issues={summary.issues} />

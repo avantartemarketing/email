@@ -160,7 +160,7 @@ export function PromiseDateOverview(): ReactElement {
           table="promise-overview"
           noun="batch"
           nounPlural="batches"
-          searchPlaceholder="Search releases and batches"
+          searchPlaceholder="Search"
           columns={columns}
           rows={rows}
           rowKey={(r) => r.batch.id}
@@ -174,13 +174,13 @@ export function PromiseDateOverview(): ReactElement {
             )
           }
           defaultView={{ group: 'release' }}
-          empty="No releases yet — import a release's orders and its batches appear here."
+          empty="No releases yet."
           /* A count, and nothing else. What used to follow it — "a release
              with one batch never mentions it, the dash is that batch" — was
              the page explaining its own convention, which is the helper text
              the owner asked to be rid of. Nothing under an empty table
              either: the empty state is written for that. */
-          foot={rows.length > 0 ? `across ${plural(releaseCount, 'release')}` : undefined}
+          foot={rows.length > 0 ? plural(releaseCount, 'release') : undefined}
         />
       )}
     </Page>

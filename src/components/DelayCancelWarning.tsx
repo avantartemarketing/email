@@ -16,10 +16,11 @@ import { Bar } from '../ui/rd';
 export function DelayCancelWarning({ send }: { send: ScheduledSend }): ReactElement | null {
   if (send.type !== 'delay') return null;
   return (
-    <Bar tone="warn" title="The delivery date has already changed">
-      These collectors have been moved to{' '}
-      {send.brief ? shipWindowShort(send.brief.newPromiseDate) : 'a new date'}. Cancelling means
-      they are never told, and their next email will be a milestone written against the new date.
-    </Bar>
+    <Bar
+      tone="warn"
+      title={`Delivery date already moved to ${
+        send.brief ? shipWindowShort(send.brief.newPromiseDate) : 'a new date'
+      }`}
+    />
   );
 }

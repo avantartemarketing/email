@@ -27,20 +27,12 @@ import { Bar } from '../ui/rd';
  */
 export function IntakeNotes({ notes }: { notes: IntakeNote[] }): ReactElement | null {
   if (notes.length === 0) return null;
-  const outside = notes.filter(
-    (n) => n.kind === 'no_email' || n.kind === 'no_collector_name' || n.kind === 'not_paid',
-  ).length;
   return (
     <>
       <Bar
         tone="note"
-        title={`${notes.length} thing${notes.length === 1 ? '' : 's'} to check in this file`}
-      >
-        None of these stop the import.
-        {outside > 0
-          ? ` ${outside === 1 ? 'One needs' : `${outside} need`} a fix outside this tool.`
-          : ''}
-      </Bar>
+        title={`${notes.length} thing${notes.length === 1 ? '' : 's'} to check`}
+      />
       <table className="rd-t rd-t27 rd-fit rd-importlist">
         <thead>
           <tr>

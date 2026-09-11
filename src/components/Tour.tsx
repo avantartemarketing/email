@@ -162,8 +162,7 @@ export function Tour({ open, onClose }: { open: boolean; onClose: () => void }):
           <div className="rd-tourcap">
             <div className="rd-tourtitle">Take the tour</div>
             <div className="rd-tourtext">
-              Pick a guide. Each one works the real app step by step and explains what it is
-              doing. It is all demo data — refresh the page to undo anything the tour changes.
+              Demo data — refresh to undo anything the tour changes.
             </div>
           </div>
           <div className="rd-tourpaths">

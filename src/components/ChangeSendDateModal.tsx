@@ -188,8 +188,8 @@ export function ChangeSendDateModal({
          an email still due inside the horizon never left. */
       onMoved(
         needsApprovingNow({ status: 'pending_approval', scheduledDate: date })
-          ? `Moved to ${formatDayShort(date)} — still waiting for approval`
-          : `Moved to ${formatDayShort(date)} — it comes back up for approval nearer the time`,
+          ? `Moved to ${formatDayShort(date)} — to approve`
+          : `Moved to ${formatDayShort(date)}`,
       );
     } catch (err) {
       showToast(err instanceof Error ? err.message : String(err), true);
@@ -240,21 +240,21 @@ export function ChangeSendDateModal({
               not also need to hear that it is out of order. Every one of these
               shuts or qualifies a control, which is the rule they exist for. */}
           {past ? (
-            <Bar tone="warn" title="That date has already passed">Pick today or later.</Bar>
+            <Bar tone="warn" title="That date has passed" />
           ) : breached && ceiling ? (
             <Bar
               tone="warn"
               title={
                 isDispatch
-                  ? 'The dispatch email cannot go out after the window opens'
+                  ? 'Later than the promised window'
                   : ceiling.source === 'dispatch'
-                    ? 'An update cannot land after the dispatch email'
-                    : 'An update cannot land after the promised window opens'
+                    ? 'Later than the dispatch email'
+                    : 'Later than the promised window'
               }
             >
               {ceiling.source === 'dispatch'
-                ? `The dispatch email goes out ${formatDayShort(ceiling.date)}. `
-                : `Collectors were promised dispatch from ${formatDayShort(ceiling.date)}. `}
+                ? `Dispatch email ${formatDayShort(ceiling.date)}`
+                : `Promised from ${formatDayShort(ceiling.date)}`}
               {onPivot ? (
                 <div className="rd-baracts">
                   <button type="button" className="rd-chip" onClick={onPivot}>
@@ -264,21 +264,17 @@ export function ChangeSendDateModal({
               ) : null}
             </Bar>
           ) : clashesWith ? (
-            <Bar tone="warn" title="This would arrive out of order">
+            <Bar tone="warn" title="Out of order">
               “{TEMPLATE_LABELS[clashesWith.send.templateRef]}” goes out{' '}
-              {formatDayShort(clashesWith.send.scheduledDate)} — this email would land{' '}
-              {date === clashesWith.send.scheduledDate
-                ? 'the same day'
-                : clashesWith.after
-                  ? 'after it'
-                  : 'before it'}
-              , telling the story out of sequence. Allowed, but check that is what you mean.
+              {formatDayShort(clashesWith.send.scheduledDate)}
             </Bar>
           ) : crowded && nearest !== null ? (
-            <Bar tone="warn" title="Two emails close together">
-              These collectors get another email within{' '}
-              {nearest === 0 ? 'the same day' : plural(nearest, 'day')} of this one.
-            </Bar>
+            <Bar
+              tone="warn"
+              title={`Another email within ${
+                nearest === 0 ? 'the same day' : plural(nearest, 'day')
+              }`}
+            />
           ) : null}
         </>
       ) : null}

@@ -70,7 +70,7 @@ export function SendDetail(): ReactElement {
         showToast('Approved — queued');
       } else {
         await data.cancelSend(send.id);
-        showToast('Send cancelled');
+        showToast('Cancelled');
         setConfirmingCancel(false);
       }
       detail.reload();
@@ -97,9 +97,9 @@ export function SendDetail(): ReactElement {
         sendId: '—',
         failed: !o.email || !o.hubspotContactId,
         error: !o.email
-          ? 'No email address on the order'
+          ? 'No email address'
           : !o.hubspotContactId
-            ? 'No HubSpot contact — will fail unless resolved'
+            ? 'No HubSpot contact'
             : undefined,
       }));
 
@@ -241,12 +241,12 @@ export function SendDetail(): ReactElement {
             can reconstruct from the email itself. */}
         <DelayReason brief={send.brief} />
         {send.status === 'awaiting_copy' ? (
-          <Bar tone="note" title="Waiting for the CRM team to write it" />
+          <Bar tone="note" title="Waiting for copy" />
         ) : null}
         {failures.length > 0 ? (
           <Bar
             tone="fail"
-            title={`${plural(failures.length, 'recipient')} could not be delivered`}
+            title={`${plural(failures.length, 'recipient')} failed`}
           />
         ) : null}
 
@@ -274,12 +274,12 @@ export function SendDetail(): ReactElement {
           title={
             sent
               ? `Recipients (${recipientRows.length})`
-              : `Will send to ${plural(recipientRows.length, 'collector')} currently in ${batch.name}`
+              : `Will send to ${plural(recipientRows.length, 'collector')}`
           }
           columns={recipientColumns}
           rows={recipientRows}
           rowKey={(r) => r.key}
-          empty="No recipients — every order in this batch has been removed."
+          empty="No recipients."
         />
       </div>
 
@@ -291,7 +291,7 @@ export function SendDetail(): ReactElement {
           batch.promiseDate
             ? {
                 date: batch.promiseDate,
-                says: `Nothing can land after the promised window opens on ${formatDayShort(batch.promiseDate)}.`,
+                says: `Window opens ${formatDayShort(batch.promiseDate)}.`,
               }
             : null
         }
@@ -305,7 +305,7 @@ export function SendDetail(): ReactElement {
         secondary={{ label: 'Keep', onClick: () => setConfirmingCancel(false) }}
       >
         <DelayCancelWarning send={send} />
-        <p>It will not go out. Scheduled for {formatDay(send.scheduledDate)}.</p>
+        <p>Scheduled for {formatDay(send.scheduledDate)}.</p>
       </Dialog>
     </Page>
   );

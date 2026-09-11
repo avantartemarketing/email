@@ -104,10 +104,7 @@ export function RescheduleModal({
           : 'Delivery rescheduled';
       reset();
       onDone(
-        `${what} — CRM notified to write the delay email · ${plural(
-          result.regeneratedSends.length,
-          'milestone',
-        )} pending approval`,
+        `${what} — CRM notified · ${plural(result.regeneratedSends.length, 'milestone')} to approve`,
       );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -150,10 +147,7 @@ export function RescheduleModal({
         title={batchLabel ? `Change delivery date — ${batchLabel}` : 'Change delivery date'}
         secondary={{ label: 'Close', onClick: close }}
       >
-        <Bar tone="note" title={`${groupName} has no promise date yet`}>
-          Set the first date with <b>Set date</b> on{' '}
-          {batchLabel ? `the ${batchLabel} batch` : 'the Overview tab'}.
-        </Bar>
+        <Bar tone="note" title={`${groupName} has no promise date yet`} />
       </Dialog>
     );
   }
@@ -185,16 +179,16 @@ export function RescheduleModal({
       {selectedOrders.length === 0 ? (
         <Bar tone="fail">No orders selected.</Bar>
       ) : isSubset ? (
-        <Bar tone="note" title={`This selection splits ${groupName}`}>
-          It gets its own promise date and comms plan; the{' '}
-          {batchActiveOrderCount - selectedOrders.length} remaining order
-          {batchActiveOrderCount - selectedOrders.length === 1 ? ' keeps' : 's keep'} the current
-          plan.
-        </Bar>
+        <Bar
+          tone="note"
+          title={`Splits ${groupName} — ${
+            batchActiveOrderCount - selectedOrders.length
+          } stay on the current plan`}
+        />
       ) : null}
       <div className="rd-fields">
         <Field
-          label="New promised delivery date"
+          label="New date"
           value={newDate}
           controlId={dateId}
           note={batch.promiseDate ? `now ${formatDay(batch.promiseDate)}` : 'not set yet'}
@@ -208,7 +202,7 @@ export function RescheduleModal({
           />
         </Field>
         <Field
-          label="Reason for the change"
+          label="Reason"
           value={reason}
           onChange={setReason}
           multiline
@@ -219,13 +213,11 @@ export function RescheduleModal({
       </div>
       {dateError ? <Bar tone="fail">{dateError}</Bar> : null}
       {!isLaterThanCurrent && dateValid ? (
-        <Bar tone="warn" title="The new date is earlier than the current promise">
-          The delay template assumes bad news — say so in the reason.
-        </Bar>
+        <Bar tone="warn" title="Earlier than the current promise" />
       ) : null}
       {dateValid && reason.trim() ? (
         <div className="rd-after">
-          <div className="rd-after-t">What happens when you save</div>
+          <div className="rd-after-t">What this does</div>
           <Facts
             items={[
               { label: 'Delay email to', value: plural(selectedOrders.length, 'collector') },

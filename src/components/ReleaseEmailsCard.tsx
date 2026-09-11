@@ -8,7 +8,6 @@ import type {
   TemplateRef,
 } from '../types';
 import {
-  MASTER_TEMPLATES,
   TEMPLATE_LABELS,
   buildTemplateFields,
   effectiveTemplate,
@@ -228,11 +227,11 @@ export function ReleaseEmailsPanel({
         !row.copyRow ? null : release.templateOverrides[row.ref] ? 'Customised' : 'Default',
       cell: (row) =>
         !row.copyRow ? (
-          <span className="rd-none">Shares On track copy</span>
+          <span className="rd-none">Shared</span>
         ) : release.templateOverrides[row.ref] ? (
           <Pill tone="blue">Customised</Pill>
         ) : (
-          <Pill tone="grey">Default</Pill>
+          <None />
         ),
     },
     {
@@ -260,19 +259,19 @@ export function ReleaseEmailsPanel({
         if (!row.copyRow) return null;
         return (
           <div className="rd-rowacts">
-            {!disabled ? <RowAct onClick={() => setEditingRef(row.ref)}>Edit</RowAct> : null}
             {canToggle ? (
               disabled ? (
                 /* Switching back on is not the mirror of switching off: no
                    cancelled send returns, so the row says so rather than
                    letting somebody expect one. */
-                <Why says="Future plans will include it again. Sends already cancelled do not come back.">
+                <Why says="Cancelled sends do not come back.">
                   <RowAct onClick={() => void toggle(row.ref, true)}>Switch on</RowAct>
                 </Why>
               ) : (
                 <RowAct onClick={() => setSwitchingOff(row.ref)}>Switch off</RowAct>
               )
             ) : null}
+            {!disabled ? <RowAct onClick={() => setEditingRef(row.ref)}>Edit</RowAct> : null}
           </div>
         );
       },
@@ -285,18 +284,17 @@ export function ReleaseEmailsPanel({
     <>
       <DataTable
         table="release-emails"
-        title="Emails for this release"
         noun="email"
-        searchPlaceholder="Search these emails"
+        searchPlaceholder="Search"
         columns={columns}
         rows={rows}
         rowKey={(row) => row.slot}
-        empty="This release sends no emails."
+        empty="No emails."
         /* Shown finished as well as unfinished. A caption that only appears
            while something is wrong never tells you the job is done. */
         headActions={
           <span className="rd-none">
-            {`Images: ${slots.length - missing.length} of ${slots.length} picked`}
+            {`Images ${slots.length - missing.length} of ${slots.length}`}
           </span>
         }
       />
@@ -337,16 +335,14 @@ export function ReleaseEmailsPanel({
         }}
         secondary={{ label: 'Keep', onClick: () => setSwitchingOff(null) }}
       >
-        <Bar tone="warn" title="It drops out of every future plan for this release">
-          {offReach.sends > 0
-            ? `${plural(offReach.sends, 'queued send')} across ${plural(
-                offReach.batches,
-                'batch',
-                'batches',
-              )} will be cancelled, and other emails stop promising the stage. `
-            : 'No sends are queued for it yet. '}
-          Switching it back on later does not bring cancelled sends back.
-        </Bar>
+        <Bar
+          tone="warn"
+          title={
+            offReach.sends > 0
+              ? `${plural(offReach.sends, 'queued send')} cancelled`
+              : 'No sends queued for it'
+          }
+        />
       </Dialog>
     </>
   );
@@ -471,7 +467,7 @@ function ReleaseEmailEditModal({
       onClose={onClose}
       title={
         templateRef
-          ? `${TEMPLATE_LABELS[templateRef]} — release copy (${MASTER_TEMPLATES[templateRef].name})`
+          ? `${TEMPLATE_LABELS[templateRef]} — copy`
           : ''
       }
       primary={{
@@ -486,16 +482,8 @@ function ReleaseEmailEditModal({
     >
       <Bar
         tone="note"
-        title={
-          isDelay
-            ? 'Pre-fills every future delay email for this release'
-            : 'Applies to every batch of this release'
-        }
-      >
-        {isDelay
-          ? 'Delay notices are written per reschedule; this copy is their starting point.'
-          : `Upcoming sends built from this email are re-rendered; approved ones return to the approval queue. Sends someone edited by hand keep their words, and tokens like {{ship_window}} are filled per batch.`}
-      </Bar>
+        title={isDelay ? 'Pre-fills future delay emails' : 'Applies to every batch'}
+      />
       <div className="rd-fields">
         <Field label="Subject" value={subject} onChange={setSubject} />
         <Field label="Headline" value={headline} onChange={setHeadline} />
@@ -507,7 +495,7 @@ function ReleaseEmailEditModal({
           token into the body at the cursor. Filtered per template: the delay
           email's two are meaningless on a milestone, and the craft line
           belongs to Production alone. */}
-      <div className="rd-grouphd">Tokens — click to add</div>
+      <div className="rd-grouphd">Tokens</div>
       <table className="rd-t rd-t27 rd-fit">
         <thead>
           <tr>

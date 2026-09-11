@@ -114,7 +114,7 @@ export function ImagePicker({
       </div>
 
       <label className="rd-importdrop">
-        {uploading ? 'Reading the file…' : 'Upload an image, or drop one here'}
+        {uploading ? 'Reading…' : 'Upload or drop an image'}
         <input
           ref={file}
           type="file"
@@ -123,7 +123,7 @@ export function ImagePicker({
         />
       </label>
 
-      <Bar tone="note" title="The hatched tiles have no picture to show yet">
+      <Bar tone="note" title="Hatched tiles have no file here">
         Those names live in HubSpot's own library, so there is no file here to draw — anything you
         upload shows its picture.
       </Bar>

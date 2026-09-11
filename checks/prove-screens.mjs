@@ -948,11 +948,11 @@ await screen('my approvals', async () => {
   await page.getByRole('button', { name: /Change date/ }).first().click()
   await page.getByRole('dialog').waitFor()
   const future = new Date(2027, 0, 15).toISOString().slice(0, 10)
-  await page.getByLabel('New promised delivery date').fill(future)
-  await page.getByLabel('Reason for the change').fill('Checking the foot stays reachable')
+  await page.getByLabel('New date').fill(future)
+  await page.getByLabel('Reason').fill('Checking the foot stays reachable')
   /* No second step to click through any more: the consequence panel is the
      answer to a filled-in form, on the same panel. */
-  await page.getByText('What happens when you save').waitFor()
+  await page.getByText('What this does').waitFor()
   await page.waitForTimeout(250)
   const handoff = await page.evaluate(
     () => document.querySelector('.rd-dialog .rd-after')?.textContent ?? '',
@@ -993,7 +993,7 @@ await screen('my approvals', async () => {
 {
   const what = 'guided tour'
   await page.goto(`${BASE}/`, { waitUntil: 'networkidle' })
-  await page.locator('.rd-navrow', { hasText: 'Take the tour' }).click()
+  await page.locator('.rd-navrow', { hasText: 'Tour' }).click()
   await page.locator('.rd-tour').waitFor({ timeout: 4000 })
 
   /* The chooser: four paths, exactly — the owner split the tour by job, and

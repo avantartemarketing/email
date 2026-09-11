@@ -34,15 +34,15 @@
 .rd-railnav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 6px 10px;
+  gap: var(--rd-gap-inner);
+  padding: var(--rd-gap-tight) var(--rd-gap-tight);
 }
 .rd-navrow {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--rd-gap-inner);
   height: var(--rd-tab-h);
-  padding: 0 10px;
+  padding: 0 var(--rd-gap-tight);
   border: 1px solid transparent;
   border-radius: var(--rd-radius-control);
   background: none;
@@ -65,10 +65,10 @@
 .rd-navhead {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--rd-gap-inner);
   height: var(--rd-tab-h);
-  margin-top: 8px;
-  padding: 0 10px;
+  margin-top: var(--rd-card-gap); /* 8px until 11 Sep 2026 — groups need air between them */
+  padding: 0 var(--rd-gap-tight);
   border: 1px solid transparent;
   border-radius: var(--rd-radius-control);
   background: none;
@@ -84,7 +84,7 @@
 }
 /* A child row sits inside its group: indented, one step quieter. */
 .rd-navrow.rd-navsub {
-  padding-left: 22px;
+  padding-left: calc(var(--rd-gap-tight) * 2);
 }
 .rd-navrow.on {
   background: var(--rd-card);
@@ -166,13 +166,14 @@
 .rd-head {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin: 2px 2px 12px;
+  gap: var(--rd-gap-tight);
+  /* No side inset: the title starts where the cards below it start. */
+  margin: 2px 0 var(--rd-card-gap);
 }
 .rd-head .rd-headacts {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--rd-gap-tight);
   margin-left: auto;
 }
 /* Every control in the head row is one height whatever its fill — ruling 89j,
@@ -192,8 +193,8 @@
 .rd-subhead {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin: -8px 2px 14px;
+  gap: var(--rd-gap); /* 7px until 11 Sep 2026 — four facts on one line were touching */
+  margin: -14px 0 var(--rd-card-gap);
   font: var(--rd-weight-body) var(--rd-size-head) / 1.2 var(--rd-font-text);
   color: var(--rd-ink-muted);
 }
@@ -217,11 +218,31 @@
 }
 /* A card's head row: its name on the left, its own controls on the right, at
    the same single control height the page head uses. */
+/* A table's toolbar row, inside the card. It was an inline
+   `style={{padding:'0 var(--rd-card-inset)'}}` until 11 Sep 2026 — side
+   padding only, which was invisible while every table had a card head above
+   it and became a toolbar jammed against the card's top edge the moment the
+   duplicated heads came off. */
+.rd-tablebar {
+  display: flex;
+  align-items: center;
+  gap: var(--rd-gap);
+  padding: var(--rd-gap) var(--rd-card-inset) 0;
+}
+/* What a head-less table's count rides on: the far end of the toolbar. */
+.rd-tablebarend {
+  margin-left: auto;
+  flex: none;
+}
+/* With a head above it the head has already paid for the space. */
+.rd-cardhead + .rd-tablebar {
+  padding-top: 0;
+}
 .rd-cardhead {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 11px var(--rd-card-inset) 9px;
+  gap: var(--rd-gap-tight);
+  padding: var(--rd-card-inset) var(--rd-card-inset) var(--rd-gap);
 }
 .rd-cardhead .rd-sechead {
   padding: 0;
@@ -229,7 +250,7 @@
 .rd-cardacts {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--rd-gap-tight);
   margin-left: auto;
 }
 .rd-cardacts .rd-chip {
@@ -316,22 +337,25 @@
 .rd-dialoghd {
   position: sticky;
   top: 0;
-  z-index: 1;
+  /* Above a table's own sticky header, which is 8. A dialogue holding a table
+     — Changes from the shop, bulk cancel — had its title scrolled under by
+     the table's header row. */
+  z-index: 9;
   background: var(--rd-card);
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 24px 24px 12px; /* opened up 8 Sep 2026 — "spacing is generous" */
+  gap: var(--rd-gap-tight);
+  padding: var(--rd-dialog-inset) var(--rd-dialog-inset) var(--rd-gap); /* opened up again 11 Sep 2026 */
   font: var(--rd-weight-emphasis) var(--rd-size-hero) / 1.3 var(--rd-font-display);
   color: var(--rd-ink);
 }
 .rd-dialogbody {
-  padding: 12px 24px 8px; /* opened up 8 Sep 2026 — "spacing is generous" */
+  padding: var(--rd-gap) var(--rd-dialog-inset) var(--rd-card-gap); /* opened up again 11 Sep 2026 */
   font: var(--rd-weight-body) var(--rd-size-cell) / 1.5 var(--rd-font-text);
   color: var(--rd-ink-body);
 }
 .rd-dialogbody p {
-  margin: 0 0 10px;
+  margin: 0 0 var(--rd-gap-tight);
 }
 .rd-dialogbody p:last-child {
   margin-bottom: 0;
@@ -373,11 +397,11 @@
 .rd-fields {
   display: flex;
   flex-direction: column;
-  gap: 14px; /* opened up 8 Sep 2026 — "spacing is generous" */
+  gap: var(--rd-gap-wide); /* opened up again 11 Sep 2026 */
 }
 .rd-fieldrow {
   display: flex;
-  gap: 14px;
+  gap: var(--rd-gap);
 }
 .rd-fieldrow > * {
   flex: 1;
@@ -396,9 +420,9 @@
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--rd-gap);
   max-width: 560px;
-  padding: 10px 14px;
+  padding: var(--rd-gap-tight) var(--rd-gap);
   border-radius: var(--rd-radius-float);
   background: var(--rd-ink);
   color: var(--rd-card);
@@ -490,7 +514,7 @@
 .rd-rowacts {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--rd-gap);
   justify-content: flex-end;
 }
 .rd-rowact {
@@ -516,7 +540,7 @@
 /* An empty table's sentence, and an empty screen's. The kit gives the cell its
    `white-space: normal`; this gives the line its ink and its room. */
 .rd-empty {
-  padding: 26px var(--rd-card-inset);
+  padding: var(--rd-gap-room) var(--rd-card-inset);
   font: var(--rd-weight-body) var(--rd-size-cell) / 1.5 var(--rd-font-text);
   color: var(--rd-ink-muted);
   text-align: center;
@@ -526,7 +550,7 @@
    in for — not a spinner, which says "wait" without saying what for. */
 .rd-skelrow {
   height: 11px;
-  margin: 9px var(--rd-card-inset);
+  margin: var(--rd-gap-tight) var(--rd-card-inset);
   border-radius: var(--rd-radius-meter);
   background: var(--rd-track);
   animation: rd-skel var(--rd-dur-draw) var(--rd-ease) infinite alternate;
@@ -650,8 +674,8 @@
 .rd-imggrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
-  gap: 10px;
-  margin: 4px 0 12px;
+  gap: var(--rd-gap-tight);
+  margin: var(--rd-gap-inner) 0 var(--rd-gap);
 }
 .rd-imgtile {
   display: block;
@@ -797,9 +821,9 @@
 .rd-pickrow {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: var(--rd-gap);
   width: 100%;
-  padding: 9px 12px;
+  padding: var(--rd-gap-tight) var(--rd-gap);
   border: 1px solid var(--rd-border);
   border-radius: var(--rd-radius-control);
   background: var(--rd-card);
@@ -832,15 +856,22 @@
 .rd-headrow {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
+  gap: var(--rd-gap);
 }
 .rd-headrow .rd-kband {
   flex: 1;
   min-width: 0;
   margin-bottom: 0;
   /* As many as there are, not always three: a batch answers three questions
-     and a release could answer four. */
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+     and a release could answer four.
+
+     The upper bound is the 11 Sep 2026 fix. `1fr` with no cap meant two KPIs
+     on a 1520px screen each grew to 600px — two enormous boxes holding one
+     figure and a six-word note, with 500px of white inside each. A figure
+     does not get wider by being important. They now grow to 300 and stop,
+     and the band packs from the left. */
+  grid-template-columns: repeat(auto-fit, minmax(190px, 300px));
+  justify-content: start;
 }
 .rd-headrow .rd-headacts {
   margin-left: 0;
@@ -899,7 +930,7 @@
   pointer-events: auto;
 }
 .rd-tourcap {
-  padding: 14px 16px 10px;
+  padding: var(--rd-gap) var(--rd-gap) var(--rd-gap-tight);
 }
 .rd-tourtitle {
   font-size: var(--rd-size-section);
@@ -916,7 +947,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px 12px;
+  padding: var(--rd-gap-tight) var(--rd-gap);
   border-top: 1px solid var(--rd-hairline-row);
 }
 .rd-tourcount {
@@ -940,10 +971,10 @@
 }
 .rd-slackrow {
   display: flex;
-  gap: 12px;
+  gap: var(--rd-gap);
   align-items: flex-start;
   text-align: left;
-  padding: 10px 2px;
+  padding: var(--rd-gap) var(--rd-card-inset);
   border: 0;
   border-bottom: 1px solid var(--rd-hairline-row);
   background: none;
@@ -967,13 +998,13 @@
 .rd-slackbody {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--rd-gap-inner);
   min-width: 0;
 }
 .rd-slackhead {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--rd-gap-tight);
 }
 .rd-slackmention {
   font-size: var(--rd-size-caption);
@@ -992,7 +1023,7 @@
 .rd-slackempty {
   font-size: var(--rd-size-field);
   color: var(--rd-ink-muted);
-  padding: 4px 0 8px;
+  padding: var(--rd-gap-tight) 0;
 }
 
 /* The chooser: one button per path, name over blurb — the same pickrow
@@ -1000,15 +1031,15 @@
 .rd-tourpaths {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 0 16px 12px;
+  gap: var(--rd-gap-inner);
+  padding: 0 var(--rd-gap) var(--rd-gap);
 }
 .rd-tourpath {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--rd-gap-inner);
   text-align: left;
-  padding: 8px 10px;
+  padding: var(--rd-gap-tight) var(--rd-gap);
   border: 1px solid var(--rd-border);
   border-radius: var(--rd-radius-control);
   background: var(--rd-card);

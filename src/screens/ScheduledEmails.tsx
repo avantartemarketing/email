@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { PendingSendItem } from '../types';
 import { daysBetween, formatDayShort, today } from '../logic/dates';
-import { TEMPLATE_LABELS, sendStatusBadge } from '../ui/format';
+import { TEMPLATE_LABELS, sendStatusBadge, subjectInTable } from '../ui/format';
 import { useApp } from '../ui/AppContext';
 import { Cap, None, Page, Tag } from '../ui/rd';
 import { DataTable } from '../ui/DataTable';
@@ -39,7 +39,14 @@ export function ScheduledEmails(): ReactElement {
       n: true,
       kind: 'number',
       value: (i) => daysBetween(today(), i.send.scheduledDate),
-      cell: (i) => daysBetween(today(), i.send.scheduledDate),
+      /* Past dates render blank rather than "-6": the Status cell beside it
+         already says Overdue, and a negative count in a column headed "Days
+         away" is a figure the reader has to translate before it means
+         anything. Sorting still runs on the signed value above. */
+      cell: (i) => {
+        const away = daysBetween(today(), i.send.scheduledDate);
+        return away < 0 ? <None /> : away;
+      },
     },
     {
       id: 'email',
@@ -50,7 +57,6 @@ export function ScheduledEmails(): ReactElement {
       cell: (i) => (
         <span className="rd-ink">
           {TEMPLATE_LABELS[i.send.templateRef]}
-          {i.send.type === 'delay' ? ' (delay)' : ''}
         </span>
       ),
     },
@@ -77,8 +83,8 @@ export function ScheduledEmails(): ReactElement {
       id: 'subject',
       title: 'Subject',
       kind: 'text',
-      value: (i) => i.send.subject,
-      cell: (i) => <Cap>{i.send.subject}</Cap>,
+      value: (i) => subjectInTable(i.send.subject),
+      cell: (i) => <Cap>{subjectInTable(i.send.subject)}</Cap>,
     },
     {
       id: 'release',
@@ -111,7 +117,7 @@ export function ScheduledEmails(): ReactElement {
       <DataTable
         table="scheduled-emails"
         noun="email"
-        searchPlaceholder="Search subjects and releases"
+        searchPlaceholder="Search"
         columns={columns}
         rows={rows}
         rowKey={(i) => i.send.id}
@@ -119,7 +125,7 @@ export function ScheduledEmails(): ReactElement {
         empty={
           sends.data === null
             ? 'Loading…'
-            : 'Nothing is scheduled — a batch drafts its plan when its promise date is set.'
+            : 'Nothing scheduled.'
         }
       />
     </Page>

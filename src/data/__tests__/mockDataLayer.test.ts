@@ -9,6 +9,9 @@ import {
 } from '../mock/fixtures';
 import { parseShopifyOrderExport } from '../../logic/importer';
 import { addDays, today } from '../../logic/dates';
+/* Asserted against the constants, not their words: the shut-control copy is
+   the design system's to reword and a test should not re-fix it. */
+import { NOT_WRITTEN_YET, NO_IMAGE_YET } from '../../logic/templates';
 
 /**
  * Integration tests over the seeded mock world — every assertion goes
@@ -251,7 +254,7 @@ describe('live behaviour through the interface', () => {
     const was = detail.release.templateImages[slot];
 
     await layer.setReleaseEmailImage(release.id, slot, null);
-    await expect(layer.approveSend(send.id)).rejects.toThrow(/no image yet/);
+    await expect(layer.approveSend(send.id)).rejects.toThrow(NO_IMAGE_YET);
 
     // Picking one backfills the queued send in place — no re-submission.
     await layer.setReleaseEmailImage(release.id, slot, was ?? 'Artwork detail');
@@ -633,7 +636,7 @@ describe('the delay-copy handoff', () => {
   it('refuses to approve one, and says whose job it is', async () => {
     const [job] = await layer.listCopyQueue();
     await layer.setCurrentUser('user-tom');
-    await expect(layer.approveSend(job.send.id)).rejects.toThrow(/CRM team has not written/);
+    await expect(layer.approveSend(job.send.id)).rejects.toThrow(NOT_WRITTEN_YET);
   });
 
   it('is addressed to CRM, and ops does not see it', async () => {
