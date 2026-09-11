@@ -2325,7 +2325,7 @@
   /* One height with the chips beside it, 11 Sep 2026. Padding alone made this
      33px against the toolbar's 24px chips, so every table in the app opened
      with four controls on one line and one of them taller than the rest. */
-  height: var(--rd-head-control-h);
+  height: var(--rd-bar-control-h);
   padding: 0 14px;
   border: 1px solid var(--rd-border);
   border-radius: var(--rd-radius-inset);

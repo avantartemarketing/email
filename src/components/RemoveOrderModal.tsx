@@ -49,10 +49,7 @@ export function RemoveOrderModal({
       }}
       secondary={{ label: 'Cancel', onClick: onClose }}
     >
-      <Bar tone="warn" title="The collector stops receiving updates">
-        The order drops out of its batch and out of every future send; emails already sent stay in
-        the log. Nothing is refunded or cancelled in Shopify.
-      </Bar>
+      <Bar tone="warn" title="The collector stops receiving updates" />
       <div className="rd-fields">
         <Field
           label="Reason"

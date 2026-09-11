@@ -35,7 +35,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--rd-gap-inner);
-  padding: var(--rd-gap-tight) var(--rd-gap-tight);
+  padding: var(--rd-gap) var(--rd-gap-tight);
 }
 .rd-navrow {
   display: flex;
@@ -229,6 +229,17 @@
   gap: var(--rd-gap);
   padding: var(--rd-gap) var(--rd-card-inset) 0;
 }
+/* One line, one height — every control on it, whatever class it wears. */
+.rd-tablebar .rd-search,
+.rd-tablebar .rd-chip,
+.rd-tablebar .rd-select {
+  box-sizing: border-box;
+  height: var(--rd-bar-control-h);
+  display: inline-flex;
+  align-items: center;
+  padding-top: 0;
+  padding-bottom: 0;
+}
 /* What a head-less table's count rides on: the far end of the toolbar. */
 .rd-tablebarend {
   margin-left: auto;
@@ -279,7 +290,7 @@
 .rd-kv {
   display: grid;
   grid-template-columns: 150px minmax(0, 1fr);
-  gap: 7px 14px;
+  gap: var(--rd-gap-tight) var(--rd-gap);
   padding: 2px var(--rd-card-inset) var(--rd-card-inset);
   font: var(--rd-weight-body) var(--rd-size-cell) / 1.45 var(--rd-font-text);
   color: var(--rd-ink-cell);
@@ -300,7 +311,7 @@
   color: var(--rd-ink-body);
 }
 .rd-copy p {
-  margin: 0 0 8px;
+  margin: 0 0 var(--rd-gap-tight);
 }
 .rd-copy p:last-child {
   margin-bottom: 0;
@@ -310,8 +321,8 @@
    the border token for exactly this and ships no rule that spends it. */
 .rd-notebar {
   display: flex;
-  gap: 9px;
-  padding: 9px 14px;
+  gap: var(--rd-gap-tight);
+  padding: var(--rd-gap-tight) var(--rd-gap);
   background: var(--rd-blue-bg);
   border: 1px solid var(--rd-blue-border);
   border-radius: var(--rd-radius-inset);
@@ -752,7 +763,7 @@
    most. */
 .rd-barlines {
   display: grid;
-  gap: 3px;
+  gap: var(--rd-gap-inner);
   min-width: 0;
 }
 .rd-bartitle {
@@ -936,7 +947,7 @@
   font-size: var(--rd-size-section);
   font-weight: var(--rd-weight-emphasis);
   color: var(--rd-ink);
-  margin-bottom: 4px;
+  margin-bottom: var(--rd-gap-inner);
 }
 .rd-tourtext {
   font-size: var(--rd-size-field);
@@ -960,7 +971,7 @@
 .rd-previewas {
   font-size: var(--rd-size-caption);
   color: var(--rd-ink-muted);
-  margin-bottom: 6px;
+  margin-bottom: var(--rd-gap-tight);
 }
 
 /* The Slack feed: message rows, not table rows — the text is a sentence and

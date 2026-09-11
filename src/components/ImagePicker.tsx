@@ -123,10 +123,7 @@ export function ImagePicker({
         />
       </label>
 
-      <Bar tone="note" title="Hatched tiles have no file here">
-        Those names live in HubSpot's own library, so there is no file here to draw — anything you
-        upload shows its picture.
-      </Bar>
+      <Bar tone="note" title="Hatched tiles have no file here" />
     </Dialog>
   );
 }

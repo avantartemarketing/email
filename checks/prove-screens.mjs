@@ -747,6 +747,100 @@ await screen('permissions', async () => {
   await page.waitForTimeout(200)
 }
 
+/* ---- 2b4 · the 11 Sep 2026 review ------------------------------------------
+   The owner: "a) excess text, can any messages be reduced, ideally radically
+   in lenght b) cramped spacing, spacing should be expansive and generous c)
+   any other UI that is ugly". Three of those answers are structural enough to
+   regress silently, so they are proved on the render.
+
+   1. A band states the fact. Every `.rd-warnbar`/`.rd-infobar` in the app is a
+      title and nothing else now, so a band carrying a paragraph is the old
+      shape coming back.
+   2. One height per toolbar. The search field was 33px beside 24px chips on
+      every table; a mismatch here is invisible in review and obvious on screen.
+   3. No table reprints the tab above it. A card head whose words are the open
+      tab's words is the duplication this round took out.
+*/
+{
+  const what = 'the 11 Sep review'
+  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' })
+  await page.locator('table tbody tr', { hasText: 'Falling Light' }).locator('td').nth(1).click()
+  await page.waitForTimeout(600)
+
+  const bar = await page.evaluate(() => {
+    const row = document.querySelector('.rd-tablebar')
+    if (!row) return null
+    const heights = [...row.querySelectorAll('.rd-search, .rd-chip, .rd-select')].map((el) =>
+      Math.round(el.getBoundingClientRect().height),
+    )
+    return { heights, top: Math.round(row.getBoundingClientRect().top) }
+  })
+  if (!bar) faults.push(`${what}: no .rd-tablebar — the toolbar lost its wrapper`)
+  else {
+    const spread = Math.max(...bar.heights) - Math.min(...bar.heights)
+    if (bar.heights.length < 3)
+      faults.push(`${what}: only ${bar.heights.length} controls measured on the toolbar`)
+    if (spread > 1)
+      faults.push(
+        `${what}: toolbar controls run ${Math.min(...bar.heights)}-${Math.max(...bar.heights)}px — one line, one height`,
+      )
+  }
+
+  /* The toolbar's CONTROLS must clear the card's own top edge whether or not a
+     head sits above them: removing the duplicated heads is what exposed this,
+     and the wrapper's own box starts at the card edge — its padding is what
+     does the clearing, so the first control is the thing to measure. */
+  const clear = await page.evaluate(() => {
+    const row = document.querySelector('.rd-tablebar')
+    const card = row?.closest('.rd-card')
+    const first = row?.querySelector('.rd-search, .rd-chip, .rd-select')
+    if (!row || !card || !first) return null
+    return Math.round(first.getBoundingClientRect().top - card.getBoundingClientRect().top)
+  })
+  if (clear !== null && clear < 12)
+    faults.push(`${what}: the toolbar sits ${clear}px under the card's edge — it is jammed against it`)
+
+  /* No card head repeats the tab that is open. */
+  const echo = await page.evaluate(() => {
+    const tab = document.querySelector('.rd-tab.on')?.textContent?.replace(/\s*\(\d+\)\s*$/, '').trim()
+    if (!tab) return null
+    const heads = [...document.querySelectorAll('.rd-sechead')].map((h) => h.textContent?.trim())
+    return heads.includes(tab) ? tab : null
+  })
+  if (echo) faults.push(`${what}: a card head reprints the open tab ("${echo}")`)
+
+  /* A band is a title and nothing else — swept across every screen that draws
+     one, and through the release page's own tabs, because a band paragraph
+     usually comes back one screen at a time. */
+  const readBands = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll('.rd-warnbar, .rd-infobar')]
+        .map((b) => (b.textContent ?? '').trim())
+        .filter((t) => t.split(/\s+/).length > 16),
+    )
+  const wordy = []
+  for (const url of ['/', '/overview', '/scheduled', '/approvals', '/copy', '/permissions']) {
+    await page.goto(`${BASE}${url}`, { waitUntil: 'networkidle' })
+    wordy.push(...(await readBands()).map((t) => [url, t]))
+  }
+  for (const title of ['Falling Light', 'Blue Interval', 'Vessel VIII']) {
+    await page.goto(`${BASE}/`, { waitUntil: 'networkidle' })
+    await page.locator('table tbody tr', { hasText: title }).locator('td').nth(1).click()
+    await page.waitForTimeout(500)
+    for (const tab of ['All orders', 'All emails', 'Batches', 'Edition allocation']) {
+      const t = page.locator('.rd-tab', { hasText: tab }).first()
+      if (!(await t.count())) continue
+      await t.click()
+      await page.waitForTimeout(350)
+      wordy.push(...(await readBands()).map((x) => [`${title} · ${tab}`, x]))
+    }
+  }
+  for (const [where, t] of wordy)
+    faults.push(
+      `${what}: a band on ${where} carries ${t.split(/\s+/).length} words — "${t.slice(0, 70)}…"`,
+    )
+}
+
 /* ---- 2c · emails to write ------------------------------------------------
    The CRM handoff (29 Aug 2026). Two things are worth proving on the render
    rather than in a unit test: the row offers the WRITER'S verb and not the

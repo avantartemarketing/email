@@ -904,14 +904,7 @@ function BatchSection({
               : [],
           }}
           foot={
-            removedOrders.length > 0 ? (
-              <>
-                {removedOrders.length} removed:{' '}
-                {removedOrders
-                  .map((o) => `${o.shopifyOrderName} (${o.removedReason ?? 'removed'})`)
-                  .join(', ')}
-              </>
-            ) : undefined
+            removedOrders.length > 0 ? `${removedOrders.length} removed` : undefined
           }
         />
 

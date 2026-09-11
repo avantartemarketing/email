@@ -307,10 +307,7 @@ export function EditionsPanel({
         }}
         secondary={{ label: 'Keep', onClick: () => setClearing(false) }}
       >
-        <Bar tone="warn" title="Numbers and warehouse spec are both cleared">
-          Edition numbers and the imported frame, glass and mounting spec all go; a fresh
-          allocation starts from 1. To correct numbers instead, import a fresher sheet.
-        </Bar>
+        <Bar tone="warn" title="Numbers and warehouse spec are both cleared" />
       </Dialog>
     </Stack>
   );

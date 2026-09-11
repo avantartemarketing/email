@@ -802,6 +802,48 @@ warehouse Slack digest is PARKED (not selected).**
   syncRelease. 263 tests; prove-screens §2b2b (owners chips, Dispatch
   values, Review dialog, Owner routing — failed once on purpose).
 
+**The big review (11 Sep) — text, spacing, ugliness:** Tom, *"Do a big review
+for a) excess text, can any messages be reduced, ideally radically in lenght b)
+cramped spacing, spacing should be expansive and generous c) any other UI that
+is ugly"*. Six review agents read the screens, the components and the kit CSS;
+every finding was adversarially verified against the real files before it was
+applied, and the render was the final judge — as usual it caught what the
+agents could not see.
+
+- **a) Text.** Every `Bar` in the app is now a title and nothing else. The
+  bodies that followed them were consequence, reassurance or instruction, never
+  the fact the band exists to carry; where a body held a real fact the fact
+  moved into the title (the delay-cancel band names the window collectors were
+  moved to). Empty states lost their tutorials. `NO_IMAGE_YET` is "No image
+  picked." A Why states what is missing. Toasts confirm the verb and the thing
+  that changed, not the mechanism. `(delay)` after "Delay notice" said it twice
+  on every row in three tables.
+- **b) Spacing.** There was no scale — thirty rules each typed their own 8, 9,
+  10, 12 or 14, and the sum of thirty small mean numbers is a cramped screen
+  though no single rule looks wrong. Four steps in tokens now
+  (`--rd-gap-inner` / `-tight` / `--rd-gap` / `--rd-card-gap`) plus
+  `--rd-gap-wide`, `--rd-gap-room` and `--rd-dialog-inset`. Page gutter 22 → 32,
+  card inset 16 → 24, card gap 20 → 28. **The page-title top padding is the one
+  thing left alone** — Tom asked for that edge specifically on 24 Aug.
+- **c) Ugly.** Two KPIs each grew to 600px (they stop at 300 and pack left);
+  three control heights on one toolbar line, 36/32/24 (one `--rd-bar-control-h`
+  now, and the check that found it); five fact boxes stretched to the tallest
+  so one wrapping value left four boxes of white; Approve was grey-on-grey
+  inside a grey row; the last blue control; three inline styles doing layout; a
+  dialogue title under a table's sticky header; the orders table printing the
+  release title in all 112 rows, naming framing "Fulfilment" two columns from a
+  Dispatch column reading Fulfilled, and carrying three empty spec columns that
+  pushed the customer email off the right edge; subjects truncated to "Rafael
+  Okonkwo · An update on y…" with the readable half cut; "Days away" printing
+  -6 beside a cell already saying Overdue; card heads reprinting the tab above
+  them.
+- **prove-screens §2b4** is the new block — one toolbar height, the toolbar
+  clearing the card edge, no card head echoing the open tab, and a band-word
+  sweep across every screen and every release tab. All three arms were made to
+  fail on purpose before being kept; the height arm found the 36/32/24 fault
+  for real.
+- 263 tests, all three checks, all four tour guides re-driven clean.
+
 **Remaining is slice 5:** the Auto/Review/Info changes worklist (tags vs line items),
 pinned numbers for edition requests, and freezing a number once a collector has been
 told — which waits on Tom's "edition numbers in emails?" answer.

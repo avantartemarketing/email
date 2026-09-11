@@ -18,7 +18,7 @@ import {
   slotLabel,
 } from '../logic/templates';
 import { today } from '../logic/dates';
-import { plural } from '../ui/format';
+import { plural, subjectInTable } from '../ui/format';
 import { useApp } from '../ui/AppContext';
 import { Bar, Cap, Dialog, None, NoneYet, Pill, RowAct, Why } from '../ui/rd';
 import { DataTable } from '../ui/DataTable';
@@ -241,12 +241,12 @@ export function ReleaseEmailsPanel({
       value: (row) =>
         release.disabledTemplates.includes(row.ref) || !row.copyRow
           ? null
-          : patchTokens(effectiveTemplate(release, row.ref).subject, fields),
+          : subjectInTable(patchTokens(effectiveTemplate(release, row.ref).subject, fields)),
       cell: (row) =>
         release.disabledTemplates.includes(row.ref) || !row.copyRow ? (
           <None />
         ) : (
-          <Cap>{patchTokens(effectiveTemplate(release, row.ref).subject, fields)}</Cap>
+          <Cap>{subjectInTable(patchTokens(effectiveTemplate(release, row.ref).subject, fields))}</Cap>
         ),
     },
     {

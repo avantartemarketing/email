@@ -344,7 +344,15 @@
      through the token itself. */
   /* 26px until 8 Sep 2026 — the owner: "make them taller". Rendered at 26
      the head controls sat squat beside the new 34px-tall buttons below. */
-  --rd-head-control-h: 32px;
+  --rd-head-control-h: 36px;    /* 32px until 11 Sep 2026 — rule 4 of 8 Sep
+                                   makes a thin control a fault, and this is
+                                   the height every page-head button takes. */
+  /* A table's own toolbar is one step down from the page head: these are view
+     controls on a card, not the page's verbs. One token because there were
+     three heights on that one line — a 36px search field, a 32px Columns and
+     24px Group/Sort/Add filter — which is the kind of fault that is invisible
+     in review and unmissable on screen. */
+  --rd-bar-control-h: 32px;
 
   /* A tab's height — ruling 96. Ruling 22's card-head figure ("every control
      in a card head measures 30px whatever its fill"), because that is what a
@@ -436,7 +444,9 @@
   /* A card's own inset, which `.rd-sechead` and `.rd-foot` have each carried
      as a literal 16 since they were written. Named here because a fourth
      copy is the point at which they start drifting apart. */
-  --rd-card-inset: 20px;        /* 16px until 11 Sep 2026 */
+  --rd-card-inset: 24px;        /* 16px → 20px → 24px, 11 Sep 2026: the page
+                                   is inset 32, and a card inset less than
+                                   three-quarters of that reads as a crop. */
 
   /* ---- The spacing scale, 11 Sep 2026 ----------------------------------
      The owner, reviewing every screen: "cramped spacing, spacing should be
