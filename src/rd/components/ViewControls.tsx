@@ -143,10 +143,10 @@ export default function ViewControls<T>({
           items={[
             /* The shipped order is a real state and can be returned to — the
                rule `WbSort` settled and no redesign screen had. */
-            { key: '', label: 'The order it shipped in', on: !state.sort.length },
+            { key: '', label: 'Shipped order', on: !state.sort.length },
             ...sortable.flatMap((f): MenuItem[] => [
-              { key: `${f.id}:asc`, label: `${f.label} ${f.kind === 'number' ? '(low to high)' : 'A → Z'}`, on: isSorted(state, f.id, 'asc') },
-              { key: `${f.id}:desc`, label: `${f.label} ${f.kind === 'number' ? '(high to low)' : 'Z → A'}`, on: isSorted(state, f.id, 'desc') },
+              { key: `${f.id}:asc`, label: `${f.label} ${f.kind === 'number' ? '1 → 9' : 'A → Z'}`, on: isSorted(state, f.id, 'asc') },
+              { key: `${f.id}:desc`, label: `${f.label} ${f.kind === 'number' ? '9 → 1' : 'Z → A'}`, on: isSorted(state, f.id, 'desc') },
             ]),
           ]}
           onPick={(k) => {

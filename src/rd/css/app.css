@@ -135,9 +135,9 @@
 .rd-who {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--rd-gap-inner);
   height: var(--rd-head-control-h);
-  padding: 0 9px 0 5px;
+  padding: 0 var(--rd-gap-tight) 0 var(--rd-gap-inner);
   border: 1px solid var(--rd-border);
   border-radius: var(--rd-radius-control);
   background: var(--rd-card);
@@ -690,7 +690,7 @@
 }
 .rd-imgtile {
   display: block;
-  padding: 6px;
+  padding: var(--rd-gap-inner);
   border: 1px solid var(--rd-border);
   border-radius: var(--rd-radius-inset);
   background: var(--rd-card);

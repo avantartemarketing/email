@@ -38,7 +38,7 @@ export function Permissions(): ReactElement {
   if (!currentUser.access.includes('permissions')) {
     return (
       <Page title="Permissions">
-        <Bar tone="fail" title="No access." />
+        <Bar tone="fail" title="No access" />
       </Page>
     );
   }

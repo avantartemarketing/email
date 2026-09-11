@@ -271,11 +271,7 @@ export function SendDetail(): ReactElement {
           table="send-recipients"
           noun="recipient"
           searchPlaceholder="Search recipients"
-          title={
-            sent
-              ? `Recipients (${recipientRows.length})`
-              : `Will send to ${plural(recipientRows.length, 'collector')}`
-          }
+          title="Recipients"
           columns={recipientColumns}
           rows={recipientRows}
           rowKey={(r) => r.key}

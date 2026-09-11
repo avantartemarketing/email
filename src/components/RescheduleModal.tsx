@@ -177,7 +177,7 @@ export function RescheduleModal({
         ]}
       />
       {selectedOrders.length === 0 ? (
-        <Bar tone="fail">No orders selected.</Bar>
+        <Bar tone="fail" title="No orders selected" />
       ) : isSubset ? (
         <Bar
           tone="note"

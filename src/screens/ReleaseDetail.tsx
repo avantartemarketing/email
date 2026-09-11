@@ -904,7 +904,7 @@ function BatchSection({
               : [],
           }}
           foot={
-            removedOrders.length > 0 ? `${removedOrders.length} removed` : undefined
+            removedOrders.length > 0 ? `${removedOrders.length} cancelled` : undefined
           }
         />
 
