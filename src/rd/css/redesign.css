@@ -123,15 +123,15 @@
 .rd-baracts {
   display: flex;
   gap: var(--rd-gap-tight);
-  margin-top: 14px;
+  margin-top: var(--rd-gap);
 }
 
 /* ---------- Bands ---------- */
 
 .rd-warnbar {
   display: flex;
-  gap: 10px;
-  padding: 13px var(--rd-card-inset);
+  gap: var(--rd-gap-tight);
+  padding: var(--rd-card-inset);
   background: var(--rd-warn-bg);
   border: 1px solid var(--rd-warn-border);
   border-radius: var(--rd-radius-inset);
@@ -175,7 +175,7 @@
 }
 
 .rd-sechead {
-  padding: 18px var(--rd-card-inset) 14px;
+  padding: var(--rd-card-inset);
   font: 500 var(--rd-size-section) var(--rd-font-text);
   color: var(--rd-ink);
 }
@@ -490,7 +490,7 @@
      Without this the document's own link rule underlines the word inside the
      box, which reads as a link drawn on top of a button. */
   text-decoration: none;
-  padding: 8px 15px; /* matched to .rd-btn-pri, 8 Sep 2026 — one foot, one height */
+  padding: 9px 15px; /* matched to .rd-btn-pri, 8 Sep 2026 — one foot, one height */
   border-radius: var(--rd-radius-control);
   font: 500 var(--rd-size-head) / 1.2 var(--rd-font-text);
   color: var(--rd-ink-ui);
@@ -601,7 +601,7 @@
 .rd-viewvalue input {
   flex: 1;
   min-width: 0;
-  padding: 5px 8px;
+  padding: var(--rd-gap-inner) var(--rd-gap-tight);
   border: 1px solid var(--rd-field-border);
   border-radius: var(--rd-radius-field);
   font: 400 var(--rd-size-cell-dense) var(--rd-font-text);
@@ -644,7 +644,7 @@
 .rd-sw {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--rd-gap-tight);
   border: 0;
   padding: 0;
   background: none;
@@ -720,7 +720,7 @@
      first-row cell is exactly where the header now is. */
   z-index: 11;
   display: none;
-  padding: 6px 10px;
+  padding: var(--rd-gap-inner) var(--rd-gap-tight);
   border-radius: var(--rd-radius-menu);
   background: var(--rd-ink);
   color: var(--rd-card);
@@ -822,7 +822,7 @@
   font: 500 var(--rd-size-caption) var(--rd-font-text);
 }
 .rd-seg button {
-  padding: 4px 11px;
+  padding: 8px 14px;
   border: 0;
   background: none;
   font: inherit;
@@ -881,7 +881,7 @@
 .rd-tabs {
   display: flex;
   align-items: center;
-  gap: var(--rd-gap-inner);
+  gap: var(--rd-gap-tight);
   margin-bottom: var(--rd-card-gap);
 }
 /* The one role the underline keeps: where the strip is the top edge of the
@@ -897,7 +897,7 @@
   align-items: center;
   gap: 7px;
   height: var(--rd-tab-h);
-  padding: 0 12px;
+  padding: 0 15px;
   border: 1px solid transparent;
   border-radius: var(--rd-radius-control);
   background: none;
@@ -971,7 +971,7 @@
   align-items: center;
   gap: 6px;
   height: var(--rd-subtab-h);
-  padding: 0 9px;
+  padding: 0 var(--rd-gap-tight);
   border: 0;
   border-radius: var(--rd-radius-control);
   background: none;
@@ -1021,7 +1021,7 @@
   display: flex;
   align-items: baseline;
   gap: 10px;
-  padding: 15px 16px 3px;
+  padding: var(--rd-card-inset) var(--rd-card-inset) var(--rd-gap-inner);
   font: 500 var(--rd-size-hero) var(--rd-font-text);
   color: var(--rd-ink);
 }
@@ -1090,7 +1090,7 @@
    above and 8 below, so the heading sits with what it names rather than
    floating between two groups. */
 .rd-grouphd {
-  margin: var(--rd-card-gap) 0 var(--rd-gap-inner); /* opened up again 11 Sep 2026 */
+  margin: var(--rd-card-gap) 0 var(--rd-gap); /* opened up again 11 Sep 2026 */
   font: var(--rd-weight-emphasis) var(--rd-size-cell) var(--rd-font-text);
   color: var(--rd-ink);
 }
@@ -1098,9 +1098,9 @@
    rather than a warning. Worded, like every other band in the system. */
 .rd-infobar {
   display: flex;
-  gap: 10px;
+  gap: var(--rd-gap-tight);
   margin-bottom: var(--rd-gap);
-  padding: 13px var(--rd-card-inset);
+  padding: var(--rd-card-inset);
   background: var(--rd-blue-bg);
   border: 1px solid var(--rd-blue-border);
   border-radius: var(--rd-radius-inset);
@@ -1637,7 +1637,7 @@
   min-width: 190px;
   max-height: 320px;
   overflow-y: auto;
-  padding: 6px;
+  padding: var(--rd-gap-inner);
   background: var(--rd-card);
   border: 1px solid var(--rd-border);
   border-radius: var(--rd-radius-float);
@@ -1655,7 +1655,7 @@
 
 /* What the menu is for, when the items alone would not say. */
 .rd-floathd {
-  padding: 6px 10px 4px;
+  padding: var(--rd-gap-tight) var(--rd-gap-tight) var(--rd-gap-inner);
   font: var(--rd-weight-caps) var(--rd-size-caps) var(--rd-font-text);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1665,7 +1665,7 @@
   display: block;
   width: 100%;
   text-align: left;
-  padding: 7px 10px;
+  padding: 9px var(--rd-gap-tight);
   border: 0;
   background: none;
   border-radius: var(--rd-radius-menu);
@@ -1707,7 +1707,7 @@
   background: var(--rd-card);
   border: 1px solid var(--rd-border);
   border-radius: var(--rd-radius-card);
-  padding: 16px var(--rd-card-inset) 18px;
+  padding: var(--rd-card-inset);
 }
 /* The label names the currency — never a symbol welded to the figure. Four of
    six currencies here use $, so a glyph cannot tell them apart anyway. */
@@ -1718,7 +1718,7 @@
 .rd-kpi .rd-v {
   font: 500 var(--rd-size-kpi) / 1.15 var(--rd-font-display);
   color: var(--rd-ink);
-  margin-top: 3px;
+  margin-top: var(--rd-gap-inner);
   font-variant-numeric: tabular-nums;
 }
 
@@ -2195,7 +2195,7 @@
 .rd-kpi .rd-s {
   font: 400 var(--rd-size-caption) / 1.35 var(--rd-font-text);
   color: var(--rd-ink-muted);
-  margin-top: 3px;
+  margin-top: var(--rd-gap-inner);
 }
 .rd-kpi .rd-s.rd-good,
 .rd-kpi .rd-s.rd-bad { font-weight: var(--rd-weight-body); }
@@ -2386,14 +2386,14 @@
 .rd-bulkinner {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--rd-gap-tight);
 }
 .rd-bulkcount {
   font: 500 var(--rd-size-cell-dense) var(--rd-font-text);
   color: var(--rd-ink);
 }
 .rd-btn-grey {
-  padding: 8px 15px; /* matched to .rd-btn-pri, 8 Sep 2026 — one foot, one height */
+  padding: 9px 15px; /* matched to .rd-btn-pri, 8 Sep 2026 — one foot, one height */
 }
 /* Inside a 34px row — a row action, the bulk bar's header-row controls — a
    button keeps the pre-8-Sep compact scale. The taller buttons are for page
@@ -3468,7 +3468,7 @@ body.rd-resizing * {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: var(--rd-gap);
   font: var(--rd-weight-emphasis) var(--rd-size-cell) / 1.2 var(--rd-font-text);
   color: var(--rd-ink);
 }
@@ -3531,8 +3531,8 @@ body.rd-resizing * {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--rd-gap-tight);
-  margin-top: 10px;
-  padding-top: 9px;
+  margin-top: var(--rd-gap);
+  padding-top: var(--rd-gap-tight);
   border-top: 1px solid var(--rd-hairline-row);
 }
 .rd-dpick-foot > .rd-aside {
@@ -3563,7 +3563,7 @@ body.rd-resizing * {
 .rd-fact {
   flex: 1 1 auto;
   min-width: 120px;
-  padding: 14px 16px 15px;
+  padding: var(--rd-card-inset);
   background: var(--rd-band);
   border-radius: var(--rd-radius-card);
 }
@@ -3574,7 +3574,7 @@ body.rd-resizing * {
 }
 .rd-fact b {
   display: block;
-  margin-top: 3px;
+  margin-top: var(--rd-gap-inner);
   font: var(--rd-weight-emphasis) var(--rd-size-cell) / 1.2 var(--rd-font-text);
   color: var(--rd-ink);
   font-variant-numeric: tabular-nums;
@@ -4316,7 +4316,7 @@ body.rd-resizing * {
   right: 0;
   max-height: 260px;
   overflow-y: auto;
-  padding: 4px;
+  padding: var(--rd-gap-inner);
   background: var(--rd-card);
   border: 1px solid var(--rd-border);
   border-radius: var(--rd-radius-float);
@@ -4489,7 +4489,7 @@ body.rd-resizing * {
 .rd-importdrop {
   position: relative;
   display: block;
-  margin-top: 10px;
+  margin-top: var(--rd-gap);
   padding: 22px var(--rd-card-inset);
   border: 1px dashed var(--rd-field-border);
   border-radius: var(--rd-radius-control);
@@ -4508,7 +4508,7 @@ body.rd-resizing * {
 /* What each file holds, one row per file — the table's own vocabulary, so a
    report of six files reads like every other list in the admin. */
 .rd-importlist {
-  margin-top: 12px;
+  margin-top: var(--rd-gap);
 }
 .rd-importlist td:first-child {
   width: 40%;
@@ -4531,7 +4531,7 @@ body.rd-resizing * {
 .rd-bar {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--rd-gap);
   /* 44, not 46: the bar gave up the wordmark and the page title, so it is
      carrying one 12px line and two controls. */
   height: var(--rd-bar-h);
@@ -4627,7 +4627,7 @@ body.rd-resizing * {
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 0 16px;
+  padding: 0 calc(var(--rd-gap-tight) * 2);
   font: var(--rd-weight-emphasis) var(--rd-size-wordmark) / 1 var(--rd-font-display);
   letter-spacing: 0.01em;
   color: var(--rd-ink);
@@ -4847,7 +4847,7 @@ body.rd-resizing * {
 .rd-floatfind input {
   width: 100%;
   box-sizing: border-box;
-  padding: 5px 8px;
+  padding: var(--rd-gap-inner) var(--rd-gap-tight);
   border: 1px solid var(--rd-field-border);
   border-radius: var(--rd-radius-field);
   background: var(--rd-card);
@@ -4861,7 +4861,7 @@ body.rd-resizing * {
 }
 
 .rd-floatnone {
-  padding: 6px 9px 8px;
+  padding: var(--rd-gap-tight);
   font: 400 var(--rd-size-caption) var(--rd-font-text);
   color: var(--rd-ink-faint);
 }

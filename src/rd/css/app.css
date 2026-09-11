@@ -1002,7 +1002,9 @@
   flex: none;
   font-size: var(--rd-size-caption);
   font-weight: var(--rd-weight-emphasis);
-  color: var(--rd-primary);
+  /* The channel is a label, not a link — 11 Sep 2026. --rd-primary is
+     the ink for something you click, and #crm is not. */
+  color: var(--rd-ink-muted);
   padding-top: 2px;
   min-width: 104px;
 }

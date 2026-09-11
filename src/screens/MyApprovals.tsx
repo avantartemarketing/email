@@ -23,7 +23,6 @@ import {
   Pill,
   Skeleton,
   Stack,
-  Tag,
   Why,
 } from '../ui/rd';
 import { DataTable } from '../ui/DataTable';
@@ -353,7 +352,11 @@ export function MyApprovals(): ReactElement {
       kind: 'choice',
       caption: 'BATCH',
       value: (i) => (i.releaseBatchCount > 1 ? i.batch.name : null),
-      cell: (i) => (i.releaseBatchCount > 1 ? <Tag tone="teal">{i.batch.name}</Tag> : <None />),
+      /* Emphasis, not a lozenge — 11 Sep 2026. A batch name is an identity, and
+         the promise overview has always printed it as plain emphasis; a teal
+         tag beside it said the same fact two ways, and put the only colour in
+         the row on something that carries no status. */
+      cell: (i) => (i.releaseBatchCount > 1 ? <span className="rd-ink">{i.batch.name}</span> : <None />),
     },
     {
       id: 'owner',

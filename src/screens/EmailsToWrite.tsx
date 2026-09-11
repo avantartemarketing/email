@@ -8,7 +8,7 @@ import { ownerFor } from '../logic/approvals';
 import { plural } from '../ui/format';
 import { useApp } from '../ui/AppContext';
 import { useAsync } from '../ui/useAsync';
-import { Bar, Btn, Cap, Card, CardHead, CellLink, Dialog, Facts, None, Page, Pill, RowAct, Skeleton, Stack, Tag } from '../ui/rd';
+import { Bar, Btn, Cap, Card, CardHead, CellLink, Dialog, Facts, None, Page, Pill, RowAct, Skeleton, Stack } from '../ui/rd';
 import { DataTable } from '../ui/DataTable';
 import type { Column } from '../ui/DataTable';
 import Field from '../rd/components/Field';
@@ -189,7 +189,11 @@ export function EmailsToWrite(): ReactElement {
       kind: 'choice',
       caption: 'BATCH',
       value: (j) => (j.releaseBatchCount > 1 ? j.batch.name : null),
-      cell: (j) => (j.releaseBatchCount > 1 ? <Tag tone="teal">{j.batch.name}</Tag> : <None />),
+      /* Emphasis, not a lozenge — 11 Sep 2026. A batch name is an identity, and
+         the promise overview has always printed it as plain emphasis; a teal
+         tag beside it said the same fact two ways, and put the only colour in
+         the row on something that carries no status. */
+      cell: (j) => (j.releaseBatchCount > 1 ? <span className="rd-ink">{j.batch.name}</span> : <None />),
     },
     {
       id: 'collectors',

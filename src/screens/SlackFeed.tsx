@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import type { SlackMessage } from '../types';
 import { formatDayShort } from '../logic/dates';
 import { useApp } from '../ui/AppContext';
-import { Card, CardHead, None, Page, Skeleton, Stack, Tag } from '../ui/rd';
+import { Card, CardHead, Page, Skeleton, Stack, Tag } from '../ui/rd';
 import { useAsync } from '../ui/useAsync';
 
 /**
@@ -72,7 +72,7 @@ export function SlackFeed(): ReactElement {
                       >
                         {KIND_LABEL[m.kind]}
                       </Tag>
-                      {m.mention ? <span className="rd-slackmention">{m.mention}</span> : <None />}
+                      {m.mention ? <span className="rd-slackmention">{m.mention}</span> : null}
                       <span className="rd-slackwhen">{formatDayShort(m.at.slice(0, 10))}</span>
                     </span>
                     <span className="rd-slacktext">{m.text}</span>
