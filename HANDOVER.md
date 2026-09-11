@@ -843,6 +843,17 @@ agents could not see.
   fail on purpose before being kept; the height arm found the 36/32/24 fault
   for real.
 - 263 tests, all three checks, all four tour guides re-driven clean.
+- **A completeness pass** afterwards asked what the six dimensions had not
+  looked at, and found seven more — including this round's own mistake: the
+  spacing scale's comment documented a 6px step two lines above a token
+  declaring 8px, and every argument in the review cited "the declared scale".
+  Also `.rd-who` (the one element on every page, and its 20px disc sat nearer
+  the chip's edge than its own ceiling); the only band title in the app with a
+  full stop, which is the whole Permissions screen for a non-admin; a `fail`
+  band drawn as a body with no title, which the kit says reads as a note; the
+  sort menu speaking three registers in one list; a card titled "Recipients
+  (42)" in one state and "Will send to 42 collectors" in the other; and the
+  same orders called "cancelled" in a KPI and "removed" two inches below it.
 
 **Remaining is slice 5:** the Auto/Review/Info changes worklist (tags vs line items),
 pinned numbers for edition requests, and freezing a number once a collector has been
