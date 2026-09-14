@@ -8,9 +8,16 @@
 # None of that belongs in the same process as a read-only analytics dashboard,
 # and the two would deploy and restart each other.
 #
-# To create it: Render → New → Blueprint → point at this repo. Everything below
-# is read from here, so the service is defined in code rather than clicked
-# together in a dashboard and forgotten.
+# To create it: dashboard.render.com/blueprints → New Blueprint Instance →
+# point at this repo. NOT New → Service, whose page lists individual service
+# types and has no Blueprint entry on it — which is the wrong turn anyone
+# reading this will otherwise take first.
+#
+# Everything below is then read from here, so the service is defined in code
+# rather than clicked together in a dashboard and forgotten. If the service is
+# ever created by hand through New → Web Service instead, DELETE THIS FILE: a
+# blueprint that is not the thing actually running is worse than no blueprint,
+# because the next person will trust it.
 services:
   - type: web
     name: post-purchase-comms

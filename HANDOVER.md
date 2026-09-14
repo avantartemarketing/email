@@ -882,9 +882,17 @@ Screenshots come from `scripts/shoot-screens.mjs`; the review page is built by
 
 ## Deploying it — Render
 
-`render.yaml` is a Blueprint: **Render → New → Blueprint → point at this repo**
-and the service is created from the file rather than clicked together in a
-dashboard. One web service, its own URL.
+`render.yaml` is a Blueprint: **dashboard.render.com/blueprints → New Blueprint
+Instance → point at this repo**, and the service is created from the file
+rather than clicked together in a dashboard. One web service, its own URL.
+
+Not New → Service: that page lists the individual service types and carries no
+Blueprint entry, which is the wrong turn to take first (taken, 14 Sep 2026).
+Creating it by hand as a Web Service works too — branch, region Frankfurt,
+runtime Node, build `npm ci --include=dev && npm run build`, start `npm run
+serve`, health check `/healthz`, and `NODE_VERSION=22.22.2`. If it is made that
+way, delete `render.yaml`: a blueprint that is not the thing running is worse
+than none.
 
 Rehearsed clean-room on 14 Sep 2026 — `npm ci --include=dev && npm run build`
 then `npm run serve`, from a bare checkout — and driven in a browser against
