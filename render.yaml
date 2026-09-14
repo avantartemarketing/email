@@ -1,0 +1,56 @@
+# The post-purchase comms tool as a Render Blueprint.
+#
+# One web service, its own URL, from this repo. Deliberately NOT a path on the
+# BI dashboard's service: a Render service is one repo and one process, so
+# sharing it would mean sharing an environment — and this service will hold the
+# HubSpot token that can email every collector Avant Arte has. It will also
+# hold collector PII and, from phase 3, a cron worker that sends on a schedule.
+# None of that belongs in the same process as a read-only analytics dashboard,
+# and the two would deploy and restart each other.
+#
+# To create it: Render → New → Blueprint → point at this repo. Everything below
+# is read from here, so the service is defined in code rather than clicked
+# together in a dashboard and forgotten.
+services:
+  - type: web
+    name: post-purchase-comms
+    runtime: node
+    # Frankfurt, not Oregon: the collectors are mostly EU and this service will
+    # hold their names, emails and addresses. Phase 2's Postgres should be
+    # created in the same region — a database in another continent is both a
+    # latency problem and a data-residency conversation nobody wants late.
+    region: frankfurt
+    plan: starter
+    # `main` once this is merged. To put the prototype up before then, change
+    # this to the working branch or pick it at blueprint creation.
+    branch: main
+    # `--include=dev` is load-bearing: the build needs vite and tsc, which are
+    # devDependencies, and Render sets NODE_ENV=production for the build, which
+    # would otherwise skip them. `npm run build` runs prove-tokens and prove-kit
+    # before tsc, so a design-system regression fails the deploy rather than
+    # shipping. prove-screens is NOT in it — that one drives a real browser.
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm run serve
+    # server/index.mjs already answers this. Without it Render calls a service
+    # healthy as soon as the port opens, which is true before the SPA is
+    # servable.
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22.22.2"
+      - key: NODE_ENV
+        value: production
+      # HUBSPOT_TOKEN is deliberately absent. Nothing deployed reads it yet —
+      # server/index.mjs serves static files and has no send path — so setting
+      # it now would park a live credential next to code that cannot use it.
+      # It arrives with phase 3's send worker, as:
+      #
+      #   - key: HUBSPOT_TOKEN
+      #     sync: false
+      #
+      # `sync: false` means Render prompts for the value and stores it in the
+      # service, never in this file. When it lands, only server/ may read it:
+      # this is a Vite app, so anything the client bundle touches ships to the
+      # browser. Vite exposes only VITE_-prefixed vars to the client, which is
+      # the guardrail — never name it VITE_HUBSPOT_TOKEN.

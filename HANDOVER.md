@@ -880,6 +880,50 @@ Screenshots come from `scripts/shoot-screens.mjs`; the review page is built by
 `build-two-systems.py` in the session scratchpad from `shots-polaris/` and
 `shots-final/`.
 
+## Deploying it — Render
+
+`render.yaml` is a Blueprint: **Render → New → Blueprint → point at this repo**
+and the service is created from the file rather than clicked together in a
+dashboard. One web service, its own URL.
+
+Rehearsed clean-room on 14 Sep 2026 — `npm ci --include=dev && npm run build`
+then `npm run serve`, from a bare checkout — and driven in a browser against
+the result: `/healthz`, `/`, `/approvals` and `/permissions` all 200, the app
+renders, no console errors.
+
+**Not a subfolder of the BI dashboard** (`bi-3jje.onrender.com`), which is what
+was asked. A Render service is one repo and one process, so sharing it means
+sharing an environment — and this service will hold the HubSpot token that can
+email every collector Avant Arte has, plus collector PII, plus a cron send
+worker from phase 3. None of that belongs beside a read-only analytics
+dashboard, the two would restart each other on every deploy, and the SPA would
+need `base`/`basename` surgery because its assets and router both assume the
+root. Two services on one account costs nothing extra in effort.
+
+Three things worth knowing before anyone is pointed at the URL:
+
+1. **What deploys today is the prototype on mock data.** `MockDataLayer` is
+   in-memory and reseeds on refresh, so anything a person does there vanishes
+   when they reload. Good for letting Elani click around herself; not a tool
+   anyone can start using.
+2. **`plan: starter`** is set, which is ~$7/mo and always on. `free` works and
+   costs nothing, but Render sleeps it after 15 minutes and the next visitor
+   waits ~50s — change one word if that trade is the right one.
+3. **`region: frankfurt`**, because the collectors are mostly EU and this holds
+   their names, emails and addresses. Phase 2's Postgres wants the same region.
+
+**The HubSpot token is deliberately not in the blueprint.** Nothing deployed
+reads it — `server/index.mjs` serves static files and has no send path — so
+setting it now parks a live credential next to code that cannot use it. It
+arrives with phase 3 as an `sync: false` env var, which Render prompts for and
+stores in the service, never in the repo. When it lands, **only `server/` may
+read it**: this is a Vite app, so anything the client bundle touches ships to
+the browser. Vite exposes only `VITE_`-prefixed vars to the client, which is
+the guardrail — never name it `VITE_HUBSPOT_TOKEN`.
+
+To prove the pipe before any of that, run `scripts/hubspot-pipe-test.mjs` from
+a laptop with the token in the shell (`--dry-run` first). It needs no install.
+
 ## Open decisions
 
 Put to Tom on the review page and not yet answered:

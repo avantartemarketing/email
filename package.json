@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "description": "Avant Arte post-purchase comms tool \u2014 batches, promise dates, milestone/delay emails behind an approval gate",
   "scripts": {
     "dev": "vite",
