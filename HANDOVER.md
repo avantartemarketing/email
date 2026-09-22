@@ -882,8 +882,9 @@ Screenshots come from `scripts/shoot-screens.mjs`; the review page is built by
 
 ## Deploying it — Render
 
-**One web service, created by hand on 22 Sep 2026** in the Avant Arte project's
-Production environment, beside BI. Not a blueprint: there was a `render.yaml`
+**Live at https://post-purchase-comms.onrender.com/** — one web service,
+created by hand on 22 Sep 2026 in the Avant Arte project's Production
+environment beside BI. Frankfurt, Starter. First build passed. Not a blueprint: there was a `render.yaml`
 for a day, but the service was made through New → Web Service, and a blueprint
 that is not the thing actually running is worse than none — the next person
 reads it and believes it. Its settings, which are the service's:
@@ -896,6 +897,7 @@ reads it and believes it. Its settings, which are the service's:
 | Build | `npm ci --include=dev && npm run build` |
 | Start | `npm run serve` |
 | Health check | `/healthz` |
+| Region / plan | Frankfurt / Starter |
 | Env | `NODE_VERSION=22.22.2`; `PORT` is Render's, the server reads it |
 
 `--include=dev` is load-bearing: Render builds with `NODE_ENV=production`,
@@ -919,11 +921,13 @@ but a folder. The one exception: **env groups** attached to the environment
 apply to every service in it, so the token goes on THIS service, never on a
 group, or BI inherits it.
 
-**Region.** BI is Oregon. The case for Frankfurt — EU collectors' names, emails
-and addresses; phase 2's Postgres beside it — holds, and a service's region is
-fixed at creation. Whichever was chosen, confirm it here before live collector
-data lands; if it is Oregon, that is a decision to revisit at phase 2, not a
-mistake today, because today's data is mocked.
+**Region: Frankfurt.** BI is Oregon; this one is not, on purpose — EU
+collectors' names, emails and addresses will live here, and phase 2's Postgres
+goes in the same region. A service's region is fixed at creation, so this was
+the one setting worth getting right before anything real landed.
+
+**Plan: Starter** — always on. Free would have slept after fifteen minutes and
+made the first visitor wait fifty seconds.
 
 **What is deployed is the prototype on mock data.** `MockDataLayer` is
 in-memory and reseeds on refresh; anything a person does vanishes on reload.
