@@ -882,55 +882,60 @@ Screenshots come from `scripts/shoot-screens.mjs`; the review page is built by
 
 ## Deploying it — Render
 
-`render.yaml` is a Blueprint: **dashboard.render.com/blueprints → New Blueprint
-Instance → point at this repo**, and the service is created from the file
-rather than clicked together in a dashboard. One web service, its own URL.
+**One web service, created by hand on 22 Sep 2026** in the Avant Arte project's
+Production environment, beside BI. Not a blueprint: there was a `render.yaml`
+for a day, but the service was made through New → Web Service, and a blueprint
+that is not the thing actually running is worse than none — the next person
+reads it and believes it. Its settings, which are the service's:
 
-Not New → Service: that page lists the individual service types and carries no
-Blueprint entry, which is the wrong turn to take first (taken, 14 Sep 2026).
-Creating it by hand as a Web Service works too — branch, region Frankfurt,
-runtime Node, build `npm ci --include=dev && npm run build`, start `npm run
-serve`, health check `/healthz`, and `NODE_VERSION=22.22.2`. If it is made that
-way, delete `render.yaml`: a blueprint that is not the thing running is worse
-than none.
+| Field | Value |
+|---|---|
+| Repo | `avantartemarketing/email` |
+| Branch | `claude/post-purchase-comms-tool-tcm104` until merged, then `main` |
+| Runtime | Node — `engines` in package.json pins ≥ 22 |
+| Build | `npm ci --include=dev && npm run build` |
+| Start | `npm run serve` |
+| Health check | `/healthz` |
+| Env | `NODE_VERSION=22.22.2`; `PORT` is Render's, the server reads it |
 
-Rehearsed clean-room on 14 Sep 2026 — `npm ci --include=dev && npm run build`
-then `npm run serve`, from a bare checkout — and driven in a browser against
-the result: `/healthz`, `/`, `/approvals` and `/permissions` all 200, the app
-renders, no console errors.
+`--include=dev` is load-bearing: Render builds with `NODE_ENV=production`,
+which skips the devDependencies that vite and tsc live in; without it the build
+fails with "vite: not found". `npm run build` runs prove-tokens and prove-kit
+ahead of tsc, so a design-system regression fails the deploy rather than
+shipping. prove-screens is NOT in the build — it drives a real browser.
 
-**Not a subfolder of the BI dashboard** (`bi-3jje.onrender.com`), which is what
-was asked. A Render service is one repo and one process, so sharing it means
-sharing an environment — and this service will hold the HubSpot token that can
-email every collector Avant Arte has, plus collector PII, plus a cron send
-worker from phase 3. None of that belongs beside a read-only analytics
-dashboard, the two would restart each other on every deploy, and the SPA would
-need `base`/`basename` surgery because its assets and router both assume the
-root. Two services on one account costs nothing extra in effort.
+Rehearsed clean-room before the service existed: bare checkout, the build
+command, the start command, then a browser driven against it — `/healthz`,
+`/`, `/approvals`, `/permissions` all 200, the app renders, no console errors.
 
-Three things worth knowing before anyone is pointed at the URL:
+**Environments.** Production holds BI and this. An environment in Render is a
+*stage* (Production / Staging), not a *product* — an "Email" environment was
+created first and is the wrong axis; the free plan's two slots should be
+Production and, one day, Staging. Same-service sharing with BI was asked for
+three times and is the wrong call for a different reason: one process, one
+`process.env`, and this service will hold the HubSpot token that can email
+every collector Avant Arte has. Two services in one environment share nothing
+but a folder. The one exception: **env groups** attached to the environment
+apply to every service in it, so the token goes on THIS service, never on a
+group, or BI inherits it.
 
-1. **What deploys today is the prototype on mock data.** `MockDataLayer` is
-   in-memory and reseeds on refresh, so anything a person does there vanishes
-   when they reload. Good for letting Elani click around herself; not a tool
-   anyone can start using.
-2. **`plan: starter`** is set, which is ~$7/mo and always on. `free` works and
-   costs nothing, but Render sleeps it after 15 minutes and the next visitor
-   waits ~50s — change one word if that trade is the right one.
-3. **`region: frankfurt`**, because the collectors are mostly EU and this holds
-   their names, emails and addresses. Phase 2's Postgres wants the same region.
+**Region.** BI is Oregon. The case for Frankfurt — EU collectors' names, emails
+and addresses; phase 2's Postgres beside it — holds, and a service's region is
+fixed at creation. Whichever was chosen, confirm it here before live collector
+data lands; if it is Oregon, that is a decision to revisit at phase 2, not a
+mistake today, because today's data is mocked.
 
-**The HubSpot token is deliberately not in the blueprint.** Nothing deployed
-reads it — `server/index.mjs` serves static files and has no send path — so
-setting it now parks a live credential next to code that cannot use it. It
-arrives with phase 3 as an `sync: false` env var, which Render prompts for and
-stores in the service, never in the repo. When it lands, **only `server/` may
-read it**: this is a Vite app, so anything the client bundle touches ships to
-the browser. Vite exposes only `VITE_`-prefixed vars to the client, which is
-the guardrail — never name it `VITE_HUBSPOT_TOKEN`.
+**What is deployed is the prototype on mock data.** `MockDataLayer` is
+in-memory and reseeds on refresh; anything a person does vanishes on reload.
+Good for letting Elani drive it herself; not a tool anyone can start using.
 
-To prove the pipe before any of that, run `scripts/hubspot-pipe-test.mjs` from
-a laptop with the token in the shell (`--dry-run` first). It needs no install.
+**The HubSpot token is not set.** Nothing deployed reads it — `server/index.mjs`
+serves static files and has no send path. It arrives with phase 3's send
+worker, set on the service (Environment → Environment Variables), and **only
+`server/` may ever read it**: this is a Vite app, anything the client bundle
+touches ships to the browser, and Vite exposes only `VITE_`-prefixed vars to
+the client. Never name it `VITE_HUBSPOT_TOKEN`. Prove the pipe first from a
+laptop with `scripts/hubspot-pipe-test.mjs --dry-run`.
 
 ## Open decisions
 
