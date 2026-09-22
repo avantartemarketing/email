@@ -65,8 +65,8 @@ assertions that counted the old world now state the invariant instead.
 **Tom's structural round is also in:**
 - **All orders** is the release's first tab — one row per PRINT, all fourteen
   warehouse/customer columns, hideable, order number linking into Shopify.
-  ⚠ The Shopify store handle in `ReleaseOrdersTable.tsx` is a **guess**
-  (`avant-arte`); confirm it before anyone relies on those links.
+  The Shopify store handle in `ReleaseOrdersTable.tsx` is `avantarte-prod`,
+  confirmed by Tom on 22 Sep 2026 (it was a guess, `avant-arte`, until then).
 - **All emails** is the second tab, and lists as many on-track slots as the
   release's LONGEST window will send (`onTrackSlotsNeeded`). Subjects render
   with tokens resolved.

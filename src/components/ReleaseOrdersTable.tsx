@@ -39,11 +39,10 @@ import { RescheduleModal } from './RescheduleModal';
  * a field we do not import. The search lands on the order itself when the name
  * is unique, which for an order name it is.
  *
- * ⚠ `STORE` is this admin's Shopify store handle and is a guess — the one
- * value on this screen nobody here can verify. Confirm it before anyone
- * relies on these links.
+ * `STORE` is the Shopify store handle, confirmed by the owner on 22 Sep 2026.
+ * It was a guess (`avant-arte`) until then.
  */
-const STORE = 'avant-arte';
+const STORE = 'avantarte-prod';
 const shopifyUrl = (orderName: string): string =>
   `https://admin.shopify.com/store/${STORE}/orders?query=${encodeURIComponent(orderName)}`;
 
