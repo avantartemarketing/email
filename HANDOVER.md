@@ -951,7 +951,17 @@ Tom administers HubSpot himself. The pipe test
 (`scripts/hubspot-pipe-test.mjs --dry-run`) runs from this cloud environment
 once `api.hubapi.com` is on its allowed domains and the private-app token is
 stored there as `HUBSPOT_TOKEN` (the name the script reads). Scopes: `content`
-+ `transactional-email`. A token is never pasted into a chat.
++ `transactional-email` (the key Tom made also carries `marketing-email` and
+`crm.objects.contacts.read`, which is fine). A token is never pasted into a
+chat. The same token is also set on the Render service — correct place, idle
+until phase 3.
+
+To run it in a fresh session, both must already be set there, then:
+
+    HUBSPOT_TEST_EMAIL=tom.lloyd@avantarte.com node scripts/hubspot-pipe-test.mjs --dry-run
+
+and report which of the four steps passed. Drop `--dry-run` only once the dry
+run is clean; that final step sends one real email to that address.
 
 ## Open decisions
 
