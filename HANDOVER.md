@@ -855,6 +855,11 @@ agents could not see.
   (42)" in one state and "Will send to 42 collectors" in the other; and the
   same orders called "cancelled" in a KPI and "removed" two inches below it.
 
+**The hold tag is unresolved** — Tom is not sure what CS uses (23 Sep). The
+match is currently any tag containing "hold". Settle it at the first REAL
+Shopify export: list every distinct tag in the file and pick, rather than
+asking anyone to remember. Same for the change-tag vocabulary.
+
 **Remaining is slice 5:** the Auto/Review/Info changes worklist (tags vs line items),
 pinned numbers for edition requests, and freezing a number once a collector has been
 told — which waits on Tom's "edition numbers in emails?" answer.
@@ -938,8 +943,15 @@ serves static files and has no send path. It arrives with phase 3's send
 worker, set on the service (Environment → Environment Variables), and **only
 `server/` may ever read it**: this is a Vite app, anything the client bundle
 touches ships to the browser, and Vite exposes only `VITE_`-prefixed vars to
-the client. Never name it `VITE_HUBSPOT_TOKEN`. Prove the pipe first from a
-laptop with `scripts/hubspot-pipe-test.mjs --dry-run`.
+the client. Never name it `VITE_HUBSPOT_TOKEN`.
+
+**Confirmed 23 Sep 2026: the HubSpot account HAS the Transactional Email
+add-on** — the one thing that could have forced a different sending design.
+Tom administers HubSpot himself. The pipe test
+(`scripts/hubspot-pipe-test.mjs --dry-run`) runs from this cloud environment
+once `api.hubapi.com` is on its allowed domains and the private-app token is
+stored there as `HUBSPOT_TOKEN` (the name the script reads). Scopes: `content`
++ `transactional-email`. A token is never pasted into a chat.
 
 ## Open decisions
 
@@ -951,15 +963,20 @@ Put to Tom on the review page and not yet answered:
 3. **Dark mode, ever?** The kit is light-only with no token structure waiting
    for one. Cheaper to decide now than after the second screen.
 
-Still open from earlier rounds: dispatch-window width (7 days), edition numbers
-in emails or not, drafts vs straight-to-queue, whether flags block approval.
+Still open from earlier rounds: dispatch-window width (7 days), drafts vs
+straight-to-queue, whether flags block approval.
+
+**Decided 23 Sep 2026 — edition numbers in collector emails: not at present,
+maybe in future.** The part of slice 5 that hangs off it (pinning a number for
+a collector who asked, freezing it once told) is deferred, not blocked. The
+changes worklist does not depend on it and can go ahead.
 
 ## Then, in order
 
-1. **Prove the HubSpot pipe** — `scripts/hubspot-pipe-test.mjs` needs a
-   private-app token with `content` + `transactional-email` scopes from Tom.
-   The real email confirmed the clone-and-patch mapping; the token is the
-   blocker.
+1. **Prove the HubSpot pipe** — Transactional Email is confirmed on the
+   account (23 Sep); what remains is `api.hubapi.com` on this environment's
+   allowed domains and the token stored as `HUBSPOT_TOKEN`, then the dry run.
+   The real email confirmed the clone-and-patch mapping.
 2. Phase 2 per README: Postgres + magic-link auth + server API behind
    `DataLayer` (`src/data/index.ts` is the swap point; screens unchanged).
 
